@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/fior512/goset/internal/cli"
+	"goset/internal/cli"
+	"goset/internal/runner"
 )
 
 func main() {
@@ -13,6 +14,9 @@ func main() {
 		fmt.Fprintln(os.Stderr, "goset:", err)
 		os.Exit(2)
 	}
-
-	fmt.Printf("%+v\n", cfg)
+	
+	if err := runner.Run(cfg); err != nil {
+		fmt.Fprintln(os.Stderr, "goset:", err)
+		os.Exit(1)
+	}
 }
