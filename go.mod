@@ -1,3 +1,3 @@
-module github.com/fior512/goset
+module goset
 
 go 1.22
