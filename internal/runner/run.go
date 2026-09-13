@@ -17,8 +17,7 @@ func Run(cfg *cli.Config) error {
 		n = 1
 	}
 
-	selection, err := cpu.SelectCPUs(topo, n, cfg.Include, cfg.Exclude,
-		cfg.SamplingMS, cfg.PreferNode)
+	selection, err := cpu.SelectCPUs(topo, n, cfg.Include, cfg.Exclude, cfg.SamplingMS, cfg.PreferNode)
 	if err != nil {
 		return err
 	}
