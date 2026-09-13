@@ -2,14 +2,13 @@ package cpu
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-
-	"goset/internal/utils"
 )
 
-// ListCpus translate user string as mask
+// ParseCPUList translate strings to CPUSet
 func ParseCPUList(list string) (CPUSet, error) {
 	str := strings.TrimSpace(list)
 	if str == "" {
@@ -23,17 +22,17 @@ func ParseCPUList(list string) (CPUSet, error) {
 		}
 
 		if lo, hi, ok := strings.Cut(element, "-"); ok {
-			a, err := strconv.Atoi(strings.TrimSpace(lo))
+			l, err := strconv.Atoi(strings.TrimSpace(lo))
 			if err != nil {
 				return CPUSet{}, err
 			}
-			b, err := strconv.Atoi(strings.TrimSpace(hi))
+			h, err := strconv.Atoi(strings.TrimSpace(hi))
 			if err != nil {
 				return CPUSet{}, err
 			}
 
-			// handle ranges and gremlins
-			for id := min(a, b); id <= max(a, b); id++ {
+			// ranges and gremlins
+			for id := min(l, h); id <= max(l, h); id++ {
 				out.SetBit(id)
 			}
 		} else {
@@ -48,86 +47,80 @@ func ParseCPUList(list string) (CPUSet, error) {
 }
 
 
-// `/sys/devices/system/cpu/`
-// maps use CPUSet.All()
+// Topology follows `/sys/devices/system/cpu/`
 type Topology struct {
-	Online     CPUSet // avaialbe threads
-	Siblings   map[int]CPUSet
-	NumaNode   map[int]int
-	KernalIsol map[int]bool
-	NohzFull   map[int]bool
-
-	HasIsolated bool
-	HasNohzFull bool
+	Online     CPUSet // availabe threads
+	Core       []int  // index: cpu id, value: lowest thread id on that core
+	NumaNode   []int  // index: cpu id
+	KernelIsol CPUSet
+	NohzFull   CPUSet
 }
 
 
 func GetTopology() (*Topology, error) {
-	topo := &Topology{
-		Siblings: map[int]CPUSet{},
-		NumaNode: map[int]int{},
-	}
-
-	// online
-	cpus, err := utils.ReadFileTrim("/sys/devices/system/cpu/online")
+	online, err := readCPUList("/sys/devices/system/cpu/online")
 	if err != nil {
-		return nil, fmt.Errorf("read online cpus: %w", err)
+		return nil, err
 	}
-	if topo.Online, err = ParseCPUList(cpus); err != nil {
-		return nil, fmt.Errorf("parse online cpus: %w", err)
+	size := 0 // highest online cpu id + 1
+	for cpu := range online.All() {
+		size = cpu + 1
+	}
+	topo := &Topology{
+		Online:   online,
+		Core:     make([]int, size),
+		NumaNode: make([]int, size),
 	}
 
-	// siblings & NumaNode
-	for cpu := range topo.Online.All() {
-		folder := fmt.Sprintf("/sys/devices/system/cpu/cpu%d", cpu)
-		if sib, err := utils.ReadFileTrim(folder + "/topology/threads_siblings_list"); err == nil {
-			if siblings, err := ParseCPUList(sib); err == nil {
-				topo.Siblings[cpu] = siblings
-			}
+	///Siblings
+	for cpu := range online.All() {
+		siblings, err := readCPUList(fmt.Sprintf(
+			"/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list",
+			cpu))
+		topo.Core[cpu] = cpu
+		if first := siblings.NextSet(0); err == nil && first >= 0 {
+			topo.Core[cpu] = first
 		}
-
-		if _, ok := topo.Siblings[cpu]; !ok {
-			var tmp CPUSet
-			tmp.SetBit(cpu)
-			topo.Siblings[cpu] = tmp
-		}
-
 		topo.NumaNode[cpu] = -1
-		if entries, err := filepath.Glob(folder + "/node*"); err == nil {
-			for _, e := range entries {
-				name := filepath.Base(e)
-				if n, err := strconv.Atoi(strings.TrimPrefix(name, "node")); err == nil {
-					topo.NumaNode[cpu] = n
-					break
-				}
-			}
+	}
+
+	///NumaNode
+	lists, err := filepath.Glob("/sys/devices/system/node/node*/cpulist")
+	if err != nil {
+		return nil, err
+	}
+	for _, path := range lists {
+		node, err := strconv.Atoi(
+			strings.TrimPrefix(filepath.Base(filepath.Dir(path)), "node"))
+		if err != nil {
+			continue
+		}
+		cpus, err := readCPUList(path)
+		if err != nil {
+			continue
+		}
+		cpus.And(online) // cpulist may hold offline cpus
+		for c := range cpus.All() {
+			topo.NumaNode[c] = node
 		}
 	}
 
-	//Isolated & Nohzfull
-	topo.KernalIsol = readCPUListFile("/sys/devices/system/cpu/isolated")
-	topo.HasIsolated = len(topo.KernalIsol) > 0
-	topo.NohzFull = readCPUListFile("sys/devices/system/cpu/nohz_full")
-	topo.HasNohzFull = len(topo.NohzFull) > 0
-
+	///KernelIsol & NohzFull
+	topo.KernelIsol, _ = readCPUList("/sys/devices/system/cpu/isolated") // absent/null if not used
+	topo.NohzFull, _ = readCPUList("/sys/devices/system/cpu/nohz_full")
 	return topo, nil
 }
 
 
-func readCPUListFile(path string) map[int]bool {
-	m := map[int]bool{}
-	list, err := utils.ReadFileTrim(path)
+// readCPUList wrapper for read+ParseCPUList
+func readCPUList(path string) (CPUSet, error) {
+	text, err := os.ReadFile(path)
 	if err != nil {
-		return m
+		return CPUSet{}, err
 	}
-
-	set, err := ParseCPUList(list)
+	set, err := ParseCPUList(string(text))
 	if err != nil {
-		return m
+		return CPUSet{}, fmt.Errorf("%s: %w", path, err)
 	}
-
-	for c := range set.All() {
-		m[c] = true
-	}
-	return m
+	return set, nil
 }

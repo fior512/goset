@@ -46,7 +46,9 @@ func (cfg *Config) Validate() error {
 	}
 
 	/* Selection Preference */
-	if cfg.Exclude.IsSubset(cfg.Include) {
+	overlap := cfg.Include
+	overlap.And(cfg.Exclude)
+	if overlap.Any() {
 		return fmt.Errorf("include and exclude can't overlap")
 	}
 

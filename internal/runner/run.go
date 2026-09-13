@@ -12,12 +12,9 @@ func Run(cfg *cli.Config) error {
 		return err
 	}
 
-	n := cfg.Cgroup
-	if n < 1 {
-		n = 1
-	}
+	n := max(cfg.Cgroup, 1)
 
-	selection, err := cpu.SelectCPUs(topo, n, cfg.Include, cfg.Exclude, cfg.SamplingMS, cfg.PreferNode)
+	selection, err := cpu.SelectCPUs(topo, n, cfg.Include, cfg.Exclude, cfg.PreferNode)
 	if err != nil {
 		return err
 	}
