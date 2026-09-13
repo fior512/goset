@@ -46,16 +46,14 @@ func (cfg *Config) Validate() error {
 	}
 
 	/* Selection Preference */
-	overlap := cfg.Include
-	overlap.And(cfg.Exclude)
-	if overlap.Any() {
+	if cfg.Exclude.IsSubset(cfg.Include) {
 		return fmt.Errorf("include and exclude can't overlap")
 	}
 
 	
 	/* Telemetry */
-	if cfg.SamplingMS < 0 {
-		return fmt.Errorf("-sampling-ms can't be inferior to 0, 0: desactivate")
+	if cfg.SamplingMS < -1 {
+		return fmt.Errorf("-sampling-ms can't be inferior to -1; -1: desactivated, 0:before/after only")
 	}
 	return nil
 }
