@@ -93,7 +93,6 @@ func (M *CPUSet) AndNot(other CPUSet) {
 }
 
 
-// IsSubset reports whether every bit of M is also set in super.
 func (M *CPUSet) IsSubset(super CPUSet) bool {
 	for i := range M {
 		if M[i]&^super[i] != 0 {
@@ -104,7 +103,6 @@ func (M *CPUSet) IsSubset(super CPUSet) bool {
 }
 
 
-// NextSet gives the first cpu-bit at or after @param from
 func (M *CPUSet) NextSet(from int) int {
 	if from < 0 {
 		from = 0
@@ -139,7 +137,7 @@ func (M *CPUSet) All() iter.Seq[int] {
 }
 
 
-// String renders the set as a comma list, e.g. "2,4-6". Satisfies flag.Value.
+// String auto translate
 func (M *CPUSet) String() string {
 	var parts []string
 	lo, hi := -1, -1
@@ -166,7 +164,6 @@ func (M *CPUSet) String() string {
 }
 
 
-// Set parses a cpu list string into M. Satisfies flag.Value.
 func (M *CPUSet) Set(s string) error {
 	parsed, err := ParseCPUList(s)
 	if err != nil {
@@ -175,4 +172,3 @@ func (M *CPUSet) Set(s string) error {
 	*M = parsed
 	return nil
 }
-
