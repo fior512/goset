@@ -1,3 +1,3 @@
 module goset
 
-go 1.22
+go 1.23

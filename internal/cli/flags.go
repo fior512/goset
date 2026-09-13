@@ -3,19 +3,30 @@ package cli
 import (
 	"flag"
 	"fmt"
+	"goset/internal/cpu"
+	"os"
 )
 
 type Config struct {
 	/* Target settings */
-	Cmd []string // argv after the "--" separator
+	Cmd []string // after "--"
 
 	/* Thread selection */
-	ManualPin   int  // user pin to thread N
-	SetAffinity bool // (sudo) smp_affinity_list
-	Cgroup      int  // (sudo) multithread / container
+	SetAffinity bool // (root) smp_affinity_list
+	Cgroup      int  // (root) thread amount
 
-	/* rights */
-	Sudo bool
+	/* Selection Preference */
+	Include    cpu.CPUSet // subset of threads
+	Exclude    cpu.CPUSet // subset of threads
+	PreferNode bool       // Numa node
+
+	/* Telemetry */
+	SamplingMS int // time window for telemetry
+}
+
+
+func isSudo() bool {
+	return os.Geteuid() == 0
 }
 
 
@@ -23,24 +34,42 @@ func (cfg *Config) Validate() error {
 	if len(cfg.Cmd) == 0 {
 		return fmt.Errorf("-pin requires a target after --")
 	}
-	if cfg.SetAffinity && !cfg.Sudo {
-		return fmt.Errorf("-set-affinity needs --sudo ")
+	/* Threads Selection */
+	if cfg.SetAffinity && !isSudo() {
+		return fmt.Errorf("-set-affinity needs root")
 	}
-	if cfg.Cgroup > 0 && !cfg.Sudo {
-		return fmt.Errorf("-cgroup requires --sudo")
+	if cfg.Cgroup > 0 && !isSudo() {
+		return fmt.Errorf("-cgroup requires root")
+	}
+	if cfg.Cgroup < 0 {
+		return fmt.Errorf("-cgroup can't be negative")
 	}
 
+	/* Selection Preference */
+	overlap := cfg.Include
+	overlap.And(cfg.Exclude)
+	if overlap.Any() {
+		return fmt.Errorf("include and exclude can't overlap")
+	}
+
+	
+	/* Telemetry */
+	if cfg.SamplingMS < 0 {
+		return fmt.Errorf("-sampling-ms can't be inferior to 0, 0: desactivate")
+	}
 	return nil
 }
 
 
 // Register binds flags with struct items
-func Register(fs *flag.FlagSet) *Config {
+func Register(fs *flag.FlagSet) *Config { 
 	cfg := &Config{}
-	fs.IntVar(&cfg.ManualPin, "pin", -1, "bypass autoselection of threads")
 	fs.BoolVar(&cfg.SetAffinity, "set-affinity", false, "set smp_affinity_list (sudo)")
 	fs.IntVar(&cfg.Cgroup, "cgroup", 0, "number of threads for cgroup containerization (sudo)")
-	fs.BoolVar(&cfg.Sudo, "sudo", false, "run the privileged protocol")
+	fs.Var(&cfg.Include, "include", "cpu list to force into the benchmark set, e.g. 2,4-6")
+	fs.Var(&cfg.Exclude, "exclude", "cpu list to exclude from selection")
+	fs.BoolVar(&cfg.PreferNode, "prefer-node", true, "constrain benchmark cpus to one NUMA node when possible")
+	fs.IntVar(&cfg.SamplingMS, "sampling-ms", 1000, "interrupt sampling window for cpu ranking, ms")
 	return cfg
 }
 
@@ -48,6 +77,7 @@ func Register(fs *flag.FlagSet) *Config {
 func (cfg *Config) SetCmd(args []string) {
 	cfg.Cmd = args
 }
+
 
 func Parse(args []string) (*Config, error) {
 	fs := flag.NewFlagSet("goset", flag.ContinueOnError)
