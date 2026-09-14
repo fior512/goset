@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"fmt"
 	"goset/internal/cli"
 	"goset/internal/cpu"
 	"goset/internal/isolation"
@@ -18,6 +19,13 @@ func Run(cfg *cli.Config) error {
 	if err != nil {
 		return err
 	}
+	fmt.Printf("%d threads got selected \n", selection.Benchmark.Count())
+	fmt.Printf("Which are: ")
+	for cpu := range selection.Benchmark.All() {
+		fmt.Printf("%d, ", cpu)
+	}
+	fmt.Printf("HouseKeeper is %d \n", selection.HouseKeeper)
+
 
 	return isolation.ApplyPin(cfg.Cmd, selection.Benchmark)
 }

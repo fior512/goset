@@ -10,11 +10,11 @@ import (
 )
 
 func ApplyPin(argv []string, cpus cpu.CPUSet) error {
-	cmd := exec.Command(argv[0], argv[1:]...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.SysProcAttr = &syscall.SysProcAttr{}
+	task := exec.Command(argv[0], argv[1:]...)
+	task.Stdin = os.Stdin
+	task.Stdout = os.Stdout
+	task.Stderr = os.Stderr
+	task.SysProcAttr = &syscall.SysProcAttr{}
 
 	type result struct {
 		err error
@@ -24,13 +24,13 @@ func ApplyPin(argv []string, cpus cpu.CPUSet) error {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 
-		prevCpus, gerr := cpu.GetAffinity(0) // affinity caller thread
+		prevCpus, gerr := cpu.GetAffinity(0) // goset affinity
 		if err := cpu.SetAffinity(0, cpus); err != nil {
 			done <- result{fmt.Errorf("set thread affinity: %w", err)}
 			return
 		}
 
-		err := cmd.Start() // run bash
+		err := task.Start() // run bash
 
 		if gerr == nil {
 			_ = cpu.SetAffinity(0, prevCpus)

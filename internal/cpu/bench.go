@@ -3,6 +3,7 @@ package cpu
 import (
 	"cmp"
 	"slices"
+	"time"
 
 	"goset/internal/telemetry"
 )
@@ -12,10 +13,61 @@ type CPUScore struct {
 	Included     uint8  // 0|1
 	Steerable    uint64 // numbered rows
 	NonSteerable uint64 // named rows: LOC, RES, CAL, TLB
-	SiblingLoad  uint64 // IRQs of the SMT siblings
-	Node         int
+	SiblingLoad  uint64 // IRQs of the SMT siblings, self excluded
+	Node         int    // numa
 	KernelIsol   bool
 	NohzFull     bool
+	RcuNocb      bool
+}
+
+//TODO: find a sweet place to hold it
+func Ternary[T any](condition bool, trueVal, falseVal T) T {
+	if condition {
+		return trueVal
+	}
+	return falseVal
+}
+
+
+func sampleIRQDelta(interval time.Duration) ([]telemetry.IRQCount, error) {
+	before, err := telemetry.ReadIRQCounts()
+	if err != nil {
+		return nil, err
+	}
+	time.Sleep(interval)
+	after, err := telemetry.ReadIRQCounts()
+	if err != nil {
+		return nil, err
+	}
+
+	delta := make([]telemetry.IRQCount, len(after))
+	for i := range after {
+		var b telemetry.IRQCount
+		if i < len(before) {
+			b = before[i]
+		}
+		delta[i] = telemetry.IRQCount{
+			Steerable:    after[i].Steerable - b.Steerable,
+			NonSteerable: after[i].NonSteerable - b.NonSteerable,
+		}
+	}
+	return delta, nil
+}
+
+
+func siblingLoads(topo *Topology, delta []telemetry.IRQCount) map[int]uint64 {
+	coreTotal := make(map[int]uint64, len(topo.Core))
+	for cpu := range topo.Online.All() {
+		irq := Ternary(cpu < len(delta), delta[cpu], telemetry.IRQCount{})
+		coreTotal[topo.Core[cpu]] += irq.Steerable + irq.NonSteerable
+	}
+
+	sibling := make(map[int]uint64, len(topo.Core))
+	for cpu := range topo.Online.All() {
+		own := Ternary(cpu < len(delta), delta[cpu], telemetry.IRQCount{})
+		sibling[cpu] = coreTotal[topo.Core[cpu]] - (own.Steerable + own.NonSteerable)
+	}
+	return sibling
 }
 
 
@@ -42,51 +94,40 @@ func rankCPUs(topo *Topology, candidates, include CPUSet) ([]CPUScore, error) {
 		//				so we pick include while still lowering IRQ (and other topo aspects)
 	*/
 
-	irqs, err := telemetry.ReadIRQCounts()
+	delta, err := sampleIRQDelta(100 * time.Millisecond)
 	if err != nil {
 		return nil, err
 	}
+	sibling := siblingLoads(topo, delta)
 
-	irqOf := func(cpu int) telemetry.IRQCount {
-		if cpu < len(irqs) {
-			return irqs[cpu]
-		}
-		return telemetry.IRQCount{}
-	}
-
+	//saving
 	out := make([]CPUScore, 0, candidates.Count())
-	for cand := range candidates.All() {
-		var siblingLoad uint64
-		for sib := range topo.Online.All() {
-			if sib != cand && topo.Core[sib] == topo.Core[cand] {
-				sibIRQ := irqOf(sib)
-				siblingLoad += sibIRQ.Steerable + sibIRQ.NonSteerable
-			}
-		}
-		irq := irqOf(cand)
+	for cpu := range candidates.All() {
+		irq := Ternary(cpu < len(delta), delta[cpu], telemetry.IRQCount{})
 		score := CPUScore{
-			CPU:          cand,
+			CPU:          cpu,
 			Steerable:    irq.Steerable,
 			NonSteerable: irq.NonSteerable,
-			SiblingLoad:  siblingLoad,
-			Node:         topo.NumaNode[cand],
-			KernelIsol:   topo.KernelIsol.GetBit(cand),
-			NohzFull:     topo.NohzFull.GetBit(cand),
+			SiblingLoad:  sibling[cpu],
+			Node:         topo.NumaNode[cpu],
+			KernelIsol:   topo.KernelIsol.GetBit(cpu),
+			NohzFull:     topo.NohzFull.GetBit(cpu),
+			RcuNocb:      topo.RcuNocb.GetBit(cpu),
 		}
-		if include.GetBit(cand) {
+		if include.GetBit(cpu) {
 			score.Included = 1
 		}
 		out = append(out, score)
 	}
 
-	// sort
-	slices.SortStableFunc(out, func(a, b CPUScore) int { // IRQ
-		return cmp.Compare(
-			a.Steerable+a.NonSteerable+a.SiblingLoad,
-			b.Steerable+b.NonSteerable+b.SiblingLoad)
-	})
-	slices.SortStableFunc(out, func(a, b CPUScore) int { // include
-		return cmp.Compare(b.Included, a.Included) // a: false, //b:true
+	//sorting
+	slices.SortStableFunc(out, func(a, b CPUScore) int {
+		return cmp.Or(
+			cmp.Compare(b.Included, a.Included), // desc
+			cmp.Compare(a.NonSteerable, b.NonSteerable),
+			cmp.Compare(a.SiblingLoad, b.SiblingLoad),
+			cmp.Compare(a.Steerable, b.Steerable),
+		)
 	})
 	return out, nil
 }
