@@ -50,10 +50,11 @@ func ParseCPUList(list string) (CPUSet, error) {
 // Topology follows `/sys/devices/system/cpu/`
 type Topology struct {
 	Online     CPUSet // availabe threads
-	Core       []int  // index: cpu id, value: lowest thread id on that core
+	Core       []int  // index: cpu id
 	NumaNode   []int  // index: cpu id
 	KernelIsol CPUSet
 	NohzFull   CPUSet
+	RcuNocb    CPUSet
 }
 
 
@@ -108,7 +109,26 @@ func GetTopology() (*Topology, error) {
 	///KernelIsol & NohzFull
 	topo.KernelIsol, _ = readCPUList("/sys/devices/system/cpu/isolated") // absent/null if not used
 	topo.NohzFull, _ = readCPUList("/sys/devices/system/cpu/nohz_full")
+
+	///RcuNocb
+	topo.RcuNocb, _ = readCmdlineCPUList("rcu_nocbs") // absent if not used
 	return topo, nil
+}
+
+
+// readCmdlineCPUList extracts a "<param>=<cpulist>" token from /proc/cmdline
+func readCmdlineCPUList(param string) (CPUSet, error) {
+	text, err := os.ReadFile("/proc/cmdline")
+	if err != nil {
+		return CPUSet{}, err
+	}
+	prefix := param + "="
+	for _, field := range strings.Fields(string(text)) {
+		if list, ok := strings.CutPrefix(field, prefix); ok {
+			return ParseCPUList(list)
+		}
+	}
+	return CPUSet{}, nil // param absent
 }
 
 
