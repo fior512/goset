@@ -13,6 +13,49 @@ type IRQCount struct {
 }
 
 
+type IRQSource struct {
+	cpus  []int
+	start []IRQCount
+	end   []IRQCount
+	err   error
+}
+
+
+func IRQ() Source { return &IRQSource{} }
+
+func (s *IRQSource) Baseline(t Target) error {
+	s.cpus = t.BenchCPUs
+	var err error
+	s.start, err = ReadIRQCounts()
+	return err
+}
+
+func (s *IRQSource) Poll() error { return nil }
+
+func (s *IRQSource) Stop() error {
+	s.end, s.err = ReadIRQCounts()
+	return s.err
+}
+
+
+func (s *IRQSource) Summary() string {
+	if s.err != nil {
+		return fmt.Sprintf("irq: unavailable (%v)", s.err)
+	}
+	var b strings.Builder
+	b.WriteString("irq:")
+	for _, c := range s.cpus {
+		if c >= len(s.start) || c >= len(s.end) {
+			continue
+		}
+		fmt.Fprintf(&b, " cpu%d steer=%d nonsteer=%d", c,
+			s.end[c].Steerable-s.start[c].Steerable,
+			s.end[c].NonSteerable-s.start[c].NonSteerable)
+	}
+	return b.String()
+}
+
+
 func ReadIRQCounts() ([]IRQCount, error) {
 	// harvest
 	text, err := os.ReadFile("/proc/interrupts")
@@ -37,7 +80,7 @@ func ReadIRQCounts() ([]IRQCount, error) {
 		return nil, fmt.Errorf("/proc/interrupts: no cpu columns")
 	}
 
-	//sums each cpu columns
+	// sums each cpu columns
 	counts := make([]IRQCount, size) // index: cpu id
 	for _, line := range lines[1:] {
 		fields := strings.Fields(line)

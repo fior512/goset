@@ -1,11 +1,13 @@
 package runner
 
 import (
-	"fmt"
+	"os"
+	"time"
 
 	"goset/internal/cli"
 	"goset/internal/cpu"
 	"goset/internal/isolation"
+	"goset/internal/telemetry"
 )
 
 func Run(cfg *cli.Config) error {
@@ -13,31 +15,38 @@ func Run(cfg *cli.Config) error {
 	if err != nil {
 		return err
 	}
-
 	n := max(cfg.Cgroup, 1)
 
+	// Selection
 	selection, err := cpu.SelectCPUs(topo, n, cfg.Include, cfg.Exclude, cfg.NumaNode)
 	if err != nil {
 		return err
 	}
 
-	//TODO: Replace with telemetry and report sys
-	fmt.Printf("%d threads got selected \n", selection.Benchmark.Count())
-	fmt.Printf("Which are: ")
-	for cpu := range selection.Benchmark.All() {
-		fmt.Printf("%d, ", cpu)
-	}
-	fmt.Printf("HouseKeeper is %d \n", selection.HouseKeeper)
-
-
-	
+	// Cgroup
+	// TODO: define if cgroup with single thread is worth
 	var group *isolation.Cgroup
-	if n > 1 { //TODO: ducktape check
-		var err error	
-		group, err = isolation.InitCgroup(cfg.Task[0], selection.Benchmark, -1) //TODO: handle NumaNode
+	if n > 1 { // TODO: ducktape check
+		var err error
+		group, err = isolation.InitCgroup(cfg.Task[0], selection.Benchmark, -1) // TODO: handle NumaNode
 		if err != nil {
 			return err
 		}
 	}
-	return isolation.ApplyPin(cfg.Task, selection.Benchmark, group)
+
+	// Telemetry
+	//TODO: InitCgroup and ApplyPin use selection._thing_
+	//TODO: choose one api
+	sampler, err := startTelemetry(selection, cfg) 
+	if err != nil {
+		return err
+	}
+
+	started := time.Now()
+	runErr := isolation.ApplyPin(cfg.Task, selection.Benchmark, group) //TODO: extract Task.start()
+	wall := time.Since(started)
+
+	metrics := sampler.Stop()
+	telemetry.Print(os.Stdout, telemetry.NewReport(wall, metrics))
+	return runErr
 }
