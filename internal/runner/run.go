@@ -33,8 +33,8 @@ func Run(cfg *cli.Config) error {
 	
 	var group *isolation.Cgroup
 	if n > 1 { //TODO: ducktape check
-		var err error
-		group, err = isolation.InitCgroup(cfg.Task[0], selection.Benchmark, cfg.NumaNode)
+		var err error	
+		group, err = isolation.InitCgroup(cfg.Task[0], selection.Benchmark, -1) //TODO: handle NumaNode
 		if err != nil {
 			return err
 		}

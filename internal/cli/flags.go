@@ -72,7 +72,7 @@ func Register(fs *flag.FlagSet) *Config {
 	fs.Var(&cfg.Include, "include", "cpu list to force into the benchmark set, e.g. 2,4-6")
 	fs.Var(&cfg.Exclude, "exclude", "cpu list to exclude from selection")
 	fs.IntVar(&cfg.NumaNode, "numa-node", -2, "constrain benchmark cpus to one NUMA node when possible")
-	fs.IntVar(&cfg.SamplingMS, "sampling-ms", 1000, "interrupt sampling window for cpu ranking, ms")
+	fs.IntVar(&cfg.SamplingMS, "sampling-ms", 1000, "interrupt sampling window for the housekeeper telemetry loop, ms (not used by cpu ranking)")
 	return cfg
 }
 

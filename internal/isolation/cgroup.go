@@ -62,7 +62,7 @@ func InitCgroup(name string, cpus cpu.CPUSet, memNode int) (*Cgroup, error) {
 	}
 
 	// Create the group directory
-	path := filepath.Join("/sys/fs/cgroup", name)
+	path := filepath.Join("/sys/fs/cgroup", filepath.Base(name))
 	if err := os.Mkdir(path, 0o755); err != nil && !os.IsExist(err) {
 		return nil, fmt.Errorf("mkdir %s: %w", path, err)
 	}
@@ -81,11 +81,16 @@ func InitCgroup(name string, cpus cpu.CPUSet, memNode int) (*Cgroup, error) {
 	_ = os.WriteFile(filepath.Join(path, "cpuset.cpus.exclusive"), []byte(list), 0o644)
 
 	// Try isolated, fall back to root
-	if err := os.WriteFile(filepath.Join(path, "cpuset.cpus.partition"), []byte("isolated"), 0o644); err != nil {
-		_ = os.WriteFile(filepath.Join(path, "cpuset.cpus.partition"), []byte("root"), 0o644)
+	partitionPath := filepath.Join(path, "cpuset.cpus.partition")
+	if err := os.WriteFile(partitionPath, []byte("isolated"), 0o644); err != nil {
+		_ = os.WriteFile(partitionPath, []byte("root"), 0o644)
 	}
-	if v, err := readFileTrim(filepath.Join(path, "cpuset.cpus.partition")); err == nil {
+	if v, err := readFileTrim(partitionPath); err == nil {
 		group.Partition = v
+		if strings.Contains(v, "invalid") {
+			group.Destroy()
+			return nil, fmt.Errorf("cpuset.cpus.partition: kernel reports %q", v)
+		}
 	}
 
 	file, err := os.Open(path)

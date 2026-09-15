@@ -40,7 +40,7 @@ func ApplyPin(argv []string, cpus cpu.CPUSet, group *Cgroup) error {
 				return
 			}
 		}
-		err := task.Start() // run bash
+		err := task.Run() // start and wait for the task to exit
 
 		if group == nil && gerr == nil {
 			_ = cpu.SetAffinity(0, prevCPUs)

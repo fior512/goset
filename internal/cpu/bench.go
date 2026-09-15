@@ -20,15 +20,6 @@ type CPUScore struct {
 	RcuNocb      bool
 }
 
-//TODO: find a sweet place to hold it
-func Ternary[T any](condition bool, trueVal, falseVal T) T {
-	if condition {
-		return trueVal
-	}
-	return falseVal
-}
-
-
 func sampleIRQDelta(interval time.Duration) ([]telemetry.IRQCount, error) {
 	before, err := telemetry.ReadIRQCounts()
 	if err != nil {
@@ -55,16 +46,23 @@ func sampleIRQDelta(interval time.Duration) ([]telemetry.IRQCount, error) {
 }
 
 
+func deltaAt(delta []telemetry.IRQCount, cpu int) telemetry.IRQCount {
+	if cpu < 0 || cpu >= len(delta) {
+		return telemetry.IRQCount{}
+	}
+	return delta[cpu]
+}
+
 func siblingLoads(topo *Topology, delta []telemetry.IRQCount) map[int]uint64 {
 	coreTotal := make(map[int]uint64, len(topo.Core))
 	for cpu := range topo.Online.All() {
-		irq := Ternary(cpu < len(delta), delta[cpu], telemetry.IRQCount{})
+		irq := deltaAt(delta, cpu)
 		coreTotal[topo.Core[cpu]] += irq.Steerable + irq.NonSteerable
 	}
 
 	sibling := make(map[int]uint64, len(topo.Core))
 	for cpu := range topo.Online.All() {
-		own := Ternary(cpu < len(delta), delta[cpu], telemetry.IRQCount{})
+		own := deltaAt(delta, cpu)
 		sibling[cpu] = coreTotal[topo.Core[cpu]] - (own.Steerable + own.NonSteerable)
 	}
 	return sibling
@@ -84,9 +82,10 @@ func rankCPUs(topo *Topology, candidates, include CPUSet) ([]CPUScore, error) {
 			{4, 0, 3},
 			{6, 0, 10}
 		}
-
-		in order to have no if, just one loop (handles all incl sizes: incl > N && incl == N && incl < N )
-		for id := range N { } // done in SelectCPUs
+		Then pick the top N element.
+		It imply include[] size invariance logic
+		
+		
 
 		//Rules:
 		//  1) Include on top, and create a "cluster"
@@ -103,7 +102,7 @@ func rankCPUs(topo *Topology, candidates, include CPUSet) ([]CPUScore, error) {
 	//saving
 	out := make([]CPUScore, 0, candidates.Count())
 	for cpu := range candidates.All() {
-		irq := Ternary(cpu < len(delta), delta[cpu], telemetry.IRQCount{})
+		irq := deltaAt(delta, cpu)
 		score := CPUScore{
 			CPU:          cpu,
 			Steerable:    irq.Steerable,
