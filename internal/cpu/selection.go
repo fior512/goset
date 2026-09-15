@@ -12,7 +12,8 @@ type SelectionResult struct {
 }
 
 
-func SelectCPUs(topo *Topology, n int, include CPUSet, exclude CPUSet, preferNode bool) (*SelectionResult, error) {
+func SelectCPUs(topo *Topology, n int, include CPUSet, exclude CPUSet, NumaNode int) (*SelectionResult, error) {
+	//TODO: impl NumaNode
 	candidates := topo.Online
 
 	// incl&excl overlap check by run()

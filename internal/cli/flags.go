@@ -10,23 +10,20 @@ import (
 
 type Config struct {
 	/* Target settings */
-	task []string // after "--"
+	Task []string // after "--"
 
 	/* Thread selection */
 	SetAffinity bool // (root) smp_affinity_list
 	Cgroup      int  // (root if >1) thread amount
 
 	/* Selection Preference */
-	Include    cpu.CPUSet // subset of threads
-	Exclude    cpu.CPUSet // subset of threads
-	PreferNode bool       // Numa node
+	Include  cpu.CPUSet // subset of threads
+	Exclude  cpu.CPUSet // subset of threads
+	NumaNode int        // Numa node
 
 	/* Telemetry */
-	SamplingMS int // telemetry window for housekeeper
-	// not use to evaluate threads
+	SamplingMS int // telemetry window for housekeeper (Not rankCPUs())
 }
-
-//TODO: cgroupv2 with single thread ? -> new var N
 
 
 func isSudo() bool {
@@ -35,7 +32,7 @@ func isSudo() bool {
 
 
 func (cfg *Config) Validate() error {
-	if len(cfg.task) == 0 {
+	if len(cfg.Task) == 0 {
 		return fmt.Errorf("-pin requires a target after --")
 	}
 	/* Threads Selection */
@@ -55,6 +52,9 @@ func (cfg *Config) Validate() error {
 	if overlap.Any() {
 		return fmt.Errorf("include and exclude can't overlap")
 	}
+	if cfg.NumaNode < -2 {
+		return fmt.Errorf("-numa-node can be -2:off(default), -1:Auto, 0..:node idx")
+	}
 
 	/* Telemetry */
 	if cfg.SamplingMS < -1 {
@@ -71,7 +71,7 @@ func Register(fs *flag.FlagSet) *Config {
 	fs.IntVar(&cfg.Cgroup, "cgroup", 1, "number of threads for cgroup containerization (sudo)")
 	fs.Var(&cfg.Include, "include", "cpu list to force into the benchmark set, e.g. 2,4-6")
 	fs.Var(&cfg.Exclude, "exclude", "cpu list to exclude from selection")
-	fs.BoolVar(&cfg.PreferNode, "prefer-node", true, "constrain benchmark cpus to one NUMA node when possible")
+	fs.IntVar(&cfg.NumaNode, "numa-node", -2, "constrain benchmark cpus to one NUMA node when possible")
 	fs.IntVar(&cfg.SamplingMS, "sampling-ms", 1000, "interrupt sampling window for cpu ranking, ms")
 	return cfg
 }
@@ -83,7 +83,7 @@ func Parse(args []string) (*Config, error) {
 	if err := fs.Parse(args); err != nil {
 		return nil, err
 	}
-	cfg.task = fs.Args() // task binary argument
+	cfg.Task = fs.Args() // task binary argument
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
