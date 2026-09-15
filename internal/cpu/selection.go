@@ -13,13 +13,15 @@ type SelectionResult struct {
 
 
 func SelectCPUs(topo *Topology, n int, include CPUSet, exclude CPUSet, NumaNode int) (*SelectionResult, error) {
-	//TODO: impl NumaNode
+	// TODO: impl NumaNode
 	candidates := topo.Online
 
 	// incl&excl overlap check by run()
 	candidates.AndNot(exclude)    // exclude
 	if candidates.Count() < n+1 { // +housekeeper
-		return nil, fmt.Errorf("include/exclude are to strict")
+		return nil, fmt.Errorf(
+			"need %d cpu(s) plus 1 housekeeper but only %d candidate(s) remain",
+			n, candidates.Count())
 	}
 	if !include.IsSubset(candidates) {
 		return nil, fmt.Errorf("include %s: offline or excluded cpu",

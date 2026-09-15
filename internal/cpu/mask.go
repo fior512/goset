@@ -28,6 +28,11 @@ func (M *CPUSet) apply(lo, hi int, op maskOp) {
 	if lo > hi {
 		lo, hi = hi, lo
 	}
+	if hi < 0 || lo >= CPUSetBits {
+		return // fully out of range: no-op
+	}
+	lo = max(lo, 0)
+	hi = min(hi, CPUSetBits-1)
 	loW, hiW := lo>>6, hi>>6
 	mask := ^uint64(0) << uint(lo&63)
 	for w := loW; w <= hiW; w++ {
@@ -56,6 +61,9 @@ func (M *CPUSet) ClearRange(lo, hi int) { M.apply(lo, hi, opClear) }
 func (M *CPUSet) InvRange(lo, hi int)   { M.apply(lo, hi, opInv) }
 
 func (M *CPUSet) GetBit(cpu int) bool {
+	if cpu < 0 || cpu >= CPUSetBits { //GetBit is not inside apply
+		return false
+	}
 	return M[cpu>>6]&(1<<uint(cpu&63)) != 0
 }
 
