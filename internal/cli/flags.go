@@ -10,12 +10,13 @@ import (
 
 type Config struct {
 	/* Target settings */
-	Task []string // after "--"
+	Task     []string // after "--"
+	RmCgroup string   // name of a leaked cgroup to remove
 
 	/* Thread selection */
 	NThreads int
 	Steering bool // (root) smp_affinity_list
-	Cgroup      bool  // (root if >1) thread amount
+	Cgroup   bool // (root if >1) thread amount
 
 	/* Selection Preference */
 	Include  cpu.CPUSet // subset of threads
@@ -33,9 +34,6 @@ func isSudo() bool {
 
 
 func (cfg *Config) Validate() error {
-	if len(cfg.Task) == 0 {
-		return fmt.Errorf("-pin requires a target after --")
-	}
 	/* Threads Selection */
 	if cfg.NThreads < 1 {
 		return fmt.Errorf("-n define how many threads to book, it can't be negative.\n  Recommended to use -cgroup for n>1")
@@ -75,6 +73,7 @@ func Register(fs *flag.FlagSet) *Config {
 	fs.Var(&cfg.Exclude, "exclude", "cpu list to exclude from selection")
 	fs.IntVar(&cfg.NumaNode, "numa-node", -2, "constrain benchmark cpus to one NUMA node when possible")
 	fs.IntVar(&cfg.SamplingMS, "sampling-ms", 1000, "interrupt sampling window for the housekeeper telemetry loop, ms (not used by cpu ranking)")
+	fs.StringVar(&cfg.RmCgroup, "rm-cgroup", "", "remove a leaked goset cgroup by name (see diagnose Cgroups table)")
 	return cfg
 }
 

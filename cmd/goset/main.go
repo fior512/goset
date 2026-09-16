@@ -7,6 +7,7 @@ import (
 	"os/exec"
 
 	"goset/internal/cli"
+	"goset/internal/isolation"
 	"goset/internal/runner"
 )
 
@@ -17,7 +18,15 @@ func main() {
 		os.Exit(2)
 	}
 
-	if err := runner.Run(cfg); err != nil {
+	switch {
+	case cfg.RmCgroup != "":
+		err = isolation.RemoveCgroup(cfg.RmCgroup)
+	case len(cfg.Task) == 0:
+		err = runner.Diagnose(cfg)
+	default:
+		err = runner.Run(cfg)
+	}
+	if err != nil {
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
 			os.Exit(exitErr.ExitCode())
