@@ -1,12 +1,5 @@
 package isolation
 
-/*
-Process:
-check v2, enable cpuset, mkdir, write cpuset.cpus,
-set partition mode (isolated, else root fallback), open dir FD.
-Destroy() restores "member" mode and removes the dir
-*/
-
 import (
 	"fmt"
 	"os"
@@ -103,6 +96,46 @@ func InitCgroup(name string, cpus cpu.CPUSet, memNode int) (*Cgroup, error) {
 }
 
 
+// Diagnosis path
+type CgroupInfo struct {
+	Name      string
+	Cpus      string
+	Mems      string
+	Partition string
+	Procs     int
+	Stat      map[string]uint64
+}
+
+
+func ListCgroups() ([]CgroupInfo, error) {
+	entries, err := os.ReadDir("/sys/fs/cgroup")
+	if err != nil {
+		return nil, err
+	}
+	var out []CgroupInfo
+	for _, entry := range entries {
+		if !entry.IsDir() || !strings.HasPrefix(entry.Name(), "goset-") {
+			continue
+		}
+		path := filepath.Join("/sys/fs/cgroup", entry.Name())
+		cpus, _ := readFileTrim(filepath.Join(path, "cpuset.cpus"))
+		mems, _ := readFileTrim(filepath.Join(path, "cpuset.mems"))
+		partition, _ := readFileTrim(filepath.Join(path, "cpuset.cpus.partition"))
+		procs, _ := readFileTrim(filepath.Join(path, "cgroup.procs"))
+		group := &Cgroup{Path: path}
+		out = append(out, CgroupInfo{
+			Name:      entry.Name(),
+			Cpus:      cpus,
+			Mems:      mems,
+			Partition: partition,
+			Procs:     len(strings.Fields(procs)),
+			Stat:      group.CPUStat(),
+		})
+	}
+	return out, nil
+}
+
+
 func (group *Cgroup) FD() int {
 	if group == nil || group.File == nil {
 		return -1
@@ -133,16 +166,26 @@ func (group *Cgroup) CPUStat() map[string]uint64 {
 }
 
 
-func (group *Cgroup) Destroy() {
+func (group *Cgroup) Destroy() error {
 	if group == nil {
-		return
+		return nil
 	}
 	if group.File != nil {
 		group.File.Close()
 		group.File = nil
 	}
 	if group.Partition != "" && group.Partition != "member" { // Restore to member before removal
-		_ = os.WriteFile(filepath.Join(group.Path, "cpuset.cpus.partition"), []byte("member"), 0o644)
+		if err := os.WriteFile(filepath.Join(group.Path, "cpuset.cpus.partition"), []byte("member"), 0o644); err != nil {
+			return fmt.Errorf("restore %s to member: %w", group.Path, err)
+		}
 	}
-	_ = os.Remove(group.Path)
+	return os.Remove(group.Path)
+}
+
+
+func RemoveCgroup(name string) error {
+	path := filepath.Join("/sys/fs/cgroup", filepath.Base(name))
+	partition, _ := readFileTrim(filepath.Join(path, "cpuset.cpus.partition"))
+	group := &Cgroup{Path: path, Name: name, Partition: partition}
+	return group.Destroy()
 }

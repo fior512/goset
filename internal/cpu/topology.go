@@ -55,6 +55,22 @@ type Topology struct {
 	KernelIsol CPUSet
 	NohzFull   CPUSet
 	RcuNocb    CPUSet
+
+	Driver   []string // index: cpu id, cpufreq/scaling_driver
+	Governor []string // index: cpu id, cpufreq/scaling_governor
+	EPP      []string // index: cpu id, cpufreq/energy_performance_preference
+	MinFreq  []int    // index: cpu id, cpufreq/scaling_min_freq, kHz
+	MaxFreq  []int    // index: cpu id, cpufreq/scaling_max_freq, kHz
+}
+
+
+// readFileTrim reads a file and trims surrounding whitespace.
+func readFileTrim(path string) (string, error) {
+	text, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(text)), nil
 }
 
 
@@ -71,6 +87,11 @@ func GetTopology() (*Topology, error) {
 		Online:   online,
 		Core:     make([]int, size),
 		NumaNode: make([]int, size),
+		Driver:   make([]string, size),
+		Governor: make([]string, size),
+		EPP:      make([]string, size),
+		MinFreq:  make([]int, size),
+		MaxFreq:  make([]int, size),
 	}
 
 	///Siblings
@@ -83,6 +104,20 @@ func GetTopology() (*Topology, error) {
 			topo.Core[cpu] = first
 		}
 		topo.NumaNode[cpu] = -1
+	}
+
+	///Cpufreq
+	for cpu := range online.All() {
+		base := fmt.Sprintf("/sys/devices/system/cpu/cpu%d/cpufreq", cpu)
+		topo.Driver[cpu], _ = readFileTrim(filepath.Join(base, "scaling_driver"))
+		topo.Governor[cpu], _ = readFileTrim(filepath.Join(base, "scaling_governor"))
+		topo.EPP[cpu], _ = readFileTrim(filepath.Join(base, "energy_performance_preference"))
+		if text, err := readFileTrim(filepath.Join(base, "scaling_min_freq")); err == nil {
+			topo.MinFreq[cpu], _ = strconv.Atoi(text)
+		}
+		if text, err := readFileTrim(filepath.Join(base, "scaling_max_freq")); err == nil {
+			topo.MaxFreq[cpu], _ = strconv.Atoi(text)
+		}
 	}
 
 	///NumaNode
