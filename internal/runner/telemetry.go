@@ -7,6 +7,7 @@ import (
 
 	"goset/internal/cli"
 	"goset/internal/cpu"
+	"goset/internal/isolation"
 	"goset/internal/report"
 	"goset/internal/telemetry"
 )
@@ -15,7 +16,7 @@ import (
 	Policy: No IPI
 */
 
-func startTelemetry(selection *cpu.SelectionResult, cfg *cli.Config) (func(time.Duration, error), error) {
+func startTelemetry(selection *cpu.SelectionResult, cfg *cli.Config) (func(time.Duration, error, *isolation.SteerResult), error) {
 	// Translate CPUSet
 	var benchCPUs []int
 	for cpu := range selection.Benchmark.All() {
@@ -45,9 +46,9 @@ func startTelemetry(selection *cpu.SelectionResult, cfg *cli.Config) (func(time.
 	}
 
 	// lazy print
-	stop := func(wall time.Duration, runErr error) {
+	stop := func(wall time.Duration, runErr error, steer *isolation.SteerResult) {
 		fmt.Fprintln(os.Stdout, "\n\n--- GOSET ---\n")
-		rep := report.Report{Wall: wall, Counters: sampler.Stop(), ExitCode: exitCode(runErr)}
+		rep := report.Report{Wall: wall, Counters: sampler.Stop(), ExitCode: exitCode(runErr), Steer: steer}
 		report.Render(os.Stdout,
 			report.SelectionTable(selection),
 			report.TelemetryTable(rep),

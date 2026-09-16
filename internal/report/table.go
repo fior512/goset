@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"goset/internal/cpu"
+	"goset/internal/isolation"
 	"goset/internal/telemetry"
 )
 
@@ -47,6 +48,7 @@ type Report struct {
 	Wall     time.Duration
 	Counters []telemetry.Counter
 	ExitCode int
+	Steer    *isolation.SteerResult
 }
 
 
@@ -107,6 +109,13 @@ func GlobalTable(rep Report) Table {
 	rows := [][]string{
 		{"wall", FormatTime(rep.Wall)},
 		{"exit", fmt.Sprintf("%d", rep.ExitCode)},
+	}
+	if r.Steer != nil {
+		rows = append(rows,
+			[]string{"irq steer applied", fmt.Sprintf("%d", r.Steer.Applied)},
+			[]string{"irq steer rejected", fmt.Sprintf("%d", r.Steer.Rejected)},
+			[]string{"irq steer remaining", fmt.Sprintf("%d", len(r.Steer.Remaining))},
+		)
 	}
 	return Table{Title: "Global", Header: []string{"key", "value"}, Rows: rows}
 }
