@@ -28,10 +28,20 @@ func Run(cfg *cli.Config) error {
 	var group *isolation.Cgroup
 	if n > 1 { // TODO: ducktape check
 		var err error
-		group, err = isolation.InitCgroup("goset-"+cfg.Task[0], selection.Benchmark, -1) //rename // TODO: handle NumaNode
+		group, err = isolation.InitCgroup("goset-"+cfg.Task[0], selection.Benchmark, -1) // rename // TODO: handle NumaNode
 		if err != nil {
 			return err
 		}
+	}
+
+	// IRQ steering
+	var steer *isolation.SteerResult
+	if cfg.Steering {
+		steer, err = isolation.SteerIRQs(topo, selection.Benchmark)
+		if err != nil {
+			return err
+		}
+		defer isolation.RestoreIRQs(steer)
 	}
 
 	// Telemetry
@@ -41,11 +51,12 @@ func Run(cfg *cli.Config) error {
 	}
 
 	started := time.Now()
-	runErr := isolation.ApplyPin(cfg.Task, selection.Benchmark, group) //TODO: extract Task.start()
-	stop(time.Since(started), runErr) //lazy-print returned by startTelemetry
+	runErr := isolation.ApplyPin(cfg.Task, selection.Benchmark, group) // TODO: extract Task.start()
+	stop(time.Since(started), runErr, steer) // lazy-print returned by startTelemetry
 
 	return runErr
 }
+
 
 // exitCode task's exit code
 func exitCode(err error) int {
@@ -56,5 +67,5 @@ func exitCode(err error) int {
 	if errors.As(err, &ee) {
 		return ee.ExitCode()
 	}
-	return -1 //TODO: find better undefined
+	return -1 // TODO: find better undefined
 }
