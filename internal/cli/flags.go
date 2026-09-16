@@ -13,8 +13,9 @@ type Config struct {
 	Task []string // after "--"
 
 	/* Thread selection */
-	SetAffinity bool // (root) smp_affinity_list
-	Cgroup      int  // (root if >1) thread amount
+	NThreads int
+	Steering bool // (root) smp_affinity_list
+	Cgroup      bool  // (root if >1) thread amount
 
 	/* Selection Preference */
 	Include  cpu.CPUSet // subset of threads
@@ -36,14 +37,14 @@ func (cfg *Config) Validate() error {
 		return fmt.Errorf("-pin requires a target after --")
 	}
 	/* Threads Selection */
-	if cfg.SetAffinity && !isSudo() {
+	if cfg.NThreads < 1 {
+		return fmt.Errorf("-n define how many threads to book, it can't be negative.\n  Recommended to use -cgroup for n>1")
+	}
+	if cfg.Steering && !isSudo() {
 		return fmt.Errorf("-set-affinity needs root")
 	}
-	if cfg.Cgroup > 1 && !isSudo() {
+	if cfg.Cgroup && !isSudo() {
 		return fmt.Errorf("-cgroup requires root")
-	}
-	if cfg.Cgroup < 0 {
-		return fmt.Errorf("-cgroup can't be negative")
 	}
 
 	/* Selection Preference */
@@ -67,8 +68,9 @@ func (cfg *Config) Validate() error {
 // Register binds flags with struct items
 func Register(fs *flag.FlagSet) *Config {
 	cfg := &Config{}
-	fs.BoolVar(&cfg.SetAffinity, "set-affinity", false, "set smp_affinity_list (sudo)")
-	fs.IntVar(&cfg.Cgroup, "cgroup", 1, "number of threads for cgroup containerization (sudo)")
+	fs.IntVar(&cfg.NThreads, "n", 1, "set how many threads to book")
+	fs.BoolVar(&cfg.Steering, "set-affinity", false, "set smp_affinity_list (sudo)")
+	fs.BoolVar(&cfg.Cgroup, "cgroup", false, "number of threads for cgroup containerization (sudo)")
 	fs.Var(&cfg.Include, "include", "cpu list to force into the benchmark set, e.g. 2,4-6")
 	fs.Var(&cfg.Exclude, "exclude", "cpu list to exclude from selection")
 	fs.IntVar(&cfg.NumaNode, "numa-node", -2, "constrain benchmark cpus to one NUMA node when possible")
