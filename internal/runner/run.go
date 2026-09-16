@@ -15,7 +15,7 @@ func Run(cfg *cli.Config) error {
 	if err != nil {
 		return err
 	}
-	n := max(cfg.Cgroup, 1)
+	n := max(cfg.NThreads, 1)
 
 	// Selection
 	selection, err := cpu.SelectCPUs(topo, n, cfg.Include, cfg.Exclude, cfg.NumaNode)
@@ -28,7 +28,7 @@ func Run(cfg *cli.Config) error {
 	var group *isolation.Cgroup
 	if n > 1 { // TODO: ducktape check
 		var err error
-		group, err = isolation.InitCgroup(cfg.Task[0], selection.Benchmark, -1) // TODO: handle NumaNode
+		group, err = isolation.InitCgroup("goset-"+cfg.Task[0], selection.Benchmark, -1) //rename // TODO: handle NumaNode
 		if err != nil {
 			return err
 		}
