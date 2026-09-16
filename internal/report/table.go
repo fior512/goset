@@ -110,14 +110,76 @@ func GlobalTable(rep Report) Table {
 		{"wall", FormatTime(rep.Wall)},
 		{"exit", fmt.Sprintf("%d", rep.ExitCode)},
 	}
-	if r.Steer != nil {
+	if rep.Steer != nil {
 		rows = append(rows,
-			[]string{"irq steer applied", fmt.Sprintf("%d", r.Steer.Applied)},
-			[]string{"irq steer rejected", fmt.Sprintf("%d", r.Steer.Rejected)},
-			[]string{"irq steer remaining", fmt.Sprintf("%d", len(r.Steer.Remaining))},
+			[]string{"irq steer applied", fmt.Sprintf("%d", rep.Steer.Applied)},
+			[]string{"irq steer rejected", fmt.Sprintf("%d", rep.Steer.Rejected)},
+			[]string{"irq steer remaining", fmt.Sprintf("%d", len(rep.Steer.Remaining))},
 		)
 	}
 	return Table{Title: "Global", Header: []string{"key", "value"}, Rows: rows}
+}
+
+
+func TopologyTable(topo *cpu.Topology) Table {
+	header := []string{"cpu", "core", "node", "isol", "nohz", "rcu", "driver", "gov", "epp", "minf", "maxf"}
+	flag := func(on bool) string {
+		if on {
+			return "y"
+		}
+		return ""
+	}
+	var rows [][]string
+	for id := range topo.Online.All() {
+		rows = append(rows, []string{
+			fmt.Sprintf("%3d", id),
+			fmt.Sprintf("%4d", topo.Core[id]),
+			fmt.Sprintf("%4d", topo.NumaNode[id]),
+			flag(topo.KernelIsol.GetBit(id)),
+			flag(topo.NohzFull.GetBit(id)),
+			flag(topo.RcuNocb.GetBit(id)),
+			topo.Driver[id],
+			topo.Governor[id],
+			topo.EPP[id],
+			FormatFreq(float64(topo.MinFreq[id]) * 1000),
+			FormatFreq(float64(topo.MaxFreq[id]) * 1000),
+		})
+	}
+	return Table{Title: "Topology", Header: header, Rows: rows}
+}
+
+
+func EnvironmentTable(env *cpu.Environment) Table {
+	rows := [][]string{
+		{"smt", env.SMT},
+		{"boost", env.Boost},
+		{"numa_balancing", env.NumaBalancing},
+		{"nmi_watchdog", env.NmiWatchdog},
+		{"thp", env.THP},
+		{"mitigations", fmt.Sprintf("%d", env.Mitigations)},
+	}
+	return Table{Title: "Environment", Header: []string{"key", "value"}, Rows: rows}
+}
+
+
+func CgroupTable(infos []isolation.CgroupInfo) Table {
+	header := []string{"name", "cpus", "mems", "partition", "procs", "usage_usec", "nr_throttled"}
+	if len(infos) == 0 {
+		return Table{Title: "Cgroups", Header: header, Rows: [][]string{{"No Cgroup found"}}}
+	}
+	rows := make([][]string, 0, len(infos))
+	for _, info := range infos {
+		rows = append(rows, []string{
+			info.Name,
+			info.Cpus,
+			info.Mems,
+			info.Partition,
+			fmt.Sprintf("%d", info.Procs),
+			FormatValue(float64(info.Stat["usage_usec"])),
+			FormatValue(float64(info.Stat["nr_throttled"])),
+		})
+	}
+	return Table{Title: "Cgroups", Header: header, Rows: rows}
 }
 
 
