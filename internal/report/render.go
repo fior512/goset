@@ -18,6 +18,9 @@ type Table struct {
 
 func Render(out io.Writer, tables ...Table) {
 	for _, tab := range tables {
+		if len(tab.Rows) == 0 {
+			continue
+		}
 		if tab.Title != "" {
 			fmt.Fprintln(out, tab.Title)
 		}
@@ -54,6 +57,22 @@ func printRow(out io.Writer, cells []string, widths []int) {
 }
 
 
+func compress(value float64) string {
+	prec := 2
+	switch av := math.Abs(value); {
+	case av >= 100:
+		prec = 0
+	case av >= 10:
+		prec = 1
+	}
+	str := strconv.FormatFloat(value, 'f', prec, 64)
+	if len(str) > 4 {
+		str = str[:4]
+	}
+	return str
+}
+
+
 func FormatValue(value float64) string {
 	units := [...]struct {
 		scale float64
@@ -62,29 +81,31 @@ func FormatValue(value float64) string {
 		{1e12, "T"}, {1e9, "B"}, {1e6, "M"}, {1e3, "k"},
 	}
 	av := math.Abs(value)
-
-	// compression
-	char := func(value float64) string {
-		prec := 2
-		switch av := math.Abs(value); {
-		case av >= 100:
-			prec = 0
-		case av >= 10:
-			prec = 1
-		}
-		str := strconv.FormatFloat(value, 'f', prec, 64)
-		if len(str) > 4 {
-			str = str[:4]
-		}
-		return str
-	}
-
 	for _, unit := range units {
 		if av >= unit.scale {
-			return char(value/unit.scale) + unit.unit
+			return compress(value/unit.scale) + unit.unit
 		}
 	}
-	return char(value)
+	return compress(value)
+}
+
+
+// FormatFreq renders a Hz value with SI prefixes (k/M/G/T), not the
+// count-style k/M/B/T used by FormatValue.
+func FormatFreq(hz float64) string {
+	units := [...]struct {
+		scale float64
+		unit  string
+	}{
+		{1e12, "T"}, {1e9, "G"}, {1e6, "M"}, {1e3, "k"},
+	}
+	av := math.Abs(hz)
+	for _, unit := range units {
+		if av >= unit.scale {
+			return compress(hz/unit.scale) + unit.unit + "Hz"
+		}
+	}
+	return compress(hz) + "Hz"
 }
 
 
