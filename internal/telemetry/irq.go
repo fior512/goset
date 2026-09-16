@@ -21,14 +21,13 @@ type IRQSource struct {
 }
 
 
-func IRQ() Source { return &IRQSource{} }
-
 func (s *IRQSource) Baseline(t Target) error {
 	s.cpus = t.BenchCPUs
 	var err error
 	s.start, err = ReadIRQCounts()
 	return err
 }
+
 
 func (s *IRQSource) Poll() error { return nil }
 
@@ -38,21 +37,27 @@ func (s *IRQSource) Stop() error {
 }
 
 
-func (s *IRQSource) Summary() string {
+func (s *IRQSource) Summary() []Counter {
 	if s.err != nil {
-		return fmt.Sprintf("irq: unavailable (%v)", s.err)
+		return nil
 	}
-	var b strings.Builder
-	b.WriteString("irq:")
+	out := make([]Counter, 0, len(s.cpus)*2)
 	for _, c := range s.cpus {
 		if c >= len(s.start) || c >= len(s.end) {
 			continue
 		}
-		fmt.Fprintf(&b, " cpu%d steer=%d nonsteer=%d", c,
-			s.end[c].Steerable-s.start[c].Steerable,
-			s.end[c].NonSteerable-s.start[c].NonSteerable)
+		out = append(out,
+			Counter{
+				Source: "irq", CPU: c, Name: "soft",
+				Value: float64(s.end[c].Steerable - s.start[c].Steerable),
+			},
+			Counter{
+				Source: "irq", CPU: c, Name: "hard",
+				Value: float64(s.end[c].NonSteerable - s.start[c].NonSteerable),
+			},
+		)
 	}
-	return b.String()
+	return out
 }
 
 

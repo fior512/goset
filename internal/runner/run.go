@@ -1,13 +1,13 @@
 package runner
 
 import (
-	"os"
+	"errors"
+	"os/exec"
 	"time"
 
 	"goset/internal/cli"
 	"goset/internal/cpu"
 	"goset/internal/isolation"
-	"goset/internal/telemetry"
 )
 
 func Run(cfg *cli.Config) error {
@@ -35,18 +35,26 @@ func Run(cfg *cli.Config) error {
 	}
 
 	// Telemetry
-	//TODO: InitCgroup and ApplyPin use selection._thing_
-	//TODO: choose one api
-	sampler, err := startTelemetry(selection, cfg) 
+	stop, err := startTelemetry(selection, cfg)
 	if err != nil {
 		return err
 	}
 
 	started := time.Now()
 	runErr := isolation.ApplyPin(cfg.Task, selection.Benchmark, group) //TODO: extract Task.start()
-	wall := time.Since(started)
+	stop(time.Since(started), runErr) //lazy-print returned by startTelemetry
 
-	metrics := sampler.Stop()
-	telemetry.Print(os.Stdout, telemetry.NewReport(wall, metrics))
 	return runErr
+}
+
+// exitCode task's exit code
+func exitCode(err error) int {
+	if err == nil {
+		return 0
+	}
+	var ee *exec.ExitError
+	if errors.As(err, &ee) {
+		return ee.ExitCode()
+	}
+	return -1 //TODO: find better undefined
 }
