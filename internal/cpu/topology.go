@@ -101,8 +101,8 @@ func GetTopology() (*Topology, error) {
 			continue
 		}
 		cpus.And(online) // cpulist may hold offline cpus
-		for c := range cpus.All() {
-			topo.NumaNode[c] = node
+		for cpu := range cpus.All() {
+			topo.NumaNode[cpu] = node
 		}
 	}
 

@@ -5,7 +5,6 @@ type Target struct {
 	Housekeeper int
 }
 
-
 type Counter struct {
 	Source string
 	CPU    int
@@ -13,10 +12,9 @@ type Counter struct {
 	Value  float64
 }
 
-
 type Source interface {
-	Baseline(t Target) error // starting point
-	Poll() error             // sample
-	Stop() error             // ending point
-	Summary() []Counter      // report
+	Baseline(target Target) error // starting point
+	Poll() error                  // sample
+	Stop() error                  // ending point
+	Summary() []Counter           // report
 }

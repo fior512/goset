@@ -36,16 +36,16 @@ func SelectCPUs(topo *Topology, n int, include CPUSet, exclude CPUSet, NumaNode 
 
 	// selection
 	var selection, cores CPUSet
-	for _, s := range scores[:n] {
-		selection.SetBit(s.CPU)
-		cores.SetBit(topo.Core[s.CPU])
+	for _, score := range scores[:n] {
+		selection.SetBit(score.CPU)
+		cores.SetBit(topo.Core[score.CPU])
 	}
 
 	// housekeeper: first non previsouly selected
 	housekeeper := scores[n].CPU
-	for _, s := range scores[n:] {
-		if !cores.GetBit(topo.Core[s.CPU]) {
-			housekeeper = s.CPU
+	for _, score := range scores[n:] {
+		if !cores.GetBit(topo.Core[score.CPU]) {
+			housekeeper = score.CPU
 			break
 		}
 	}
