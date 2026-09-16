@@ -41,7 +41,7 @@ func (cfg *Config) Validate() error {
 		return fmt.Errorf("-n define how many threads to book, it can't be negative.\n  Recommended to use -cgroup for n>1")
 	}
 	if cfg.Steering && !isSudo() {
-		return fmt.Errorf("-set-affinity needs root")
+		return fmt.Errorf("-steer needs root")
 	}
 	if cfg.Cgroup && !isSudo() {
 		return fmt.Errorf("-cgroup requires root")
@@ -69,7 +69,7 @@ func (cfg *Config) Validate() error {
 func Register(fs *flag.FlagSet) *Config {
 	cfg := &Config{}
 	fs.IntVar(&cfg.NThreads, "n", 1, "set how many threads to book")
-	fs.BoolVar(&cfg.Steering, "set-affinity", false, "set smp_affinity_list (sudo)")
+	fs.BoolVar(&cfg.Steering, "steer", false, "set smp_affinity_list (sudo)")
 	fs.BoolVar(&cfg.Cgroup, "cgroup", false, "number of threads for cgroup containerization (sudo)")
 	fs.Var(&cfg.Include, "include", "cpu list to force into the benchmark set, e.g. 2,4-6")
 	fs.Var(&cfg.Exclude, "exclude", "cpu list to exclude from selection")
