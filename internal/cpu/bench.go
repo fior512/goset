@@ -120,12 +120,12 @@ func rankCPUs(topo *Topology, candidates, include CPUSet) ([]CPUScore, error) {
 	}
 
 	//sorting
-	slices.SortStableFunc(out, func(a, b CPUScore) int {
+	slices.SortStableFunc(out, func(left, right CPUScore) int {
 		return cmp.Or(
-			cmp.Compare(b.Included, a.Included), // desc
-			cmp.Compare(a.NonSteerable, b.NonSteerable),
-			cmp.Compare(a.SiblingLoad, b.SiblingLoad),
-			cmp.Compare(a.Steerable, b.Steerable),
+			cmp.Compare(right.Included, left.Included), // desc
+			cmp.Compare(left.NonSteerable, right.NonSteerable),
+			cmp.Compare(left.SiblingLoad, right.SiblingLoad),
+			cmp.Compare(left.Steerable, right.Steerable),
 		)
 	})
 	return out, nil

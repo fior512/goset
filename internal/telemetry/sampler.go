@@ -37,13 +37,13 @@ func (sam *Sampler) run(pin func() error) {
 		<-sam.Exit
 		return
 	}
-	t := time.NewTicker(sam.Interval)
-	defer t.Stop()
+	ticker := time.NewTicker(sam.Interval)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-sam.Exit:
 			return
-		case <-t.C:
+		case <-ticker.C:
 			for _, src := range sam.Sources {
 				_ = src.Poll()
 			}
