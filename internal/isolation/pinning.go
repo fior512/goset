@@ -48,8 +48,8 @@ func ApplyPin(argv []string, cpus cpu.CPUSet, group *Cgroup) error {
 		done <- result{err}
 	}()
 
-	if r := <-done; r.err != nil {
-		return r.err
+	if res := <-done; res.err != nil {
+		return res.err
 	}
 
 	return nil

@@ -32,11 +32,11 @@ func cgroupV2Available() bool {
 
 
 func readFileTrim(path string) (string, error) {
-	b, err := os.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(string(b)), nil
+	return strings.TrimSpace(string(data)), nil
 }
 
 
@@ -85,11 +85,11 @@ func InitCgroup(name string, cpus cpu.CPUSet, memNode int) (*Cgroup, error) {
 	if err := os.WriteFile(partitionPath, []byte("isolated"), 0o644); err != nil {
 		_ = os.WriteFile(partitionPath, []byte("root"), 0o644)
 	}
-	if v, err := readFileTrim(partitionPath); err == nil {
-		group.Partition = v
-		if strings.Contains(v, "invalid") {
+	if partition, err := readFileTrim(partitionPath); err == nil {
+		group.Partition = partition
+		if strings.Contains(partition, "invalid") {
 			group.Destroy()
-			return nil, fmt.Errorf("cpuset.cpus.partition: kernel reports %q", v)
+			return nil, fmt.Errorf("cpuset.cpus.partition: kernel reports %q", partition)
 		}
 	}
 
@@ -116,17 +116,17 @@ func (group *Cgroup) CPUStat() map[string]uint64 {
 	if group == nil {
 		return out
 	}
-	b, err := os.ReadFile(filepath.Join(group.Path, "cpu.stat"))
+	data, err := os.ReadFile(filepath.Join(group.Path, "cpu.stat"))
 	if err != nil {
 		return out
 	}
-	for _, line := range strings.Split(string(b), "\n") {
-		f := strings.Fields(line)
-		if len(f) != 2 {
+	for _, line := range strings.Split(string(data), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) != 2 {
 			continue
 		}
-		if v, err := strconv.ParseUint(f[1], 10, 64); err == nil {
-			out[f[0]] = v
+		if val, err := strconv.ParseUint(fields[1], 10, 64); err == nil {
+			out[fields[0]] = val
 		}
 	}
 	return out
