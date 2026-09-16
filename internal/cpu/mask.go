@@ -24,7 +24,7 @@ const (
 	opInv
 )
 
-func (M *CPUSet) apply(lo, hi int, op maskOp) {
+func (set *CPUSet) apply(lo, hi int, op maskOp) {
 	if lo > hi {
 		lo, hi = hi, lo
 	}
@@ -35,42 +35,42 @@ func (M *CPUSet) apply(lo, hi int, op maskOp) {
 	hi = min(hi, CPUSetBits-1)
 	loW, hiW := lo>>6, hi>>6
 	mask := ^uint64(0) << uint(lo&63)
-	for w := loW; w <= hiW; w++ {
-		if w == hiW {
+	for word := loW; word <= hiW; word++ {
+		if word == hiW {
 			mask &= ^uint64(0) >> uint(63-(hi&63))
 		}
 		switch op {
 		case opSet:
-			M[w] |= mask
+			set[word] |= mask
 		case opClear:
-			M[w] &^= mask // AND NOT
+			set[word] &^= mask // AND NOT
 		case opInv:
-			M[w] ^= mask
+			set[word] ^= mask
 		}
 		mask = ^uint64(0)
 	}
 }
 
 
-func (M *CPUSet) SetBit(cpu int)   { M.apply(cpu, cpu, opSet) }
-func (M *CPUSet) ClearBit(cpu int) { M.apply(cpu, cpu, opClear) }
-func (M *CPUSet) InvBit(cpu int)   { M.apply(cpu, cpu, opInv) }
+func (set *CPUSet) SetBit(cpu int)   { set.apply(cpu, cpu, opSet) }
+func (set *CPUSet) ClearBit(cpu int) { set.apply(cpu, cpu, opClear) }
+func (set *CPUSet) InvBit(cpu int)   { set.apply(cpu, cpu, opInv) }
 
-func (M *CPUSet) SetRange(lo, hi int)   { M.apply(lo, hi, opSet) }
-func (M *CPUSet) ClearRange(lo, hi int) { M.apply(lo, hi, opClear) }
-func (M *CPUSet) InvRange(lo, hi int)   { M.apply(lo, hi, opInv) }
+func (set *CPUSet) SetRange(lo, hi int)   { set.apply(lo, hi, opSet) }
+func (set *CPUSet) ClearRange(lo, hi int) { set.apply(lo, hi, opClear) }
+func (set *CPUSet) InvRange(lo, hi int)   { set.apply(lo, hi, opInv) }
 
-func (M *CPUSet) GetBit(cpu int) bool {
+func (set *CPUSet) GetBit(cpu int) bool {
 	if cpu < 0 || cpu >= CPUSetBits { //GetBit is not inside apply
 		return false
 	}
-	return M[cpu>>6]&(1<<uint(cpu&63)) != 0
+	return set[cpu>>6]&(1<<uint(cpu&63)) != 0
 }
 
 
-func (M *CPUSet) Any() bool {
-	for _, w := range M {
-		if w != 0 {
+func (set *CPUSet) Any() bool {
+	for _, word := range set {
+		if word != 0 {
 			return true
 		}
 	}
@@ -78,32 +78,32 @@ func (M *CPUSet) Any() bool {
 }
 
 
-func (M *CPUSet) Count() int {
-	n := 0
-	for _, w := range M {
-		n += bits.OnesCount64(w)
+func (set *CPUSet) Count() int {
+	total := 0
+	for _, word := range set {
+		total += bits.OnesCount64(word)
 	}
-	return n
+	return total
 }
 
 
-func (M *CPUSet) And(other CPUSet) {
-	for i := range M {
-		M[i] &= other[i]
-	}
-}
-
-
-func (M *CPUSet) AndNot(other CPUSet) {
-	for i := range M {
-		M[i] &^= other[i]
+func (set *CPUSet) And(other CPUSet) {
+	for i := range set {
+		set[i] &= other[i]
 	}
 }
 
 
-func (M *CPUSet) IsSubset(super CPUSet) bool {
-	for i := range M {
-		if M[i]&^super[i] != 0 {
+func (set *CPUSet) AndNot(other CPUSet) {
+	for i := range set {
+		set[i] &^= other[i]
+	}
+}
+
+
+func (set *CPUSet) IsSubset(super CPUSet) bool {
+	for i := range set {
+		if set[i]&^super[i] != 0 {
 			return false
 		}
 	}
@@ -111,33 +111,33 @@ func (M *CPUSet) IsSubset(super CPUSet) bool {
 }
 
 
-func (M *CPUSet) NextSet(from int) int {
+func (set *CPUSet) NextSet(from int) int {
 	if from < 0 {
 		from = 0
 	}
-	w := from >> 6
-	if w >= CPUSetWords {
+	word := from >> 6
+	if word >= CPUSetWords {
 		return -1
 	}
-	word := M[w] &^ (1<<uint(from&63) - 1)
+	chunk := set[word] &^ (1<<uint(from&63) - 1)
 	for {
-		if word != 0 {
-			return w<<6 + bits.TrailingZeros64(word)
+		if chunk != 0 {
+			return word<<6 + bits.TrailingZeros64(chunk)
 		}
-		w++
-		if w >= CPUSetWords {
+		word++
+		if word >= CPUSetWords {
 			return -1
 		}
-		word = M[w]
+		chunk = set[word]
 	}
 }
 
 
 // NextSet but for `range`
-func (M *CPUSet) All() iter.Seq[int] {
+func (set *CPUSet) All() iter.Seq[int] {
 	return func(yield func(int) bool) {
-		for c := M.NextSet(0); c >= 0; c = M.NextSet(c + 1) {
-			if !yield(c) {
+		for cpu := set.NextSet(0); cpu >= 0; cpu = set.NextSet(cpu + 1) {
+			if !yield(cpu) {
 				return
 			}
 		}
@@ -146,7 +146,7 @@ func (M *CPUSet) All() iter.Seq[int] {
 
 
 // String auto translate
-func (M *CPUSet) String() string {
+func (set *CPUSet) String() string {
 	var parts []string
 	lo, hi := -1, -1
 	flush := func() {
@@ -159,24 +159,24 @@ func (M *CPUSet) String() string {
 			parts = append(parts, fmt.Sprintf("%d-%d", lo, hi))
 		}
 	}
-	for c := range M.All() {
-		if lo >= 0 && c == hi+1 {
-			hi = c
+	for cpu := range set.All() {
+		if lo >= 0 && cpu == hi+1 {
+			hi = cpu
 			continue
 		}
 		flush()
-		lo, hi = c, c
+		lo, hi = cpu, cpu
 	}
 	flush()
 	return strings.Join(parts, ",")
 }
 
 
-func (M *CPUSet) Set(s string) error {
-	parsed, err := ParseCPUList(s)
+func (set *CPUSet) Set(str string) error {
+	parsed, err := ParseCPUList(str)
 	if err != nil {
 		return err
 	}
-	*M = parsed
+	*set = parsed
 	return nil
 }

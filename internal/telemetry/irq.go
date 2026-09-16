@@ -21,39 +21,39 @@ type IRQSource struct {
 }
 
 
-func (s *IRQSource) Baseline(t Target) error {
-	s.cpus = t.BenchCPUs
+func (src *IRQSource) Baseline(target Target) error {
+	src.cpus = target.BenchCPUs
 	var err error
-	s.start, err = ReadIRQCounts()
+	src.start, err = ReadIRQCounts()
 	return err
 }
 
 
-func (s *IRQSource) Poll() error { return nil }
+func (src *IRQSource) Poll() error { return nil }
 
-func (s *IRQSource) Stop() error {
-	s.end, s.err = ReadIRQCounts()
-	return s.err
+func (src *IRQSource) Stop() error {
+	src.end, src.err = ReadIRQCounts()
+	return src.err
 }
 
 
-func (s *IRQSource) Summary() []Counter {
-	if s.err != nil {
+func (src *IRQSource) Summary() []Counter {
+	if src.err != nil {
 		return nil
 	}
-	out := make([]Counter, 0, len(s.cpus)*2)
-	for _, c := range s.cpus {
-		if c >= len(s.start) || c >= len(s.end) {
+	out := make([]Counter, 0, len(src.cpus)*2)
+	for _, cpu := range src.cpus {
+		if cpu >= len(src.start) || cpu >= len(src.end) {
 			continue
 		}
 		out = append(out,
 			Counter{
-				Source: "irq", CPU: c, Name: "soft",
-				Value: float64(s.end[c].Steerable - s.start[c].Steerable),
+				Source: "irq", CPU: cpu, Name: "soft",
+				Value: float64(src.end[cpu].Steerable - src.start[cpu].Steerable),
 			},
 			Counter{
-				Source: "irq", CPU: c, Name: "hard",
-				Value: float64(s.end[c].NonSteerable - s.start[c].NonSteerable),
+				Source: "irq", CPU: cpu, Name: "hard",
+				Value: float64(src.end[cpu].NonSteerable - src.start[cpu].NonSteerable),
 			},
 		)
 	}
@@ -100,14 +100,14 @@ func ReadIRQCounts() ([]IRQCount, error) {
 
 		// aggregate
 		for col, id := range ids {
-			v, err := strconv.ParseUint(fields[col+1], 10, 64)
+			val, err := strconv.ParseUint(fields[col+1], 10, 64)
 			if err != nil {
 				return nil, fmt.Errorf("/proc/interrupts: row %s: %w", label, err)
 			}
 			if steerable {
-				counts[id].Steerable += v
+				counts[id].Steerable += val
 			} else {
-				counts[id].NonSteerable += v
+				counts[id].NonSteerable += val
 			}
 		}
 	}

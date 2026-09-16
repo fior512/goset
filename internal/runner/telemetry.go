@@ -19,8 +19,8 @@ import (
 func startTelemetry(selection *cpu.SelectionResult, cfg *cli.Config) (func(time.Duration, error, *isolation.SteerResult), error) {
 	// Translate CPUSet
 	var benchCPUs []int
-	for c := range selection.Benchmark.All() {
-		benchCPUs = append(benchCPUs, c)
+	for cpu := range selection.Benchmark.All() {
+		benchCPUs = append(benchCPUs, cpu)
 	}
 
 	// HK pin
