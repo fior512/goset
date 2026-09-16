@@ -52,13 +52,13 @@ func (sam *Sampler) run(pin func() error) {
 }
 
 
-func (sam *Sampler) Stop() []string {
+func (sam *Sampler) Stop() []Counter {
 	close(sam.Exit)
 	<-sam.Done
-	summaries := make([]string, 0, len(sam.Sources))
+	var counters []Counter
 	for _, src := range sam.Sources {
 		_ = src.Stop()
-		summaries = append(summaries, src.Summary())
+		counters = append(counters, src.Summary()...)
 	}
-	return summaries
+	return counters
 }
