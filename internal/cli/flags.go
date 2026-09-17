@@ -35,13 +35,13 @@ func isSudo() bool {
 }
 
 
-func (cfg *Config) Validate() error {
+func (cfg *Config) Validate() error { // definition, bad behavior, suggestion
 	/* Threads Selection */
 	if cfg.NThreads < 1 {
 		return fmt.Errorf("-n define how many threads to book, it can't be negative.\n  Recommended to use -cgroup for n>1")
 	}
 	if cfg.NThreads > 1 && !cfg.Cgroup {
-		return fmt.Errorf("goset doesnt support multithreaded task without cgroup, which itself requires sudo")
+		return fmt.Errorf("-n >1 requires -cgroup (sudo)")
 	}
 	if cfg.Steering && !isSudo() {
 		return fmt.Errorf("-steer needs root")
