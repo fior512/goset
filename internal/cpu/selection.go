@@ -6,9 +6,9 @@ import (
 
 // SelectionResult Benchmark Results
 type SelectionResult struct {
+	Scores      []CPUScore
 	Benchmark   CPUSet
 	HouseKeeper int
-	Scores      []CPUScore
 }
 
 
@@ -51,8 +51,8 @@ func SelectCPUs(topo *Topology, n int, include CPUSet, exclude CPUSet, NumaNode 
 	}
 
 	return &SelectionResult{
+		Scores:      scores,
 		Benchmark:   selection,
 		HouseKeeper: housekeeper,
-		Scores:      scores,
 	}, nil
 }
