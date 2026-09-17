@@ -22,17 +22,17 @@ func TestDiagnoseBareInvocation(t *testing.T) {
 	}
 }
 
-// TestDiagnoseIgnoresTaskSelectionFlags: with no task, goset dispatches to
-// Diagnose regardless of what selection flags were also passed, since main.go
-// only checks len(cfg.Task) == 0. Flags still go through Validate first.
-func TestDiagnoseIgnoresTaskSelectionFlags(t *testing.T) {
+// TestDiagnoseRejectsInvalidSelectionFlags: with no task, goset still runs
+// flags through Validate before dispatching to Diagnose, so an -n>1 without
+// -cgroup errors out exactly as it would with a task.
+func TestDiagnoseRejectsInvalidSelectionFlags(t *testing.T) {
 	gosetBin, _ := setup(t)
 	res := runGoset(t, gosetBin, "-n", "2", "-include", "0")
-	if res.exitCode != 0 {
-		t.Fatalf("bare goset with selection flags exited %d, stderr: %s", res.exitCode, res.stderr)
+	if res.exitCode == 0 {
+		t.Fatalf("expected error for bare goset with -n 2 and no -cgroup, got exit 0 (stdout: %s)", res.stdout)
 	}
-	if !strings.Contains(res.stdout, "Topology") {
-		t.Errorf("diagnose output missing Topology table, got: %s", res.stdout)
+	if !strings.Contains(res.stderr, "cgroup") {
+		t.Errorf("stderr should mention cgroup, got: %s", res.stderr)
 	}
 }
 

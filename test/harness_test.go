@@ -195,8 +195,16 @@ func TestErrorNRequestTooLarge(t *testing.T) {
 	if res.exitCode == 0 {
 		t.Fatalf("expected non-zero exit for oversized -n, got 0")
 	}
+	if !strings.Contains(res.stderr, "cgroup") {
+		t.Errorf("stderr should mention the missing -cgroup requirement first, got: %s", res.stderr)
+	}
+
+	res = runGoset(t, gosetBin, "-n", "100000", "-cgroup", "--", probeBin)
+	if res.exitCode == 0 {
+		t.Fatalf("expected non-zero exit for oversized -n even with -cgroup, got 0")
+	}
 	if !strings.Contains(res.stderr, "housekeeper") {
-		t.Errorf("stderr should explain the housekeeper+n requirement, got: %s", res.stderr)
+		t.Errorf("stderr should explain the housekeeper+n requirement once -cgroup is set, got: %s", res.stderr)
 	}
 }
 
