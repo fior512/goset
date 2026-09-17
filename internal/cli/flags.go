@@ -10,8 +10,7 @@ import (
 
 type Config struct {
 	/* Target settings */
-	Task     []string // after "--"
-	RmCgroup string   // name of a leaked cgroup to remove
+	Task []string // after "--"
 
 	/* Thread selection */
 	NThreads int
@@ -25,6 +24,9 @@ type Config struct {
 
 	/* Telemetry */
 	SamplingMS int // telemetry window for housekeeper (Not rankCPUs())
+
+	/*DIAGNOSIS*/
+	RmCgroup string
 }
 
 
@@ -37,6 +39,9 @@ func (cfg *Config) Validate() error {
 	/* Threads Selection */
 	if cfg.NThreads < 1 {
 		return fmt.Errorf("-n define how many threads to book, it can't be negative.\n  Recommended to use -cgroup for n>1")
+	}
+	if cfg.NThreads > 1 && !cfg.Cgroup {
+		return fmt.Errorf("goset doesnt support multithreaded task without cgroup, which itself requires sudo")
 	}
 	if cfg.Steering && !isSudo() {
 		return fmt.Errorf("-steer needs root")
