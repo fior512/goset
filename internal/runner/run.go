@@ -23,9 +23,8 @@ func Run(cfg *cli.Config) error {
 	}
 
 	// Cgroup
-	// TODO: define if cgroup with single thread is worth
 	var group *isolation.Cgroup
-	if cfg.NThreads > 1 { // TODO: ducktape check
+	if cfg.Cgroup {
 		var err error
 		group, err = isolation.InitCgroup("goset-"+cfg.Task[0], selection.Benchmark, -1) // rename // TODO: handle NumaNode
 		if err != nil {
