@@ -30,11 +30,6 @@ func ApplyPin(argv []string, cpus cpu.CPUSet, group *Cgroup) (*syscall.Rusage, e
 	done := make(chan result, 1)
 	go func() {
 		runtime.LockOSThread()
-		defer func() {
-			if err := group.Destroy(); err != nil {
-				fmt.Fprintln(os.Stderr, "goset: cgroup cleanup:", err)
-			}
-		}()
 		defer runtime.UnlockOSThread()
 
 		var prevCPUs cpu.CPUSet
@@ -54,6 +49,9 @@ func ApplyPin(argv []string, cpus cpu.CPUSet, group *Cgroup) (*syscall.Rusage, e
 		var rusage *syscall.Rusage
 		if task.ProcessState != nil {
 			rusage, _ = task.ProcessState.SysUsage().(*syscall.Rusage)
+		}
+		if derr := group.Destroy(); derr != nil {
+			fmt.Fprintln(os.Stderr, "[goset] cgroup destroy: ", derr)
 		}
 		done <- result{err, rusage}
 	}()
