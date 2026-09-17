@@ -3,6 +3,7 @@ package runner
 import (
 	"fmt"
 	"os"
+	"syscall"
 	"time"
 
 	"goset/internal/cli"
@@ -16,7 +17,7 @@ import (
 	Policy: No IPI
 */
 
-func startTelemetry(selection *cpu.SelectionResult, cfg *cli.Config) (func(time.Duration, error, *isolation.SteerResult), error) {
+func startTelemetry(selection *cpu.SelectionResult, cfg *cli.Config) (func(time.Duration, error, *isolation.SteerResult, *syscall.Rusage), error) {
 	// Translate CPUSet
 	var benchCPUs []int
 	for cpu := range selection.Benchmark.All() {
@@ -46,9 +47,9 @@ func startTelemetry(selection *cpu.SelectionResult, cfg *cli.Config) (func(time.
 	}
 
 	// lazy print
-	stop := func(wall time.Duration, runErr error, steer *isolation.SteerResult) {
+	stop := func(wall time.Duration, runErr error, steer *isolation.SteerResult, rusage *syscall.Rusage) {
 		fmt.Fprintln(os.Stdout, "\n\n--- GOSET ---\n")
-		rep := report.Report{Wall: wall, Counters: sampler.Stop(), ExitCode: exitCode(runErr), Steer: steer}
+		rep := report.Report{Wall: wall, Counters: sampler.Stop(), ExitCode: exitCode(runErr), Steer: steer, Rusage: rusage}
 		report.Render(os.Stdout,
 			report.SelectionTable(selection),
 			report.TelemetryTable(rep),

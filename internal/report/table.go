@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"slices"
+	"syscall"
 	"time"
 
 	"goset/internal/cpu"
@@ -49,6 +50,7 @@ type Report struct {
 	Counters []telemetry.Counter
 	ExitCode int
 	Steer    *isolation.SteerResult
+	Rusage   *syscall.Rusage
 }
 
 
@@ -115,6 +117,12 @@ func GlobalTable(rep Report) Table {
 			[]string{"irq steer applied", fmt.Sprintf("%d", rep.Steer.Applied)},
 			[]string{"irq steer rejected", fmt.Sprintf("%d", rep.Steer.Rejected)},
 			[]string{"irq steer remaining", fmt.Sprintf("%d", len(rep.Steer.Remaining))},
+		)
+	}
+	if rep.Rusage != nil {
+		rows = append(rows,
+			[]string{"ctxsw voluntary", fmt.Sprintf("%d", rep.Rusage.Nvcsw)},
+			[]string{"ctxsw involuntary", fmt.Sprintf("%d", rep.Rusage.Nivcsw)},
 		)
 	}
 	return Table{Title: "Global", Header: []string{"key", "value"}, Rows: rows}
