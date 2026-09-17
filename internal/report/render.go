@@ -60,6 +60,8 @@ func printRow(out io.Writer, cells []string, widths []int) {
 func compress(value float64) string {
 	prec := 2
 	switch av := math.Abs(value); {
+	case value == math.Trunc(value):
+		prec = 0
 	case av >= 100:
 		prec = 0
 	case av >= 10:
