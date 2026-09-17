@@ -28,7 +28,11 @@ func ApplyPin(argv []string, cpus cpu.CPUSet, group *Cgroup) error {
 	done := make(chan result, 1)
 	go func() {
 		runtime.LockOSThread()
-		defer group.Destroy()
+		defer func() {
+			if err := group.Destroy(); err != nil {
+				fmt.Fprintln(os.Stderr, "goset: cgroup cleanup:", err)
+			}
+		}()
 		defer runtime.UnlockOSThread()
 
 		var prevCPUs cpu.CPUSet

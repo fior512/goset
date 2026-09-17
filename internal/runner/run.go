@@ -15,10 +15,9 @@ func Run(cfg *cli.Config) error {
 	if err != nil {
 		return err
 	}
-	threads := max(cfg.NThreads, 1)
 
 	// Selection
-	selection, err := cpu.SelectCPUs(topo, threads, cfg.Include, cfg.Exclude, cfg.NumaNode)
+	selection, err := cpu.SelectCPUs(topo, cfg.NThreads, cfg.Include, cfg.Exclude, cfg.NumaNode)
 	if err != nil {
 		return err
 	}
@@ -26,7 +25,7 @@ func Run(cfg *cli.Config) error {
 	// Cgroup
 	// TODO: define if cgroup with single thread is worth
 	var group *isolation.Cgroup
-	if threads > 1 { // TODO: ducktape check
+	if cfg.NThreads > 1 { // TODO: ducktape check
 		var err error
 		group, err = isolation.InitCgroup("goset-"+cfg.Task[0], selection.Benchmark, -1) // rename // TODO: handle NumaNode
 		if err != nil {
@@ -50,6 +49,7 @@ func Run(cfg *cli.Config) error {
 		return err
 	}
 
+	// Run task
 	started := time.Now()
 	runErr := isolation.ApplyPin(cfg.Task, selection.Benchmark, group) // TODO: extract Task.start()
 	stop(time.Since(started), runErr, steer) // lazy-print returned by startTelemetry

@@ -74,7 +74,7 @@ func rankCPUs(topo *Topology, candidates, include CPUSet) ([]CPUScore, error) {
 		include{1,2,5} // threads id requested
 		candidates{1,2,3,4,5,6} // all available threads
 
-		out (id, include?, IRQ){
+		out (id, include?, hard IRQ){
 			{2, 1, 3},
 			{5, 1, 3},
 			{1, 1, 5},
@@ -90,7 +90,7 @@ func rankCPUs(topo *Topology, candidates, include CPUSet) ([]CPUScore, error) {
 		//Rules:
 		//  1) Include on top, and create a "cluster"
 		//  2) sort out while maintaining the include "cluster"
-		//				so we pick include while still lowering IRQ (and other topo aspects)
+		//				so we pick include while still lowering IRQ
 	*/
 
 	delta, err := sampleIRQDelta(100 * time.Millisecond)
