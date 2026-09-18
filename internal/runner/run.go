@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os/exec"
 	"time"
+	"path/filepath"
 
 	"goset/internal/cli"
 	"goset/internal/cpu"
