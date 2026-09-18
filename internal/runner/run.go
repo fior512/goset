@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os/exec"
 	"time"
+	"path/filepath"
 
 	"goset/internal/cli"
 	"goset/internal/cpu"
@@ -26,7 +27,7 @@ func Run(cfg *cli.Config) error {
 	var group *isolation.Cgroup
 	if cfg.Cgroup {
 		var err error
-		group, err = isolation.InitCgroup("goset-"+cfg.Task[0], selection.Benchmark, -1) // rename // TODO: handle NumaNode
+		group, err = isolation.InitCgroup("goset-"+filepath.Base(cfg.Task[0]), selection.Benchmark, -1) // rename // TODO: handle NumaNode
 		if err != nil {
 			return err
 		}
