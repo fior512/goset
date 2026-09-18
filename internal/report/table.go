@@ -12,7 +12,7 @@ import (
 	"goset/internal/telemetry"
 )
 
-func SelectionTable(sel *cpu.SelectionResult) Table {
+func SelectionTable(sel *cpu.SelectionResult, pinned bool) Table {
 	header := []string{"cpu", "sel", "soft", "hard", "sibl", "isol", "node", "nohz", "rcu"}
 	rows := make([][]string, 0, len(sel.Scores))
 	for _, sc := range sel.Scores {
@@ -20,8 +20,10 @@ func SelectionTable(sel *cpu.SelectionResult) Table {
 		switch {
 		case sc.CPU == sel.HouseKeeper:
 			mark = "& "
-		case sel.Benchmark.GetBit(sc.CPU):
+		case sel.Benchmark.GetBit(sc.CPU) && pinned:
 			mark = "* "
+		case sel.Benchmark.GetBit(sc.CPU):
+			mark = ". "
 		}
 		flag := func(on bool) string {
 			if on {
