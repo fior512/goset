@@ -1,11 +1,3 @@
-//go:build integration
-
-// Package integration builds the real goset binary against a mock task
-// (threadprobe) that reports, from inside the run, which OS thread(s) it
-// executed on and what cgroup it belonged to. It checks single- and
-// multi-thread selection, that a cgroup created for a run is gone once the
-// run ends, and the user-facing error paths (bad flags, missing task,
-// oversized -n). Requires root and cgroup v2; see preflight in precheck.go.
 package integration
 
 import (
@@ -19,11 +11,6 @@ import (
 	"goset/internal/isolation"
 )
 
-// cgroupSnapshot lists the directory names directly under /sys/fs/cgroup.
-// Tests diff before/after snapshots instead of checking one fixed path,
-// since InitCgroup derives the directory from filepath.Base(name) and a
-// task given as an absolute path collapses the "goset-" prefix goset
-// itself expects (see internal/isolation/cgroup.go InitCgroup + ListCgroups).
 func cgroupSnapshot(t *testing.T) []string {
 	t.Helper()
 	entries, err := os.ReadDir("/sys/fs/cgroup")
@@ -39,6 +26,7 @@ func cgroupSnapshot(t *testing.T) []string {
 	sort.Strings(names)
 	return names
 }
+
 
 func diffSnapshots(before, after []string) (leaked, missing []string) {
 	seen := map[string]bool{}
@@ -63,10 +51,7 @@ func diffSnapshots(before, after []string) (leaked, missing []string) {
 	return leaked, missing
 }
 
-// assertUniformAllowed checks every reported thread saw the same
-// Cpus_allowed_list, with exactly wantCPUs cpus in it. Observed (the actual
-// cpu a thread happened to run on) is logged, not asserted: it is a
-// scheduling sample and can legitimately differ from Allowed.
+
 func assertUniformAllowed(t *testing.T, rep probeReport, wantCPUs int) {
 	t.Helper()
 	if len(rep.Threads) == 0 {
@@ -89,6 +74,7 @@ func assertUniformAllowed(t *testing.T, rep probeReport, wantCPUs int) {
 	}
 }
 
+
 func TestSingleThreadNoCgroup(t *testing.T) {
 	preflight(t, 2) // n=1 + housekeeper
 	root := repoRoot(t)
@@ -110,6 +96,7 @@ func TestSingleThreadNoCgroup(t *testing.T) {
 	rep := parseProbe(t, res.stdout)
 	assertUniformAllowed(t, rep, 1)
 }
+
 
 func TestMultiThreadCgroupDestroyed(t *testing.T) {
 	preflight(t, 3) // n=2 + housekeeper
@@ -138,11 +125,7 @@ func TestMultiThreadCgroupDestroyed(t *testing.T) {
 	}
 }
 
-// TestMultiThreadCgroupFlagIsDead pins the current, surprising behavior:
-// -cgroup is validated (requires sudo) but never read in internal/runner/run.go
-// — cgroup creation is gated solely on -n > 1. If this test starts failing
-// because -cgroup now gates cgroup creation, update it deliberately, don't
-// just delete it.
+
 func TestMultiThreadCgroupFlagIsDead(t *testing.T) {
 	preflight(t, 3)
 	root := repoRoot(t)
@@ -164,6 +147,7 @@ func TestMultiThreadCgroupFlagIsDead(t *testing.T) {
 	assertUniformAllowed(t, rep, 2)
 }
 
+
 func TestErrorMissingTaskBinary(t *testing.T) {
 	preflight(t, 2)
 	root := repoRoot(t)
@@ -184,6 +168,7 @@ func TestErrorMissingTaskBinary(t *testing.T) {
 		t.Errorf("cgroup dir set changed on a failed run: leaked=%v missing=%v", leaked, missing)
 	}
 }
+
 
 func TestErrorNRequestTooLarge(t *testing.T) {
 	preflight(t, 1)
@@ -208,10 +193,7 @@ func TestErrorNRequestTooLarge(t *testing.T) {
 	}
 }
 
-// TestRmCgroupRemovesLeaked simulates a goset run that left its cgroup
-// behind (e.g. the process was killed before Destroy ran): create one
-// directly via InitCgroup, then remove it through the -rm-cgroup flag and
-// confirm the directory is gone.
+
 func TestRmCgroupRemovesLeaked(t *testing.T) {
 	preflight(t, 2)
 	root := repoRoot(t)
@@ -234,6 +216,7 @@ func TestRmCgroupRemovesLeaked(t *testing.T) {
 		t.Errorf("cgroup dir still present after -rm-cgroup: %v", err)
 	}
 }
+
 
 func TestErrorIncludeExcludeOverlap(t *testing.T) {
 	preflight(t, 1)

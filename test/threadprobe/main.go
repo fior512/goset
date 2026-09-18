@@ -1,7 +1,3 @@
-// threadprobe is a mock task for goset's integration harness. It reports,
-// per OS thread, the affinity the kernel actually gave it (Cpus_allowed_list)
-// and the CPU it happened to run on, plus the process's cgroup membership.
-// It never asserts anything itself; the harness reads its JSON stdout.
 package main
 
 import (
@@ -61,9 +57,6 @@ func main() {
 	}
 }
 
-// probeThread locks the calling goroutine to its OS thread and reads that
-// thread's own /proc entries, so Allowed/Observed reflect the pin goset
-// applied to this specific thread, not just the process.
 func probeThread() ThreadInfo {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
