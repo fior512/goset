@@ -5,11 +5,13 @@ import (
 	"testing"
 )
 
-func TestFlagNZeroAccepted(t *testing.T) {
+func TestFlagNZeroRejected(t *testing.T) {
+	// -n 0 (no pinning) was removed: telemetry can't watch a task that
+	// isn't pinned anywhere.
 	gosetBin, probeBin := setup(t)
 	res := runGoset(t, gosetBin, "-n", "0", "--", probeBin)
-	if res.exitCode != 0 {
-		t.Fatalf("expected -n 0 to succeed, exited %d, stderr: %s", res.exitCode, res.stderr)
+	if res.exitCode == 0 {
+		t.Fatal("expected error for -n 0")
 	}
 }
 
@@ -17,10 +19,7 @@ func TestFlagNZeroWithCgroupRejected(t *testing.T) {
 	gosetBin, probeBin := setup(t)
 	res := runGoset(t, gosetBin, "-n", "0", "-cgroup", "--", probeBin)
 	if res.exitCode == 0 {
-		t.Fatal("expected error for -n 0 -cgroup: no cpus to put in the cpuset")
-	}
-	if !strings.Contains(res.stderr, "cgroup") {
-		t.Errorf("stderr should mention cgroup, got: %s", res.stderr)
+		t.Fatal("expected error for -n 0 -cgroup")
 	}
 }
 

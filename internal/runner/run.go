@@ -30,6 +30,7 @@ func Run(cfg *cli.Config) error {
 		if err != nil {
 			return err
 		}
+		defer group.Destroy()
 	}
 
 	// IRQ steering
@@ -50,7 +51,7 @@ func Run(cfg *cli.Config) error {
 
 	// Run task
 	started := time.Now()
-	rusage, runErr := isolation.ApplyPin(cfg.Task, selection.Benchmark, group, cfg.NThreads > 0) // TODO: extract Task.start()
+	rusage, runErr := isolation.ApplyPin(cfg.Task, selection.Benchmark, group) // TODO: extract Task.start()
 	stop(time.Since(started), runErr, steer, rusage) // lazy-print returned by startTelemetry
 
 	return runErr
