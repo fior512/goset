@@ -37,20 +37,14 @@ func isSudo() bool {
 
 func (cfg *Config) Validate() error { // definition, bad behavior, suggestion
 	/* Threads Selection */
-	if cfg.NThreads < 0 {
-		return fmt.Errorf("-n define how many threads to book, it can't be negative.\n  0: no pinning, 1: pin only, >1: requires -cgroup")
+	if cfg.NThreads < 1 {
+		return fmt.Errorf("-n define how many threads to book, it can't be below 1.\n  1: pin only, >1: requires -cgroup")
 	}
 	if !cfg.Cgroup && cfg.NThreads > 1 {
 		return fmt.Errorf("-n >1 requires -cgroup (sudo)")
 	}
-	if cfg.Cgroup && cfg.NThreads == 0 {
-		return fmt.Errorf("-cgroup requires n>=1, but `-n 0` means no-pin")
-	}
 	if cfg.Steering && !isSudo() {
 		return fmt.Errorf("-steer needs root")
-	}
-	if cfg.Steering && cfg.NThreads == 0 {
-		return fmt.Errorf("-steer requires n>=1, but `-n 0` means no-pin")
 	}
 	if cfg.Cgroup && !isSudo() {
 		return fmt.Errorf("-cgroup requires root")
@@ -77,7 +71,7 @@ func (cfg *Config) Validate() error { // definition, bad behavior, suggestion
 // Register binds flags with struct items
 func Register(fs *flag.FlagSet) *Config {
 	cfg := &Config{}
-	fs.IntVar(&cfg.NThreads, "n", 1, "how many threads to book, 0 for no pinning (telemetry/housekeeper only)")
+	fs.IntVar(&cfg.NThreads, "n", 1, "how many threads to book, minimum 1")
 	fs.BoolVar(&cfg.Steering, "steer", false, "set smp_affinity_list (sudo)")
 	fs.BoolVar(&cfg.Cgroup, "cgroup", false, "number of threads for cgroup containerization (sudo)")
 	fs.Var(&cfg.Include, "include", "cpu list to force into the benchmark set, e.g. 2,4-6")

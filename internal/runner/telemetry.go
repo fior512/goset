@@ -51,7 +51,7 @@ func startTelemetry(selection *cpu.SelectionResult, cfg *cli.Config) (func(time.
 		fmt.Fprintln(os.Stdout, "\n\n--- GOSET ---")
 		rep := report.Report{Steer: steer, Rusage: rusage, Wall: wall, Counters: sampler.Stop(), ExitCode: exitCode(runErr)}
 		report.Render(os.Stdout,
-			report.SelectionTable(selection, cfg.NThreads > 0),
+			report.SelectionTable(selection),
 			report.TelemetryTable(rep),
 			report.GlobalTable(rep))
 	}
