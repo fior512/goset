@@ -48,7 +48,7 @@ func startTelemetry(selection *cpu.SelectionResult, cfg *cli.Config) (func(time.
 
 	// lazy print
 	stop := func(wall time.Duration, runErr error, steer *isolation.SteerResult, rusage *syscall.Rusage) {
-		fmt.Fprintln(os.Stdout, "\n\n--- GOSET ---\n")
+		fmt.Fprintln(os.Stdout, "\n\n--- GOSET ---")
 		rep := report.Report{Steer: steer, Rusage: rusage, Wall: wall, Counters: sampler.Stop(), ExitCode: exitCode(runErr)}
 		report.Render(os.Stdout,
 			report.SelectionTable(selection),
