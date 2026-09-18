@@ -1,7 +1,3 @@
-// Unprivileged coverage of -interval values that pass Config.Validate
-// (>= 0). Uses -n 1 so no cgroup and no root are needed; only checks the
-// run still succeeds and produces a probe report, since the sampler window
-// itself is not observable from threadprobe's output.
 package integration
 
 import "testing"
