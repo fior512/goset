@@ -15,12 +15,17 @@ type SelectionResult struct {
 func SelectCPUs(topo *Topology, n int, include CPUSet, exclude CPUSet, NumaNode int) (*SelectionResult, error) {
 	candidates := topo.Online
 
+	watch := n
+	if watch == 0 {
+		watch = 1
+	}
+
 	// incl&excl overlap check by run()
-	candidates.AndNot(exclude)    // exclude
-	if candidates.Count() < n+1 { // +housekeeper
+	candidates.AndNot(exclude)        // exclude
+	if candidates.Count() < watch+1 { // +housekeeper
 		return nil, fmt.Errorf(
 			"need %d cpu(s) plus 1 housekeeper but only %d candidate(s) remain",
-			n, candidates.Count())
+			watch, candidates.Count())
 	}
 	if !include.IsSubset(candidates) {
 		return nil, fmt.Errorf("include %s: offline or excluded cpu",
@@ -35,14 +40,14 @@ func SelectCPUs(topo *Topology, n int, include CPUSet, exclude CPUSet, NumaNode 
 
 	// selection
 	var selection, cores CPUSet
-	for _, score := range scores[:n] {
+	for _, score := range scores[:watch] {
 		selection.SetBit(score.CPU)
 		cores.SetBit(topo.Core[score.CPU])
 	}
 
 	// housekeeper: first non previsouly selected
-	housekeeper := scores[n].CPU
-	for _, score := range scores[n:] {
+	housekeeper := scores[watch].CPU
+	for _, score := range scores[watch:] {
 		if !cores.GetBit(topo.Core[score.CPU]) {
 			housekeeper = score.CPU
 			break
