@@ -63,12 +63,12 @@ func (cfg *Config) Validate() error { // definition, bad behavior, suggestion
 		return fmt.Errorf("include and exclude can't overlap")
 	}
 	if cfg.NumaNode < -2 {
-		return fmt.Errorf("-numa-node can be -2:off(default), -1:Auto, 0..:node idx")
+		return fmt.Errorf("-node can be -2:off(default), -1:Auto, 0..:node idx")
 	}
 
 	/* Telemetry */
 	if cfg.SamplingMS < -1 {
-		return fmt.Errorf("-sampling-ms can't be inferior to -1; -1: desactivated, 0:before/after only")
+		return fmt.Errorf("-interval can't be inferior to -1; -1: desactivated, 0:before/after only")
 	}
 	return nil
 }
@@ -82,8 +82,8 @@ func Register(fs *flag.FlagSet) *Config {
 	fs.BoolVar(&cfg.Cgroup, "cgroup", false, "number of threads for cgroup containerization (sudo)")
 	fs.Var(&cfg.Include, "include", "cpu list to force into the benchmark set, e.g. 2,4-6")
 	fs.Var(&cfg.Exclude, "exclude", "cpu list to exclude from selection")
-	fs.IntVar(&cfg.NumaNode, "numa-node", -2, "constrain benchmark cpus to one NUMA node when possible")
-	fs.IntVar(&cfg.SamplingMS, "sampling-ms", 1000, "interrupt sampling window for the housekeeper telemetry loop, ms (not used by cpu ranking)")
+	fs.IntVar(&cfg.NumaNode, "node", -2, "constrain benchmark cpus to one NUMA node when possible")
+	fs.IntVar(&cfg.SamplingMS, "interval", 1000, "interrupt sampling window for the housekeeper telemetry loop, ms (not used by cpu ranking)")
 	fs.StringVar(&cfg.RmCgroup, "rm-cgroup", "", "remove a leaked goset cgroup by name (see diagnose Cgroups table)")
 	return cfg
 }
