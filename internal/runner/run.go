@@ -30,6 +30,7 @@ func Run(cfg *cli.Config) error {
 		if err != nil {
 			return err
 		}
+		defer group.Destroy()
 	}
 
 	// IRQ steering
