@@ -1,7 +1,3 @@
-// Shared helpers for both the unprivileged tests (this package, no build
-// tag: selection_test.go, mask_test.go) and the privileged ones gated by
-// //go:build integration (harness_test.go). Kept tag-free so both tiers can
-// use it.
 package integration
 
 import (
@@ -16,13 +12,11 @@ import (
 	"testing"
 )
 
-// isSudo reports whether the test process itself runs as root. Used to skip
-// negative "needs root" checks when they can't fire, and to gate assertions
-// that only make sense as root.
 func isSudo(t *testing.T) bool {
 	t.Helper()
 	return os.Geteuid() == 0
 }
+
 
 type threadInfo struct {
 	TID      int    `json:"tid"`
@@ -31,6 +25,7 @@ type threadInfo struct {
 	Err      string `json:"err,omitempty"`
 }
 
+
 type probeReport struct {
 	PID     int          `json:"pid"`
 	Workers int          `json:"workers"`
@@ -38,8 +33,7 @@ type probeReport struct {
 	Threads []threadInfo `json:"threads"`
 }
 
-// repoRoot resolves the module root from this file's own path, so the test
-// runs the same whether invoked with `go test ./test/...` or a full path.
+
 func repoRoot(t *testing.T) string {
 	t.Helper()
 	_, file, _, ok := runtime.Caller(0)
@@ -48,6 +42,7 @@ func repoRoot(t *testing.T) string {
 	}
 	return filepath.Dir(filepath.Dir(file))
 }
+
 
 func buildBin(t *testing.T, root, outName, pkg string) string {
 	t.Helper()
@@ -62,11 +57,13 @@ func buildBin(t *testing.T, root, outName, pkg string) string {
 	return out
 }
 
+
 type runResult struct {
 	stdout   string
 	stderr   string
 	exitCode int
 }
+
 
 func runGoset(t *testing.T, gosetBin string, args ...string) runResult {
 	t.Helper()
@@ -86,10 +83,7 @@ func runGoset(t *testing.T, gosetBin string, args ...string) runResult {
 	return runResult{stdout: stdout.String(), stderr: stderr.String(), exitCode: code}
 }
 
-// parseProbe decodes only the leading JSON value from stdout. goset's own
-// "--- GOSET ---" report is written to the same inherited stdout right after
-// the probe's line, so a strict json.Unmarshal over the whole buffer fails;
-// a streaming Decoder stops cleanly after the first value.
+
 func parseProbe(t *testing.T, stdout string) probeReport {
 	t.Helper()
 	var rep probeReport
@@ -99,6 +93,7 @@ func parseProbe(t *testing.T, stdout string) probeReport {
 	}
 	return rep
 }
+
 
 func cpuListCount(list string) int {
 	if list == "" {
@@ -117,6 +112,7 @@ func cpuListCount(list string) int {
 	}
 	return n
 }
+
 
 // parseCPUList turns "0,2-4" into the sorted ids [0 2 3 4] for test
 // assertions that need to inspect individual members.

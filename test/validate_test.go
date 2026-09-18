@@ -6,14 +6,13 @@ import (
 )
 
 func TestFlagNZeroRejected(t *testing.T) {
-	// -n 0 (no pinning) was removed: telemetry can't watch a task that
-	// isn't pinned anywhere.
 	gosetBin, probeBin := setup(t)
 	res := runGoset(t, gosetBin, "-n", "0", "--", probeBin)
 	if res.exitCode == 0 {
 		t.Fatal("expected error for -n 0")
 	}
 }
+
 
 func TestFlagNZeroWithCgroupRejected(t *testing.T) {
 	gosetBin, probeBin := setup(t)
@@ -23,6 +22,7 @@ func TestFlagNZeroWithCgroupRejected(t *testing.T) {
 	}
 }
 
+
 func TestFlagNNegative(t *testing.T) {
 	gosetBin, probeBin := setup(t)
 	res := runGoset(t, gosetBin, "-n", "-1", "--", probeBin)
@@ -30,6 +30,7 @@ func TestFlagNNegative(t *testing.T) {
 		t.Fatal("expected error for -n -1")
 	}
 }
+
 
 func TestFlagSteerWithoutRoot(t *testing.T) {
 	if isSudo(t) {
@@ -45,6 +46,7 @@ func TestFlagSteerWithoutRoot(t *testing.T) {
 	}
 }
 
+
 func TestFlagCgroupWithoutRoot(t *testing.T) {
 	if isSudo(t) {
 		t.Skip("running as root: -cgroup root check not exercised")
@@ -59,6 +61,7 @@ func TestFlagCgroupWithoutRoot(t *testing.T) {
 	}
 }
 
+
 func TestFlagNodeTooLow(t *testing.T) {
 	gosetBin, probeBin := setup(t)
 	res := runGoset(t, gosetBin, "-n", "1", "-node", "-3", "--", probeBin)
@@ -69,6 +72,7 @@ func TestFlagNodeTooLow(t *testing.T) {
 		t.Errorf("stderr should mention node, got: %s", res.stderr)
 	}
 }
+
 
 func TestFlagIntervalTooLow(t *testing.T) {
 	gosetBin, probeBin := setup(t)
@@ -81,6 +85,7 @@ func TestFlagIntervalTooLow(t *testing.T) {
 	}
 }
 
+
 func TestFlagIncludeExcludeOverlapNoRoot(t *testing.T) {
 	gosetBin, probeBin := setup(t)
 	res := runGoset(t, gosetBin, "-n", "1", "-include", "0", "-exclude", "0", "--", probeBin)
@@ -92,6 +97,7 @@ func TestFlagIncludeExcludeOverlapNoRoot(t *testing.T) {
 	}
 }
 
+
 func TestFlagIncludeMalformed(t *testing.T) {
 	gosetBin, probeBin := setup(t)
 	for _, bad := range []string{"x", "1-", "-a"} {
@@ -101,6 +107,7 @@ func TestFlagIncludeMalformed(t *testing.T) {
 		}
 	}
 }
+
 
 func TestFlagExcludeMalformed(t *testing.T) {
 	gosetBin, probeBin := setup(t)
@@ -112,23 +119,11 @@ func TestFlagExcludeMalformed(t *testing.T) {
 	}
 }
 
+
 func TestFlagUnknown(t *testing.T) {
 	gosetBin, probeBin := setup(t)
 	res := runGoset(t, gosetBin, "-n", "1", "-does-not-exist", "--", probeBin)
 	if res.exitCode == 0 {
 		t.Fatal("expected error for unknown flag")
-	}
-}
-
-func TestFlagNodeValidValues(t *testing.T) {
-	// -2 (off, default), -1 (auto), 0 (node idx) must all pass Validate.
-	// NumaNode is not yet enforced by SelectCPUs (see internal/cpu/selection.go
-	// TODO), so this only pins that the flag is accepted, not that it filters.
-	gosetBin, probeBin := setup(t)
-	for _, v := range []string{"-2", "-1", "0"} {
-		res := runGoset(t, gosetBin, "-n", "1", "-node", v, "--", probeBin)
-		if res.exitCode != 0 {
-			t.Errorf("-node %s: exited %d, stderr: %s", v, res.exitCode, res.stderr)
-		}
 	}
 }

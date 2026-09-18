@@ -29,6 +29,7 @@ func TestParseCPUListRoundTrip(t *testing.T) {
 	}
 }
 
+
 func TestParseCPUListInvalid(t *testing.T) {
 	for _, in := range []string{"x", "1-", "-a"} {
 		if _, err := cpu.ParseCPUList(in); err == nil {
@@ -36,6 +37,7 @@ func TestParseCPUListInvalid(t *testing.T) {
 		}
 	}
 }
+
 
 func TestCPUSetAndAndNot(t *testing.T) {
 	a, _ := cpu.ParseCPUList("0-3")
@@ -53,6 +55,7 @@ func TestCPUSetAndAndNot(t *testing.T) {
 		t.Errorf("AndNot = %q, want %q", got, "0-1")
 	}
 }
+
 
 func TestCPUSetCountAndSubset(t *testing.T) {
 	full, _ := cpu.ParseCPUList("0-7")
