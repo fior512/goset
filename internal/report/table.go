@@ -46,11 +46,11 @@ func SelectionTable(sel *cpu.SelectionResult) Table {
 
 
 type Report struct {
-	Wall     time.Duration
 	Counters []telemetry.Counter
-	ExitCode int
 	Steer    *isolation.SteerResult
 	Rusage   *syscall.Rusage
+	Wall     time.Duration
+	ExitCode int
 }
 
 
@@ -108,10 +108,7 @@ func TelemetryTable(rep Report) Table {
 
 
 func GlobalTable(rep Report) Table {
-	rows := [][]string{
-		{"wall", FormatTime(rep.Wall)},
-		{"exit", fmt.Sprintf("%d", rep.ExitCode)},
-	}
+	rows := [][]string{}
 	if rep.Steer != nil {
 		rows = append(rows,
 			[]string{"irq steer applied", fmt.Sprintf("%d", rep.Steer.Applied)},
@@ -125,6 +122,10 @@ func GlobalTable(rep Report) Table {
 			[]string{"ctxsw involuntary", fmt.Sprintf("%d", rep.Rusage.Nivcsw)},
 		)
 	}
+	rows = append(rows,
+		[]string{"wall", FormatTime(rep.Wall)},
+		[]string{"exit", fmt.Sprintf("%d", rep.ExitCode)},
+	)
 	return Table{Title: "Global", Header: []string{"key", "value"}, Rows: rows}
 }
 
