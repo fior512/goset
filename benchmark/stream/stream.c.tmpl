@@ -1,0 +1,89 @@
+/*
+ * Minimal reimplementation of the classic STREAM memory-bandwidth
+ * benchmark (McCalpin): Copy, Scale, Add, Triad kernels over three
+ * double arrays sized well beyond typical L3, so throughput is bound
+ * by DRAM bandwidth rather than cache.
+ *
+ * Array size and iteration count: `stream [size] [ntimes]`, defaulting to
+ * 20000000 elements per array (~480MB total) and 10 timed repetitions.
+ */
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+static double now(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
+}
+
+int main(int argc, char **argv) {
+    long n = argc > 1 ? atol(argv[1]) : 20000000;
+    int ntimes = argc > 2 ? (int)atol(argv[2]) : 10;
+    const double scalar = 3.0;
+
+    double *a = malloc((size_t)n * sizeof(double));
+    double *b = malloc((size_t)n * sizeof(double));
+    double *c = malloc((size_t)n * sizeof(double));
+    if (!a || !b || !c) {
+        fprintf(stderr, "stream: allocation failed for n=%ld\n", n);
+        return 1;
+    }
+
+    for (long i = 0; i < n; i++) {
+        a[i] = 1.0;
+        b[i] = 2.0;
+        c[i] = 0.0;
+    }
+
+    double best[4];
+    for (int k = 0; k < 4; k++) best[k] = 1e30;
+
+    for (int t = 0; t < ntimes; t++) {
+        double start, elapsed;
+
+        start = now();
+        for (long i = 0; i < n; i++) c[i] = a[i];
+        elapsed = now() - start;
+        if (elapsed < best[0]) best[0] = elapsed;
+
+        start = now();
+        for (long i = 0; i < n; i++) b[i] = scalar * c[i];
+        elapsed = now() - start;
+        if (elapsed < best[1]) best[1] = elapsed;
+
+        start = now();
+        for (long i = 0; i < n; i++) c[i] = a[i] + b[i];
+        elapsed = now() - start;
+        if (elapsed < best[2]) best[2] = elapsed;
+
+        start = now();
+        for (long i = 0; i < n; i++) a[i] = b[i] + scalar * c[i];
+        elapsed = now() - start;
+        if (elapsed < best[3]) best[3] = elapsed;
+    }
+
+    // Touch the arrays in the printed output so the compiler can't
+    // discard the loops above as dead code.
+    double checksum = a[0] + b[n / 2] + c[n - 1];
+
+    const char *names[4] = {"Copy", "Scale", "Add", "Triad"};
+    const double bytesPerElem[4] = {
+        2.0 * sizeof(double), 2.0 * sizeof(double),
+        3.0 * sizeof(double), 3.0 * sizeof(double),
+    };
+
+    printf("STREAM: array size %ld elements (%.1f MB per array), %d iterations\n",
+           n, (double)n * sizeof(double) / (1024 * 1024), ntimes);
+    printf("Function    Best Rate MB/s   Best Time (s)\n");
+    for (int k = 0; k < 4; k++) {
+        double mbs = bytesPerElem[k] * (double)n / best[k] / 1e6;
+        printf("%-10s  %14.1f   %12.6f\n", names[k], mbs, best[k]);
+    }
+    printf("checksum: %g\n", checksum);
+
+    free(a);
+    free(b);
+    free(c);
+    return 0;
+}

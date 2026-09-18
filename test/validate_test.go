@@ -1,7 +1,3 @@
-// Unprivileged coverage of Config.Validate (internal/cli/flags.go): every
-// flag's error path that does not require root to observe. -steer and
-// -cgroup are included here because their root check fires from a
-// non-root process, which is exactly this test tier.
 package integration
 
 import (
@@ -9,14 +5,22 @@ import (
 	"testing"
 )
 
-func TestFlagNBelowOne(t *testing.T) {
+func TestFlagNZeroAccepted(t *testing.T) {
 	gosetBin, probeBin := setup(t)
 	res := runGoset(t, gosetBin, "-n", "0", "--", probeBin)
-	if res.exitCode == 0 {
-		t.Fatal("expected error for -n 0")
+	if res.exitCode != 0 {
+		t.Fatalf("expected -n 0 to succeed, exited %d, stderr: %s", res.exitCode, res.stderr)
 	}
-	if !strings.Contains(res.stderr, "-n") {
-		t.Errorf("stderr should mention -n, got: %s", res.stderr)
+}
+
+func TestFlagNZeroWithCgroupRejected(t *testing.T) {
+	gosetBin, probeBin := setup(t)
+	res := runGoset(t, gosetBin, "-n", "0", "-cgroup", "--", probeBin)
+	if res.exitCode == 0 {
+		t.Fatal("expected error for -n 0 -cgroup: no cpus to put in the cpuset")
+	}
+	if !strings.Contains(res.stderr, "cgroup") {
+		t.Errorf("stderr should mention cgroup, got: %s", res.stderr)
 	}
 }
 
