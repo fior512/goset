@@ -10,7 +10,7 @@ import (
 	"goset/internal/cpu"
 )
 
-func ApplyPin(argv []string, cpus cpu.CPUSet, group *Cgroup) (*syscall.Rusage, error) {
+func ApplyPin(argv []string, cpus cpu.CPUSet, group *Cgroup, pin bool) (*syscall.Rusage, error) {
 	task := exec.Command(argv[0], argv[1:]...)
 	task.Stdin = os.Stdin
 	task.Stdout = os.Stdout
@@ -34,7 +34,7 @@ func ApplyPin(argv []string, cpus cpu.CPUSet, group *Cgroup) (*syscall.Rusage, e
 
 		var prevCPUs cpu.CPUSet
 		var gerr error
-		if group == nil {
+		if pin && group == nil {
 			prevCPUs, gerr = cpu.GetAffinity(0) // goset affinity
 			if err := cpu.SetAffinity(0, cpus); err != nil {
 				done <- result{err: fmt.Errorf("set thread affinity: %w", err)}
@@ -43,7 +43,7 @@ func ApplyPin(argv []string, cpus cpu.CPUSet, group *Cgroup) (*syscall.Rusage, e
 		}
 		err := task.Run() // start and wait for the task to exit
 
-		if group == nil && gerr == nil {
+		if pin && group == nil && gerr == nil {
 			_ = cpu.SetAffinity(0, prevCPUs)
 		}
 		var rusage *syscall.Rusage

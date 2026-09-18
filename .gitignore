@@ -37,3 +37,4 @@ go.work.sum
 tags
 .serena
 goset
+goset-bench
