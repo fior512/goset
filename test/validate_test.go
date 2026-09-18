@@ -60,25 +60,25 @@ func TestFlagCgroupWithoutRoot(t *testing.T) {
 	}
 }
 
-func TestFlagNumaNodeTooLow(t *testing.T) {
+func TestFlagNodeTooLow(t *testing.T) {
 	gosetBin, probeBin := setup(t)
-	res := runGoset(t, gosetBin, "-n", "1", "-numa-node", "-3", "--", probeBin)
+	res := runGoset(t, gosetBin, "-n", "1", "-node", "-3", "--", probeBin)
 	if res.exitCode == 0 {
-		t.Fatal("expected error for -numa-node -3")
+		t.Fatal("expected error for -node -3")
 	}
-	if !strings.Contains(res.stderr, "numa") {
-		t.Errorf("stderr should mention numa, got: %s", res.stderr)
+	if !strings.Contains(res.stderr, "node") {
+		t.Errorf("stderr should mention node, got: %s", res.stderr)
 	}
 }
 
-func TestFlagSamplingMSTooLow(t *testing.T) {
+func TestFlagIntervalTooLow(t *testing.T) {
 	gosetBin, probeBin := setup(t)
-	res := runGoset(t, gosetBin, "-n", "1", "-sampling-ms", "-2", "--", probeBin)
+	res := runGoset(t, gosetBin, "-n", "1", "-interval", "-2", "--", probeBin)
 	if res.exitCode == 0 {
-		t.Fatal("expected error for -sampling-ms -2")
+		t.Fatal("expected error for -interval -2")
 	}
-	if !strings.Contains(res.stderr, "sampling-ms") {
-		t.Errorf("stderr should mention sampling-ms, got: %s", res.stderr)
+	if !strings.Contains(res.stderr, "interval") {
+		t.Errorf("stderr should mention interval, got: %s", res.stderr)
 	}
 }
 
@@ -121,15 +121,15 @@ func TestFlagUnknown(t *testing.T) {
 	}
 }
 
-func TestFlagNumaNodeValidValues(t *testing.T) {
+func TestFlagNodeValidValues(t *testing.T) {
 	// -2 (off, default), -1 (auto), 0 (node idx) must all pass Validate.
 	// NumaNode is not yet enforced by SelectCPUs (see internal/cpu/selection.go
 	// TODO), so this only pins that the flag is accepted, not that it filters.
 	gosetBin, probeBin := setup(t)
 	for _, v := range []string{"-2", "-1", "0"} {
-		res := runGoset(t, gosetBin, "-n", "1", "-numa-node", v, "--", probeBin)
+		res := runGoset(t, gosetBin, "-n", "1", "-node", v, "--", probeBin)
 		if res.exitCode != 0 {
-			t.Errorf("-numa-node %s: exited %d, stderr: %s", v, res.exitCode, res.stderr)
+			t.Errorf("-node %s: exited %d, stderr: %s", v, res.exitCode, res.stderr)
 		}
 	}
 }
