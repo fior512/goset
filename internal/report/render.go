@@ -67,11 +67,13 @@ func compress(value float64) string {
 	case av >= 10:
 		prec = 1
 	}
-	str := strconv.FormatFloat(value, 'f', prec, 64)
-	if len(str) > 4 {
-		str = str[:4]
+	for {
+		str := strconv.FormatFloat(value, 'f', prec, 64)
+		if len(str) <= 4 || prec == 0 {
+			return str
+		}
+		prec--
 	}
-	return str
 }
 
 
