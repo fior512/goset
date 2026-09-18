@@ -167,7 +167,7 @@ func (group *Cgroup) CPUStat() map[string]uint64 {
 
 
 func (group *Cgroup) Destroy() error {
-	if group == nil {
+	if group == nil || group.Path == "" {
 		return nil
 	}
 	if group.File != nil {
@@ -175,11 +175,15 @@ func (group *Cgroup) Destroy() error {
 		group.File = nil
 	}
 	if group.Partition != "" && group.Partition != "member" { // Restore to member before removal
-		if err := os.WriteFile(filepath.Join(group.Path, "cpuset.cpus.partition"), []byte("member"), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(group.Path, "cpuset.cpus.partition"), []byte("member"), 0o644); err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("restore %s to member: %w", group.Path, err)
 		}
 	}
-	return os.Remove(group.Path)
+	group.Partition = "member"
+	if err := os.Remove(group.Path); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
 }
 
 
