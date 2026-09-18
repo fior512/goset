@@ -1,9 +1,3 @@
-//go:build integration
-
-// Root coverage of -steer: SteerIRQs/RestoreIRQs (internal/isolation/irqsteer.go)
-// rewrite /proc/irq/*/smp_affinity_list away from the benchmark CPUs for the
-// run and restore the original values afterward. Requires root (writes under
-// /proc/irq) and at least one non-benchmark online CPU to steer onto.
 package integration
 
 import (
@@ -13,8 +7,6 @@ import (
 	"testing"
 )
 
-// steerableIRQSnapshot reads every numeric /proc/irq/<n>/smp_affinity_list,
-// mirroring isSteerableLabel in internal/isolation/irqsteer.go.
 func steerableIRQSnapshot(t *testing.T) map[string]string {
 	t.Helper()
 	entries, err := os.ReadDir("/proc/irq")
@@ -39,6 +31,7 @@ func steerableIRQSnapshot(t *testing.T) map[string]string {
 	return snap
 }
 
+
 func parseIntStrict(s string) (int, error) {
 	n := 0
 	for _, r := range s {
@@ -52,6 +45,7 @@ func parseIntStrict(s string) (int, error) {
 	}
 	return n, nil
 }
+
 
 func TestSteerRestoresIRQAffinity(t *testing.T) {
 	preflight(t, 3) // n=1 + housekeeper + at least one CPU left to steer onto
@@ -71,13 +65,14 @@ func TestSteerRestoresIRQAffinity(t *testing.T) {
 	for label, was := range before {
 		now, ok := after[label]
 		if !ok {
-			continue // irq disappeared between snapshots, not goset's doing
+			continue
 		}
 		if now != was {
 			t.Errorf("irq %s smp_affinity_list not restored: got %q, want %q", label, now, was)
 		}
 	}
 }
+
 
 func TestSteerCombinedWithCgroup(t *testing.T) {
 	preflight(t, 4) // n=2 + housekeeper + at least one CPU left to steer onto
@@ -99,10 +94,7 @@ func TestSteerCombinedWithCgroup(t *testing.T) {
 	assertUniformAllowed(t, rep, 2)
 }
 
-// TestSteerNoRoomToSteer: -steer with every CPU claimed by the benchmark
-// (n == online count - 1, the max SelectCPUs allows) must still find at
-// least the housekeeper CPU to steer onto and succeed, per SteerIRQs'
-// AndNot(bench) against topo.Online (which still includes the housekeeper).
+
 func TestSteerNoRoomToSteer(t *testing.T) {
 	preflight(t, 2)
 	ids := onlineIDs(t)

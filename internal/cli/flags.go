@@ -23,7 +23,7 @@ type Config struct {
 	NumaNode int        // Numa node
 
 	/* Telemetry */
-	SamplingMS int // telemetry window for housekeeper (Not rankCPUs())
+	SamplingMS int // housekeeper (Not rankCPUs())
 
 	/*DIAGNOSIS*/
 	RmCgroup string

@@ -1,5 +1,3 @@
-//go:build integration
-
 package integration
 
 import (
@@ -12,9 +10,6 @@ import (
 	"goset/internal/cpu"
 )
 
-// preflight checks the conditions the cgroup integration tests need and
-// t.Skip's with a user-facing remedy on the first one that fails. It never
-// lets a test proceed on an unmet precondition.
 func preflight(t *testing.T, minCPUs int) {
 	t.Helper()
 

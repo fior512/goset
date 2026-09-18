@@ -1,10 +1,3 @@
-//go:build integration
-
-// Root coverage of flag combinations. Each single flag already has its own
-// dedicated test elsewhere (harness_test.go, selection_test.go, steer_test.go);
-// this file exercises them pairwise/together so interactions between
-// -include/-exclude/-steer/-node/-cgroup(n>1)/-interval are not left
-// untested.
 package integration
 
 import "testing"
@@ -41,12 +34,6 @@ func TestMatrixPermutations(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			// Distinct binary name per case: InitCgroup derives the cgroup
-			// directory from filepath.Base("goset-"+task path), which collapses
-			// to the binary's own name regardless of its containing tempdir
-			// (see cgroupSnapshot's doc comment in harness_test.go). Reusing one
-			// shared probeBin across cases would make every subtest fight over
-			// the same cgroup dir name and produce spurious leaked/missing diffs.
 			probeBin := buildBin(t, root, "threadprobe-"+c.name, "./test/threadprobe")
 
 			before := cgroupSnapshot(t)

@@ -18,6 +18,7 @@ func TestDiagnoseBareInvocation(t *testing.T) {
 	}
 }
 
+
 func TestDiagnoseRejectsInvalidSelectionFlags(t *testing.T) {
 	gosetBin, _ := setup(t)
 	res := runGoset(t, gosetBin, "-n", "2", "-include", "0")
@@ -28,6 +29,7 @@ func TestDiagnoseRejectsInvalidSelectionFlags(t *testing.T) {
 		t.Errorf("stderr should mention cgroup, got: %s", res.stderr)
 	}
 }
+
 
 func TestDiagnoseInvalidFlagsStillValidated(t *testing.T) {
 	gosetBin, _ := setup(t)
