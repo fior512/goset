@@ -67,8 +67,8 @@ func (cfg *Config) Validate() error { // definition, bad behavior, suggestion
 	}
 
 	/* Telemetry */
-	if cfg.SamplingMS < -1 {
-		return fmt.Errorf("-interval can't be inferior to -1; -1: desactivated, 0:before/after only")
+	if cfg.SamplingMS < 0 {
+		return fmt.Errorf("-interval can't be negative; 0: before/after only")
 	}
 	return nil
 }
