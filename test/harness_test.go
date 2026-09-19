@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"goset/internal/cpu"
+	"goset/internal/generic"
 	"goset/internal/isolation"
 )
 
@@ -200,7 +200,7 @@ func TestRmCgroupRemovesLeaked(t *testing.T) {
 	gosetBin := buildBin(t, root, "goset", "./cmd/goset")
 
 	name := "goset-rmcgroup-test"
-	var cpus cpu.CPUSet
+	var cpus generic.CPUSet
 	cpus.SetBit(0)
 	group, err := isolation.InitCgroup(name, cpus, -1)
 	if err != nil {

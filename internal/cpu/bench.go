@@ -2,6 +2,7 @@ package cpu
 
 import (
 	"cmp"
+	"goset/internal/generic"
 	"slices"
 	"time"
 
@@ -14,12 +15,11 @@ type CPUScore struct {
 	Steerable    uint64 // numbered rows
 	NonSteerable uint64 // named rows: LOC, RES, CAL, TLB
 	SiblingLoad  uint64 // IRQs of the SMT siblings, self excluded
-	NumaNode         int
+	NumaNode     int
 	KernelIsol   bool
 	NohzFull     bool
 	RcuNocb      bool
 }
-
 
 func sampleIRQDelta(interval time.Duration) ([]telemetry.IRQCount, error) {
 	before, err := telemetry.ReadIRQCounts()
@@ -46,14 +46,12 @@ func sampleIRQDelta(interval time.Duration) ([]telemetry.IRQCount, error) {
 	return delta, nil
 }
 
-
 func deltaAt(delta []telemetry.IRQCount, cpu int) telemetry.IRQCount {
 	if cpu < 0 || cpu >= len(delta) {
 		return telemetry.IRQCount{}
 	}
 	return delta[cpu]
 }
-
 
 func siblingLoads(topo *Topology, delta []telemetry.IRQCount) map[int]uint64 {
 	coreTotal := make(map[int]uint64, len(topo.Core))
@@ -70,8 +68,7 @@ func siblingLoads(topo *Topology, delta []telemetry.IRQCount) map[int]uint64 {
 	return sibling
 }
 
-
-func rankCPUs(topo *Topology, candidates, include CPUSet, NumaNode int) ([]CPUScore, error) {
+func rankCPUs(topo *Topology, candidates, include generic.CPUSet, NumaNode int) ([]CPUScore, error) {
 	/*
 		include{1,2,5} // threads id requested
 		candidates{1,2,3,4,5,6} // all available threads
@@ -110,7 +107,7 @@ func rankCPUs(topo *Topology, candidates, include CPUSet, NumaNode int) ([]CPUSc
 			Steerable:    irq.Steerable,
 			NonSteerable: irq.NonSteerable,
 			SiblingLoad:  sibling[cpu],
-			NumaNode:         topo.NumaNode[cpu],
+			NumaNode:     topo.NumaNode[cpu],
 			KernelIsol:   topo.KernelIsol.GetBit(cpu),
 			NohzFull:     topo.NohzFull.GetBit(cpu),
 			RcuNocb:      topo.RcuNocb.GetBit(cpu),
@@ -136,7 +133,7 @@ func rankCPUs(topo *Topology, candidates, include CPUSet, NumaNode int) ([]CPUSc
 	// sorting
 	slices.SortStableFunc(out, func(left, right CPUScore) int {
 		return cmp.Or(
-			cmp.Compare(right.Included, left.Included),                   // desc
+			cmp.Compare(right.Included, left.Included), // desc
 			cmp.Compare(b2i(right.NumaNode == node), b2i(left.NumaNode == node)), // desc
 			cmp.Compare(left.NonSteerable, right.NonSteerable),
 			cmp.Compare(left.SiblingLoad, right.SiblingLoad),

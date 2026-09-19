@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 
-	"goset/internal/cpu"
 	"goset/internal/generic"
 )
 
@@ -19,12 +18,10 @@ type Cgroup struct {
 	destroyed bool
 }
 
-
 func cgroupV2Available() bool {
 	_, err := os.Stat(filepath.Join(generic.SysCgroup, generic.CgroupControllers))
 	return err == nil
 }
-
 
 func readFileTrim(path string) (string, error) {
 	data, err := os.ReadFile(path)
@@ -34,8 +31,7 @@ func readFileTrim(path string) (string, error) {
 	return strings.TrimSpace(string(data)), nil
 }
 
-
-func InitCgroup(name string, cpus cpu.CPUSet, memNode int) (*Cgroup, error) {
+func InitCgroup(name string, cpus generic.CPUSet, memNode int) (*Cgroup, error) {
 	// prerequirements: check v2 and cpuset
 	if !cgroupV2Available() {
 		return nil, fmt.Errorf("cgroup v2 unified hierarchy not found at %s", generic.SysCgroup)
@@ -97,7 +93,6 @@ func InitCgroup(name string, cpus cpu.CPUSet, memNode int) (*Cgroup, error) {
 	return group, nil
 }
 
-
 // Diagnosis path
 type CgroupInfo struct {
 	Name      string
@@ -107,7 +102,6 @@ type CgroupInfo struct {
 	Procs     int
 	Stat      map[string]uint64
 }
-
 
 func ListCgroups() ([]CgroupInfo, error) {
 	entries, err := os.ReadDir(generic.SysCgroup)
@@ -138,14 +132,12 @@ func ListCgroups() ([]CgroupInfo, error) {
 	return out, nil
 }
 
-
 func (group *Cgroup) FD() int {
 	if group == nil || group.File == nil {
 		return -1
 	}
 	return int(group.File.Fd())
 }
-
 
 func (group *Cgroup) CPUStat() map[string]uint64 {
 	out := map[string]uint64{}
@@ -168,7 +160,6 @@ func (group *Cgroup) CPUStat() map[string]uint64 {
 	return out
 }
 
-
 func (group *Cgroup) Destroy() error {
 	if group == nil || group.destroyed {
 		return nil
@@ -188,7 +179,6 @@ func (group *Cgroup) Destroy() error {
 	group.destroyed = true
 	return nil
 }
-
 
 func RemoveCgroup(name string) error {
 	path := filepath.Join(generic.SysCgroup, filepath.Base(name))

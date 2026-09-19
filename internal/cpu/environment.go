@@ -16,7 +16,6 @@ type Environment struct {
 	Mitigations   int    // count of non-"Not affected" vulnerabilities
 }
 
-
 func GetEnvironment() (*Environment, error) {
 	env := &Environment{}
 	env.SMT, _ = readFileTrim(generic.SysCPU + "/smt/control")
@@ -27,7 +26,6 @@ func GetEnvironment() (*Environment, error) {
 	env.Mitigations = countMitigations()
 	return env, nil
 }
-
 
 func readBoost() string {
 	if text, err := readFileTrim(generic.SysCPU + "/cpufreq/boost"); err == nil {
@@ -45,7 +43,6 @@ func readBoost() string {
 	return "n/a"
 }
 
-
 func countMitigations() int {
 	entries, err := os.ReadDir(generic.SysCPU + "/vulnerabilities")
 	if err != nil {
@@ -53,7 +50,7 @@ func countMitigations() int {
 	}
 	count := 0
 	for _, entry := range entries {
-		text, err := readFileTrim(filepath.Join(generic.SysCPU + "/vulnerabilities", entry.Name()))
+		text, err := readFileTrim(filepath.Join(generic.SysCPU+"/vulnerabilities", entry.Name()))
 		if err != nil {
 			continue
 		}
