@@ -5,6 +5,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"goset/internal/generic"
 )
 
 type IRQCount struct {
@@ -63,7 +65,7 @@ func (src *IRQSource) Summary() []Counter {
 
 func ReadIRQCounts() ([]IRQCount, error) {
 	// harvest
-	text, err := os.ReadFile("/proc/interrupts")
+	text, err := os.ReadFile(generic.ProcInterrupts)
 	if err != nil {
 		return nil, err
 	}
@@ -76,13 +78,13 @@ func ReadIRQCounts() ([]IRQCount, error) {
 	for _, field := range header {
 		id, err := strconv.Atoi(strings.TrimPrefix(field, "CPU"))
 		if err != nil {
-			return nil, fmt.Errorf("/proc/interrupts: header %q: %w", field, err)
+			return nil, fmt.Errorf("%s: header %q: %w",generic.ProcInterrupts , field, err)
 		}
 		ids = append(ids, id)
 		size = max(size, id+1)
 	}
 	if len(ids) == 0 {
-		return nil, fmt.Errorf("/proc/interrupts: no cpu columns")
+		return nil, fmt.Errorf("%s: no cpu columns", generic.ProcInterrupts)
 	}
 
 	// sums each cpu columns
@@ -102,7 +104,7 @@ func ReadIRQCounts() ([]IRQCount, error) {
 		for col, id := range ids {
 			val, err := strconv.ParseUint(fields[col+1], 10, 64)
 			if err != nil {
-				return nil, fmt.Errorf("/proc/interrupts: row %s: %w", label, err)
+				return nil, fmt.Errorf("%s: row %s: %w", generic.ProcInterrupts, label, err)
 			}
 			if steerable {
 				counts[id].Steerable += val

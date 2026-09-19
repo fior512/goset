@@ -8,6 +8,7 @@ import (
 
 	"goset/internal/cli"
 	"goset/internal/cpu"
+	"goset/internal/generic"
 	"goset/internal/isolation"
 )
 
@@ -27,7 +28,7 @@ func Run(cfg *cli.Config) error {
 	var group *isolation.Cgroup
 	if cfg.Cgroup {
 		var err error
-		cgroupName := "goset" + "-" + filepath.Base(cfg.Task[0])
+		cgroupName := generic.CgroupIdentifier + filepath.Base(cfg.Task[0])
 		group, err = isolation.InitCgroup(cgroupName, selection.Benchmark, cfg.NumaNode)
 		if err != nil {
 			return err

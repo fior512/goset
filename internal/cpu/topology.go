@@ -2,6 +2,7 @@ package cpu
 
 import (
 	"fmt"
+	"goset/internal/generic"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -75,7 +76,7 @@ func readFileTrim(path string) (string, error) {
 
 
 func GetTopology() (*Topology, error) {
-	online, err := readCPUList("/sys/devices/system/cpu/online")
+	online, err := readCPUList(generic.SysCPU + "/online")
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +98,7 @@ func GetTopology() (*Topology, error) {
 	///Siblings
 	for cpu := range online.All() {
 		siblings, err := readCPUList(fmt.Sprintf(
-			"/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list",
+			generic.SysCPU + "/cpu%d/topology/thread_siblings_list",
 			cpu))
 		topo.Core[cpu] = cpu
 		if first := siblings.NextSet(0); err == nil && first >= 0 {
@@ -108,7 +109,7 @@ func GetTopology() (*Topology, error) {
 
 	///Cpufreq
 	for cpu := range online.All() {
-		base := fmt.Sprintf("/sys/devices/system/cpu/cpu%d/cpufreq", cpu)
+		base := fmt.Sprintf(generic.SysCPU + "/cpu%d/cpufreq", cpu)
 		topo.Driver[cpu], _ = readFileTrim(filepath.Join(base, "scaling_driver"))
 		topo.Governor[cpu], _ = readFileTrim(filepath.Join(base, "scaling_governor"))
 		topo.EPP[cpu], _ = readFileTrim(filepath.Join(base, "energy_performance_preference"))
@@ -121,7 +122,7 @@ func GetTopology() (*Topology, error) {
 	}
 
 	///NumaNode
-	lists, err := filepath.Glob("/sys/devices/system/node/node*/cpulist")
+	lists, err := filepath.Glob(generic.SysNode + "/node*/cpulist")
 	if err != nil {
 		return nil, err
 	}
@@ -142,8 +143,8 @@ func GetTopology() (*Topology, error) {
 	}
 
 	///KernelIsol & NohzFull
-	topo.KernelIsol, _ = readCPUList("/sys/devices/system/cpu/isolated") // absent/null if not used
-	topo.NohzFull, _ = readCPUList("/sys/devices/system/cpu/nohz_full")
+	topo.KernelIsol, _ = readCPUList(generic.SysCPU + "/isolated") // absent/null if not used
+	topo.NohzFull, _ = readCPUList(generic.SysCPU + "/nohz_full")
 
 	///RcuNocb
 	topo.RcuNocb, _ = readCmdlineCPUList("rcu_nocbs") // absent if not used
@@ -153,7 +154,7 @@ func GetTopology() (*Topology, error) {
 
 // readCmdlineCPUList extracts a "<param>=<cpulist>" token from /proc/cmdline
 func readCmdlineCPUList(param string) (CPUSet, error) {
-	text, err := os.ReadFile("/proc/cmdline")
+	text, err := os.ReadFile(generic.ProcCmd)
 	if err != nil {
 		return CPUSet{}, err
 	}
