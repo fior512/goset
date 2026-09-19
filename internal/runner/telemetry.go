@@ -19,12 +19,6 @@ import (
 */
 
 func startTelemetry(selection *cpu.SelectionResult, cfg *cli.Config) (func(time.Duration, error, *isolation.SteerResult, *syscall.Rusage), error) {
-	// Translate CPUSet
-	var benchCPUs []int
-	for cpu := range selection.Benchmark.All() {
-		benchCPUs = append(benchCPUs, cpu)
-	}
-
 	// HK pin
 	pinHousekeeper := func() error {
 		var mask generic.CPUSet
@@ -34,7 +28,7 @@ func startTelemetry(selection *cpu.SelectionResult, cfg *cli.Config) (func(time.
 
 	// record
 	sampler := &telemetry.Sampler{
-		Cpus:     benchCPUs,
+		Cpus:     selection.Benchmark,
 		Interval: time.Duration(cfg.SamplingMS) * time.Millisecond,
 		Sources: []telemetry.Source{
 			&telemetry.IRQSource{},
