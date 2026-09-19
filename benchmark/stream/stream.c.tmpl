@@ -36,42 +36,44 @@ int main(int argc, char **argv) {
         c[i] = 0.0;
     }
 
-    double best[4];
-    for (int k = 0; k < 4; k++) best[k] = 1e30;
-
-    for (int t = 0; t < ntimes; t++) {
-        double start, elapsed;
-
-        start = now();
-        for (long i = 0; i < n; i++) c[i] = a[i];
-        elapsed = now() - start;
-        if (elapsed < best[0]) best[0] = elapsed;
-
-        start = now();
-        for (long i = 0; i < n; i++) b[i] = scalar * c[i];
-        elapsed = now() - start;
-        if (elapsed < best[1]) best[1] = elapsed;
-
-        start = now();
-        for (long i = 0; i < n; i++) c[i] = a[i] + b[i];
-        elapsed = now() - start;
-        if (elapsed < best[2]) best[2] = elapsed;
-
-        start = now();
-        for (long i = 0; i < n; i++) a[i] = b[i] + scalar * c[i];
-        elapsed = now() - start;
-        if (elapsed < best[3]) best[3] = elapsed;
-    }
-
-    // Touch the arrays in the printed output so the compiler can't
-    // discard the loops above as dead code.
-    double checksum = a[0] + b[n / 2] + c[n - 1];
-
     const char *names[4] = {"Copy", "Scale", "Add", "Triad"};
     const double bytesPerElem[4] = {
         2.0 * sizeof(double), 2.0 * sizeof(double),
         3.0 * sizeof(double), 3.0 * sizeof(double),
     };
+
+    double best[4];
+    for (int k = 0; k < 4; k++) best[k] = 1e30;
+
+    for (int t = 0; t < ntimes; t++) {
+        double start, elapsed[4];
+
+        start = now();
+        for (long i = 0; i < n; i++) c[i] = a[i];
+        elapsed[0] = now() - start;
+
+        start = now();
+        for (long i = 0; i < n; i++) b[i] = scalar * c[i];
+        elapsed[1] = now() - start;
+
+        start = now();
+        for (long i = 0; i < n; i++) c[i] = a[i] + b[i];
+        elapsed[2] = now() - start;
+
+        start = now();
+        for (long i = 0; i < n; i++) a[i] = b[i] + scalar * c[i];
+        elapsed[3] = now() - start;
+
+        for (int k = 0; k < 4; k++) {
+            if (elapsed[k] < best[k]) best[k] = elapsed[k];
+            double mbs = bytesPerElem[k] * (double)n / elapsed[k] / 1e6;
+            printf("SAMPLE %s %d %.1f\n", names[k], t, mbs);
+        }
+    }
+
+    // Touch the arrays in the printed output so the compiler can't
+    // discard the loops above as dead code.
+    double checksum = a[0] + b[n / 2] + c[n - 1];
 
     printf("STREAM: array size %ld elements (%.1f MB per array), %d iterations\n",
            n, (double)n * sizeof(double) / (1024 * 1024), ntimes);
