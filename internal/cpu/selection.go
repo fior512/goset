@@ -28,7 +28,7 @@ func SelectCPUs(topo *Topology, n int, include CPUSet, exclude CPUSet, NumaNode 
 	}
 
 	// evaluate
-	scores, err := rankCPUs(topo, candidates, include)
+	scores, err := rankCPUs(topo, candidates, include, NumaNode)
 	if err != nil {
 		return nil, err
 	}
