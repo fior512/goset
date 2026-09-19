@@ -3,7 +3,7 @@ package integration
 import (
 	"testing"
 
-	"goset/internal/cpu"
+	"goset/internal/generic"
 )
 
 func TestParseCPUListRoundTrip(t *testing.T) {
@@ -19,7 +19,7 @@ func TestParseCPUListRoundTrip(t *testing.T) {
 		{"", ""},
 	}
 	for _, c := range cases {
-		set, err := cpu.ParseCPUList(c.in)
+		set, err := generic.ParseCPUList(c.in)
 		if err != nil {
 			t.Fatalf("ParseCPUList(%q): %v", c.in, err)
 		}
@@ -32,7 +32,7 @@ func TestParseCPUListRoundTrip(t *testing.T) {
 
 func TestParseCPUListInvalid(t *testing.T) {
 	for _, in := range []string{"x", "1-", "-a"} {
-		if _, err := cpu.ParseCPUList(in); err == nil {
+		if _, err := generic.ParseCPUList(in); err == nil {
 			t.Errorf("ParseCPUList(%q): expected error, got nil", in)
 		}
 	}
@@ -40,8 +40,8 @@ func TestParseCPUListInvalid(t *testing.T) {
 
 
 func TestCPUSetAndAndNot(t *testing.T) {
-	a, _ := cpu.ParseCPUList("0-3")
-	b, _ := cpu.ParseCPUList("2-5")
+	a, _ := generic.ParseCPUList("0-3")
+	b, _ := generic.ParseCPUList("2-5")
 
 	and := a
 	and.And(b)
@@ -58,8 +58,8 @@ func TestCPUSetAndAndNot(t *testing.T) {
 
 
 func TestCPUSetCountAndSubset(t *testing.T) {
-	full, _ := cpu.ParseCPUList("0-7")
-	sub, _ := cpu.ParseCPUList("2,4")
+	full, _ := generic.ParseCPUList("0-7")
+	sub, _ := generic.ParseCPUList("2,4")
 
 	if got := full.Count(); got != 8 {
 		t.Errorf("Count = %d, want 8", got)

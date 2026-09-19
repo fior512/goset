@@ -1,9 +1,10 @@
-package cpu
+package generic
 
 import (
 	"fmt"
 	"iter"
 	"math/bits"
+	"strconv"
 	"strings"
 )
 
@@ -179,4 +180,43 @@ func (set *CPUSet) Set(str string) error {
 	}
 	*set = parsed
 	return nil
+}
+
+
+// ParseCPUList translate strings to CPUSet
+func ParseCPUList(list string) (CPUSet, error) {
+	str := strings.TrimSpace(list)
+	if str == "" {
+		return CPUSet{}, nil
+	}
+
+	var out CPUSet
+	for _, element := range strings.Split(str, ",") {
+		if element = strings.TrimSpace(element); element == "" {
+			continue
+		}
+
+		if lo, hi, ok := strings.Cut(element, "-"); ok {
+			l, err := strconv.Atoi(strings.TrimSpace(lo))
+			if err != nil {
+				return CPUSet{}, err
+			}
+			h, err := strconv.Atoi(strings.TrimSpace(hi))
+			if err != nil {
+				return CPUSet{}, err
+			}
+
+			// ranges and gremlins
+			for id := min(l, h); id <= max(l, h); id++ {
+				out.SetBit(id)
+			}
+		} else {
+			id, err := strconv.Atoi(element)
+			if err != nil {
+				return CPUSet{}, err
+			}
+			out.SetBit(id)
+		}
+	}
+	return out, nil
 }
