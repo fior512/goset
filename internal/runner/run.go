@@ -27,8 +27,8 @@ func Run(cfg *cli.Config) error {
 	var group *isolation.Cgroup
 	if cfg.Cgroup {
 		var err error
-		cgroup_name := "goset" + "-" + filepath.Base(cfg.Task[0])
-		group, err = isolation.InitCgroup(cgroup_name, selection.Benchmark, cfg.NumaNode) // TODO: handle NumaNode
+		cgroupName := "goset" + "-" + filepath.Base(cfg.Task[0])
+		group, err = isolation.InitCgroup(cgroupName, selection.Benchmark, cfg.NumaNode)
 		if err != nil {
 			return err
 		}
@@ -38,7 +38,7 @@ func Run(cfg *cli.Config) error {
 	// IRQ steering
 	var steer *isolation.SteerResult
 	if cfg.Steering {
-		steer, err = isolation.SteerIRQs(topo, selection.Benchmark)
+		steer, err = isolation.SteerIRQs(topo, selection.Benchmark, selection.HouseKeeper)
 		if err != nil {
 			return err
 		}
