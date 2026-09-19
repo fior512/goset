@@ -15,12 +15,12 @@ import (
 func SelectionTable(sel *cpu.SelectionResult) Table {
 	header := []string{"cpu", "sel", "soft", "hard", "sibl", "isol", "node", "nohz", "rcu"}
 	rows := make([][]string, 0, len(sel.Scores))
-	for _, sc := range sel.Scores {
+	for _, candidate := range sel.Scores {
 		mark := ""
 		switch {
-		case sc.CPU == sel.HouseKeeper:
+		case candidate.CPU == sel.HouseKeeper:
 			mark = "& "
-		case sel.Benchmark.GetBit(sc.CPU):
+		case sel.Benchmark.GetBit(candidate.CPU):
 			mark = "* "
 		}
 		flag := func(on bool) string {
@@ -30,15 +30,15 @@ func SelectionTable(sel *cpu.SelectionResult) Table {
 			return ""
 		}
 		rows = append(rows, []string{
-			fmt.Sprintf("%3d", sc.CPU),
+			fmt.Sprintf("%3d", candidate.CPU),
 			mark,
-			FormatValue(float64(sc.Steerable)),
-			FormatValue(float64(sc.NonSteerable)),
-			FormatValue(float64(sc.SiblingLoad)),
-			flag(sc.KernelIsol),
-			fmt.Sprintf("%4d", sc.Node),
-			flag(sc.NohzFull),
-			flag(sc.RcuNocb),
+			FormatValue(float64(candidate.Steerable)),
+			FormatValue(float64(candidate.NonSteerable)),
+			FormatValue(float64(candidate.SiblingLoad)),
+			flag(candidate.KernelIsol),
+			fmt.Sprintf("%4d", candidate.NumaNode),
+			flag(candidate.NohzFull),
+			flag(candidate.RcuNocb),
 		})
 	}
 	return Table{Title: "Selection", Header: header, Rows: rows}

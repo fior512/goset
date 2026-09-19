@@ -139,7 +139,7 @@ func rankCPUs(topo *Topology, candidates, include CPUSet, NumaNode int) ([]CPUSc
 	slices.SortStableFunc(out, func(left, right CPUScore) int {
 		return cmp.Or(
 			cmp.Compare(right.Included, left.Included),                   // desc
-			cmp.Compare(b2i(right.Node == node), b2i(left.Node == node)), // desc
+			cmp.Compare(b2i(right.NumaNode == node), b2i(left.NumaNode == node)), // desc
 			cmp.Compare(left.NonSteerable, right.NonSteerable),
 			cmp.Compare(left.SiblingLoad, right.SiblingLoad),
 			cmp.Compare(left.Steerable, right.Steerable),
