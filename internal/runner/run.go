@@ -3,8 +3,8 @@ package runner
 import (
 	"errors"
 	"os/exec"
-	"time"
 	"path/filepath"
+	"time"
 
 	"goset/internal/cli"
 	"goset/internal/cpu"
@@ -27,7 +27,8 @@ func Run(cfg *cli.Config) error {
 	var group *isolation.Cgroup
 	if cfg.Cgroup {
 		var err error
-		group, err = isolation.InitCgroup("goset-"+filepath.Base(cfg.Task[0]), selection.Benchmark, -1) // rename // TODO: handle NumaNode
+		cgroup_name := "goset" + "-" + filepath.Base(cfg.Task[0])
+		group, err = isolation.InitCgroup(cgroup_name, selection.Benchmark, cfg.NumaNode) // TODO: handle NumaNode
 		if err != nil {
 			return err
 		}
@@ -52,7 +53,7 @@ func Run(cfg *cli.Config) error {
 
 	// Run task
 	started := time.Now()
-	rusage, runErr := isolation.ApplyPin(cfg.Task, selection.Benchmark, group) // TODO: extract Task.start()
+	rusage, runErr := isolation.ApplyPin(cfg.Task, selection.Benchmark, group)
 	stop(time.Since(started), runErr, steer, rusage) // lazy-print returned by startTelemetry
 
 	return runErr

@@ -14,11 +14,12 @@ type CPUScore struct {
 	Steerable    uint64 // numbered rows
 	NonSteerable uint64 // named rows: LOC, RES, CAL, TLB
 	SiblingLoad  uint64 // IRQs of the SMT siblings, self excluded
-	Node         int    // numa
+	NumaNode         int
 	KernelIsol   bool
 	NohzFull     bool
 	RcuNocb      bool
 }
+
 
 func sampleIRQDelta(interval time.Duration) ([]telemetry.IRQCount, error) {
 	before, err := telemetry.ReadIRQCounts()
@@ -53,6 +54,7 @@ func deltaAt(delta []telemetry.IRQCount, cpu int) telemetry.IRQCount {
 	return delta[cpu]
 }
 
+
 func siblingLoads(topo *Topology, delta []telemetry.IRQCount) map[int]uint64 {
 	coreTotal := make(map[int]uint64, len(topo.Core))
 	for cpu := range topo.Online.All() {
@@ -69,7 +71,7 @@ func siblingLoads(topo *Topology, delta []telemetry.IRQCount) map[int]uint64 {
 }
 
 
-func rankCPUs(topo *Topology, candidates, include CPUSet) ([]CPUScore, error) {
+func rankCPUs(topo *Topology, candidates, include CPUSet, NumaNode int) ([]CPUScore, error) {
 	/*
 		include{1,2,5} // threads id requested
 		candidates{1,2,3,4,5,6} // all available threads
@@ -84,8 +86,8 @@ func rankCPUs(topo *Topology, candidates, include CPUSet) ([]CPUScore, error) {
 		}
 		Then pick the top N element.
 		It imply include[] size invariance logic
-		
-		
+
+
 
 		//Rules:
 		//  1) Include on top, and create a "cluster"
@@ -93,13 +95,13 @@ func rankCPUs(topo *Topology, candidates, include CPUSet) ([]CPUScore, error) {
 		//				so we pick include while still lowering IRQ
 	*/
 
-	delta, err := sampleIRQDelta(100 * time.Millisecond)
+	delta, err := sampleIRQDelta(500 * time.Millisecond)
 	if err != nil {
 		return nil, err
 	}
 	sibling := siblingLoads(topo, delta)
 
-	//saving
+	// saving
 	out := make([]CPUScore, 0, candidates.Count())
 	for cpu := range candidates.All() {
 		irq := deltaAt(delta, cpu)
@@ -108,7 +110,7 @@ func rankCPUs(topo *Topology, candidates, include CPUSet) ([]CPUScore, error) {
 			Steerable:    irq.Steerable,
 			NonSteerable: irq.NonSteerable,
 			SiblingLoad:  sibling[cpu],
-			Node:         topo.NumaNode[cpu],
+			NumaNode:         topo.NumaNode[cpu],
 			KernelIsol:   topo.KernelIsol.GetBit(cpu),
 			NohzFull:     topo.NohzFull.GetBit(cpu),
 			RcuNocb:      topo.RcuNocb.GetBit(cpu),
@@ -119,10 +121,25 @@ func rankCPUs(topo *Topology, candidates, include CPUSet) ([]CPUScore, error) {
 		out = append(out, score)
 	}
 
-	//sorting
+	// NumaNode
+	var node int
+	if NumaNode == -1 && len(out) > 0 {
+		// AUTO Numa
+		node = topo.NumaNode[out[0].CPU] // top
+	}
+
+	// TODO: find better bool sort
+	b2i := func(condition bool) int {
+		if NumaNode == -2 { return 0 } // OFF
+		if condition { return 1 }
+		return -1
+	}
+
+	// sorting
 	slices.SortStableFunc(out, func(left, right CPUScore) int {
 		return cmp.Or(
-			cmp.Compare(right.Included, left.Included), // desc
+			cmp.Compare(right.Included, left.Included),                   // desc
+			cmp.Compare(b2i(right.Node == node), b2i(left.Node == node)), // desc
 			cmp.Compare(left.NonSteerable, right.NonSteerable),
 			cmp.Compare(left.SiblingLoad, right.SiblingLoad),
 			cmp.Compare(left.Steerable, right.Steerable),
