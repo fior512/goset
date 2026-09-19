@@ -122,13 +122,11 @@ func rankCPUs(topo *Topology, candidates, include CPUSet, NumaNode int) ([]CPUSc
 	}
 
 	// NumaNode
-	var node int
+	node := NumaNode
 	if NumaNode == -1 && len(out) > 0 {
 		// AUTO Numa
 		node = topo.NumaNode[out[0].CPU] // top
 	}
-
-	// TODO: find better bool sort
 	b2i := func(condition bool) int {
 		if NumaNode == -2 { return 0 } // OFF
 		if condition { return 1 }
