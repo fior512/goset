@@ -23,8 +23,8 @@ type IRQSource struct {
 }
 
 
-func (src *IRQSource) Baseline(target Target) error {
-	src.cpus = target.BenchCPUs
+func (src *IRQSource) Baseline(selected generic.Selection) error {
+	src.cpus = selected.Task
 	var err error
 	src.start, err = ReadIRQCounts()
 	return err
@@ -78,7 +78,7 @@ func ReadIRQCounts() ([]IRQCount, error) {
 	for _, field := range header {
 		id, err := strconv.Atoi(strings.TrimPrefix(field, "CPU"))
 		if err != nil {
-			return nil, fmt.Errorf("%s: header %q: %w",generic.ProcInterrupts , field, err)
+			return nil, fmt.Errorf("%s: header %q: %w", generic.ProcInterrupts, field, err)
 		}
 		ids = append(ids, id)
 		size = max(size, id+1)

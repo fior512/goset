@@ -18,17 +18,17 @@ import (
 	Policy: No IPI
 */
 
-func startTelemetry(selection *cpu.SelectionResult, cfg *cli.Config) (func(time.Duration, error, *isolation.SteerResult, *syscall.Rusage), error) {
+func startTelemetry(selected *generic.Selection, cfg *cli.Config) (func(time.Duration, error, *isolation.SteerResult, *syscall.Rusage), error) {
 	// HK pin
 	pinHousekeeper := func() error {
 		var mask generic.CPUSet
-		mask.SetBit(selection.HouseKeeper)
+		mask.SetBit(selected.HouseKeeper)
 		return cpu.SetAffinity(0, mask)
 	}
 
 	// record
 	sampler := &telemetry.Sampler{
-		Cpus:     selection.Benchmark,
+		Cpus:     selected.Task,
 		Interval: time.Duration(cfg.SamplingMS) * time.Millisecond,
 		Sources: []telemetry.Source{
 			&telemetry.IRQSource{},
@@ -46,7 +46,7 @@ func startTelemetry(selection *cpu.SelectionResult, cfg *cli.Config) (func(time.
 		fmt.Fprintln(os.Stdout, "\n\n--- GOSET ---")
 		rep := report.Report{Steer: steer, Rusage: rusage, Wall: wall, Counters: sampler.Stop(), ExitCode: exitCode(runErr)}
 		report.Render(os.Stdout,
-			report.SelectionTable(selection),
+			report.SelectionTable(selected),
 			report.TelemetryTable(rep),
 			report.GlobalTable(rep))
 	}

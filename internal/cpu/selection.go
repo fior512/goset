@@ -2,17 +2,11 @@ package cpu
 
 import (
 	"fmt"
+
 	"goset/internal/generic"
 )
 
-// SelectionResult Benchmark Results
-type SelectionResult struct {
-	Scores      []CPUScore
-	Benchmark   generic.CPUSet
-	HouseKeeper int
-}
-
-func SelectCPUs(topo *Topology, n int, include generic.CPUSet, exclude generic.CPUSet, NumaNode int) (*SelectionResult, error) {
+func SelectCPUs(topo *Topology, n int, include generic.CPUSet, exclude generic.CPUSet, NumaNode int) (*generic.Selection, error) {
 	candidates := topo.Online
 
 	// incl&excl overlap check by run()
@@ -49,9 +43,9 @@ func SelectCPUs(topo *Topology, n int, include generic.CPUSet, exclude generic.C
 		}
 	}
 
-	return &SelectionResult{
+	return &generic.Selection{
 		Scores:      scores,
-		Benchmark:   selection,
+		Task:        selection,
 		HouseKeeper: housekeeper,
 	}, nil
 }
