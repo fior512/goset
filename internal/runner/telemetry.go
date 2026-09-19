@@ -14,10 +14,6 @@ import (
 	"goset/internal/telemetry"
 )
 
-/*
-	Policy: No IPI
-*/
-
 func startTelemetry(selected *generic.Selection, cfg *cli.Config) (func(time.Duration, error, *isolation.SteerResult, *syscall.Rusage), error) {
 	// HK pin
 	pinHousekeeper := func() error {
