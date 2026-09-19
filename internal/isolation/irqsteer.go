@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"goset/internal/cpu"
+	"goset/internal/generic"
 )
 
 type SteerResult struct {
@@ -36,7 +37,7 @@ func SteerIRQs(topo *cpu.Topology, bench cpu.CPUSet, housekeeper int) (*SteerRes
 	}
 	list := allowed.String()
 
-	entries, err := os.ReadDir("/proc/irq")
+	entries, err := os.ReadDir(generic.ProcIRQ)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +46,7 @@ func SteerIRQs(topo *cpu.Topology, bench cpu.CPUSet, housekeeper int) (*SteerRes
 		if !e.IsDir() || !isSteerableLabel(e.Name()) {
 			continue
 		}
-		path := filepath.Join("/proc/irq", e.Name(), "smp_affinity_list")
+		path := filepath.Join(generic.ProcIRQ, e.Name(), generic.SmpAffinityList)
 		prev, err := readFileTrim(path)
 		if err != nil {
 			continue
@@ -62,9 +63,9 @@ func SteerIRQs(topo *cpu.Topology, bench cpu.CPUSet, housekeeper int) (*SteerRes
 
 	// check if writable
 	for label := range res.Saved {
-		s, err := readFileTrim(filepath.Join("/proc/irq", label, "effective_affinity_list")) //read-only
+		s, err := readFileTrim(filepath.Join(generic.ProcIRQ, label, generic.EffectiveAffinityList)) //read-only
 		if err != nil {
-			s, err = readFileTrim(filepath.Join("/proc/irq", label, "smp_affinity_list")) // read/write
+			s, err = readFileTrim(filepath.Join(generic.ProcIRQ, label, generic.SmpAffinityList)) // read/write
 			if err != nil {
 				continue
 			}
@@ -93,7 +94,7 @@ func RestoreIRQs(r *SteerResult) (restored, failed int) {
 		return 0, 0
 	}
 	for label, val := range r.Saved {
-		path := filepath.Join("/proc/irq", label, "smp_affinity_list")
+		path := filepath.Join(generic.ProcIRQ, label, generic.SmpAffinityList)
 		if err := os.WriteFile(path, []byte(val), 0o644); err != nil {
 			failed++
 			continue

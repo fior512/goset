@@ -1,6 +1,7 @@
 package cpu
 
 import (
+	"goset/internal/generic"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,7 +19,7 @@ type Environment struct {
 
 func GetEnvironment() (*Environment, error) {
 	env := &Environment{}
-	env.SMT, _ = readFileTrim("/sys/devices/system/cpu/smt/control")
+	env.SMT, _ = readFileTrim(generic.SysCPU + "/smt/control")
 	env.Boost = readBoost()
 	env.NumaBalancing, _ = readFileTrim("/proc/sys/kernel/numa_balancing")
 	env.NmiWatchdog, _ = readFileTrim("/proc/sys/kernel/nmi_watchdog")
@@ -29,13 +30,13 @@ func GetEnvironment() (*Environment, error) {
 
 
 func readBoost() string {
-	if text, err := readFileTrim("/sys/devices/system/cpu/cpufreq/boost"); err == nil {
+	if text, err := readFileTrim(generic.SysCPU + "/cpufreq/boost"); err == nil {
 		if text == "1" {
 			return "on"
 		}
 		return "off"
 	}
-	if text, err := readFileTrim("/sys/devices/system/cpu/intel_pstate/no_turbo"); err == nil {
+	if text, err := readFileTrim(generic.SysCPU + "/intel_pstate/no_turbo"); err == nil {
 		if text == "0" {
 			return "on"
 		}
@@ -46,13 +47,13 @@ func readBoost() string {
 
 
 func countMitigations() int {
-	entries, err := os.ReadDir("/sys/devices/system/cpu/vulnerabilities")
+	entries, err := os.ReadDir(generic.SysCPU + "/vulnerabilities")
 	if err != nil {
 		return 0
 	}
 	count := 0
 	for _, entry := range entries {
-		text, err := readFileTrim(filepath.Join("/sys/devices/system/cpu/vulnerabilities", entry.Name()))
+		text, err := readFileTrim(filepath.Join(generic.SysCPU + "/vulnerabilities", entry.Name()))
 		if err != nil {
 			continue
 		}

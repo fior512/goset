@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"goset/internal/generic"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,9 +10,9 @@ import (
 
 func steerableIRQSnapshot(t *testing.T) map[string]string {
 	t.Helper()
-	entries, err := os.ReadDir("/proc/irq")
+	entries, err := os.ReadDir(generic.ProcIRQ)
 	if err != nil {
-		t.Fatalf("read /proc/irq: %v", err)
+		t.Fatalf("read %s: %v", generic.ProcIRQ, err)
 	}
 	snap := map[string]string{}
 	for _, e := range entries {
@@ -21,7 +22,7 @@ func steerableIRQSnapshot(t *testing.T) map[string]string {
 		if _, err := parseIntStrict(e.Name()); err != nil {
 			continue
 		}
-		path := filepath.Join("/proc/irq", e.Name(), "smp_affinity_list")
+		path := filepath.Join(generic.ProcIRQ, e.Name(), generic.SmpAffinityList)
 		data, err := os.ReadFile(path)
 		if err != nil {
 			continue
