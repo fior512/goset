@@ -1,7 +1,9 @@
 package telemetry
 
+import "goset/internal/generic"
+
 type Target struct {
-	BenchCPUs   []int
+	BenchCPUs   generic.CPUSet
 	Housekeeper int
 }
 
