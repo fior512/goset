@@ -41,7 +41,7 @@ Goset needs sudo only for `-cgroup` and `-steer`.
 | `-steer` |bool| false | Push away steerable IRQs, automatically handle IRQBalance | **sudo** |
 | `-interval` |int| 1000 | Poll interval in milliseconds for telemetry collection | |
 | `-include` |string| | List of threads to select first, handles ranges (e.g.: `1,3-5` -> 1,3,4,5)| |
-| `-exclude` |string| | List of threads to avoid, handles ranges (e.g.: `1,3-5` -> 1,3,4,5) |differ from `-include`|
+| `-exclude` |string| | List of threads to avoid, handles ranges (e.g.: `1,3-5` -> 1,3,4,5) |other tha `-include`|
 | `-node` |int| -2 | Numa node **preference** 0..N, -1:Auto (single node), -2:Off (multi node). | |
 
 > Multi-thread tasks: linux `sched_setaffinity` can't pin multithreaded tasks, for this reason `-cgroup` is needed.
