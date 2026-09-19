@@ -62,7 +62,7 @@ func (set *CPUSet) ClearRange(lo, hi int) { set.apply(lo, hi, opClear) }
 func (set *CPUSet) InvRange(lo, hi int)   { set.apply(lo, hi, opInv) }
 
 func (set *CPUSet) GetBit(cpu int) bool {
-	if cpu < 0 || cpu >= CPUSetBits { //GetBit is not inside apply
+	if cpu < 0 || cpu >= CPUSetBits { // GetBit is not inside apply
 		return false
 	}
 	return set[cpu>>6]&(1<<uint(cpu&63)) != 0
@@ -85,6 +85,16 @@ func (set *CPUSet) Count() int {
 		total += bits.OnesCount64(word)
 	}
 	return total
+}
+
+
+func (set *CPUSet) Max() int {
+	for i := CPUSetWords - 1; i >= 0; i-- { // backward
+		if set[i] != 0 {
+			return (i<<6) + 63 - bits.LeadingZeros64(set[i])
+		}
+	}
+	return -1 // empty
 }
 
 

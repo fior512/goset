@@ -33,6 +33,7 @@ func startTelemetry(selected *generic.Selection, cfg *cli.Config) (func(time.Dur
 		Sources: []telemetry.Source{
 			&telemetry.IRQSource{},
 			&telemetry.ThrottleSource{},
+			&telemetry.FreqSource{},
 		},
 		Exit: make(chan struct{}),
 		Done: make(chan struct{}),

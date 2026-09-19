@@ -9,10 +9,8 @@ import (
 )
 
 func ReadThrottleCounts(cpus generic.CPUSet) ([]uint64, error) {
-	size := 0
-	for cpu := range cpus.All() {
-		size = cpu + 1
-	}
+	size := cpus.Max()+1
+	
 	out := make([]uint64, size)
 	for cpu := range cpus.All() {
 		path := fmt.Sprintf(
