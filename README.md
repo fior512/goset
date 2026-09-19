@@ -19,8 +19,7 @@ Table of Contents
 -----------------
 
 * [Quick Start](#quick-start)
-* [Report](#report)
-* [Documentation](#documentation)
+* [Technical insights](#documentation)
 * [Performance results](#performance-results)
 * [Contributing](CONTRIBUTING.md)
 * [AI Policy](AGENTS.md)
@@ -56,7 +55,7 @@ Goset has a second form called `Diagnostic`, callable in the same way but withou
 
 > Identifying Goset's cgroup: name is "goset-" + the task binary's basename (e.g. task: `./mybench arg1, arg2` -> cgroup name: `goset-mybench`).
 
-*Real usage*:
+**Real usage**:
 ```bash
 # Diagnose: topology, environment, existing cgroups.
 goset
@@ -131,78 +130,8 @@ Global
 * `Global`: steer/cgroup/ctxsw summary and the task's own wall time and exit code.
 
 
-Documentation
+Technical insights
 -------------
-
-**Pipeline** (`internal/runner/run.go`):
-
-```mermaid
-flowchart TB
-    subgraph Row1[" "]
-        direction LR
-        subgraph A["Topology<br/><sub>cpu.GetTopology()</sub>"]
-            direction TB
-            a1["readCPUList()"]
-        end
-        subgraph B["Select CPUs<br/><sub>cpu.SelectCPUs()</sub>"]
-            direction TB
-            b1["rankCPUs()"]
-            b2["sampleIRQDelta()"]
-            b3["siblingLoads()"]
-            b1 --> b2 --> b3
-        end
-        subgraph C["Cgroup<br/><sub>isolation.InitCgroup()</sub>"]
-            direction TB
-            c1["cgroupV2Available()"]
-        end
-        subgraph D["Steer<br/><sub>isolation.SteerIRQs()</sub>"]
-            direction TB
-            d1["isSteerableLabel()"]
-        end
-        A --> B --> C --> D
-    end
-
-    subgraph Row2[" "]
-        direction RL
-        subgraph E["Telemetry start<br/><sub>startTelemetry()</sub>"]
-            direction TB
-            e1["Sampler.Start()"]
-            e2["IRQSource.Baseline()"]
-            e3["ThrottleSource.Baseline()"]
-            e1 --> e2 & e3
-        end
-        subgraph F["Run task<br/><sub>isolation.ApplyPin()</sub>"]
-            direction TB
-            f1["cpu.SetAffinity()"]
-            f2["exec.Cmd.Run()"]
-            f3["wait4() rusage"]
-            f1 --> f2 --> f3
-        end
-        subgraph G["Telemetry stop<br/><sub>stop()</sub>"]
-            direction TB
-            g1["Sampler.Stop()"]
-            g2["IRQSource.Stop()"]
-            g3["ThrottleSource.Stop()"]
-            g1 --> g2 & g3
-        end
-        subgraph H["Report<br/><sub>report.Render()</sub>"]
-            direction TB
-            h1["SelectionTable()"]
-            h2["TelemetryTable()"]
-            h3["GlobalTable()"]
-        end
-        E --> F --> G --> H
-    end
-
-    D --> E
-    Row1 ~~~ Row2
-
-    classDef stage fill:transparent,stroke:#888,stroke-width:1px,color:inherit;
-    class A,B,C,D,E,F,G,H stage;
-    style Row1 fill:transparent,stroke:none
-    style Row2 fill:transparent,stroke:none
-```
-`C`, `D`: optional stage, gated by `-cgroup` / `-steer`.
 
 **Selection** (`internal/cpu/bench.go`)
 - Rank input: IRQ delta (500ms sample) + sibling runqueue load.
