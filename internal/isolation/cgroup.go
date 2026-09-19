@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"goset/internal/cpu"
+	"goset/internal/generic"
 )
 
 type Cgroup struct {
@@ -20,7 +21,7 @@ type Cgroup struct {
 
 
 func cgroupV2Available() bool {
-	_, err := os.Stat(filepath.Join("/sys/fs/cgroup", "cgroup.controllers"))
+	_, err := os.Stat(filepath.Join(generic.SysCgroup, "cgroup.controllers"))
 	return err == nil
 }
 
@@ -37,9 +38,9 @@ func readFileTrim(path string) (string, error) {
 func InitCgroup(name string, cpus cpu.CPUSet, memNode int) (*Cgroup, error) {
 	// prerequirements: check v2 and cpuset
 	if !cgroupV2Available() {
-		return nil, fmt.Errorf("cgroup v2 unified hierarchy not found at %s", "/sys/fs/cgroup")
+		return nil, fmt.Errorf("cgroup v2 unified hierarchy not found at %s", generic.SysCgroup)
 	}
-	ctl, err := readFileTrim(filepath.Join("/sys/fs/cgroup", "cgroup.controllers"))
+	ctl, err := readFileTrim(filepath.Join(generic.SysCgroup, "cgroup.controllers"))
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +49,7 @@ func InitCgroup(name string, cpus cpu.CPUSet, memNode int) (*Cgroup, error) {
 	}
 
 	// Enable cpuset on the root subtree
-	sub := filepath.Join("/sys/fs/cgroup", "cgroup.subtree_control")
+	sub := filepath.Join(generic.SysCgroup, "cgroup.subtree_control")
 	if cur, err := readFileTrim(sub); err == nil && !strings.Contains(cur, "cpuset") {
 		if err := os.WriteFile(sub, []byte("+cpuset"), 0o644); err != nil {
 			return nil, fmt.Errorf("enable cpuset in root subtree_control: %w", err)
@@ -56,7 +57,7 @@ func InitCgroup(name string, cpus cpu.CPUSet, memNode int) (*Cgroup, error) {
 	}
 
 	// Create the group directory
-	path := filepath.Join("/sys/fs/cgroup", filepath.Base(name))
+	path := filepath.Join(generic.SysCgroup, filepath.Base(name))
 	if err := os.Mkdir(path, 0o755); err != nil && !os.IsExist(err) {
 		return nil, fmt.Errorf("mkdir %s: %w", path, err)
 	}
@@ -109,16 +110,17 @@ type CgroupInfo struct {
 
 
 func ListCgroups() ([]CgroupInfo, error) {
-	entries, err := os.ReadDir("/sys/fs/cgroup")
+	entries, err := os.ReadDir(generic.SysCgroup)
 	if err != nil {
 		return nil, err
 	}
 	var out []CgroupInfo
 	for _, entry := range entries {
-		if !entry.IsDir() || !strings.HasPrefix(entry.Name(), "goset-") {
+		if !entry.IsDir() || !strings.HasPrefix(entry.Name(), generic.CgroupIdentifier) {
 			continue
 		}
-		path := filepath.Join("/sys/fs/cgroup", entry.Name())
+
+		path := filepath.Join(generic.SysCgroup, entry.Name())
 		cpus, _ := readFileTrim(filepath.Join(path, "cpuset.cpus"))
 		mems, _ := readFileTrim(filepath.Join(path, "cpuset.mems"))
 		partition, _ := readFileTrim(filepath.Join(path, "cpuset.cpus.partition"))
@@ -189,7 +191,7 @@ func (group *Cgroup) Destroy() error {
 
 
 func RemoveCgroup(name string) error {
-	path := filepath.Join("/sys/fs/cgroup", filepath.Base(name))
+	path := filepath.Join(generic.SysCgroup, filepath.Base(name))
 	partition, _ := readFileTrim(filepath.Join(path, "cpuset.cpus.partition"))
 	group := &Cgroup{Path: path, Name: name, Partition: partition}
 	return group.Destroy()

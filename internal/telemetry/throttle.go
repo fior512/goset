@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"fmt"
+	"goset/internal/generic"
 	"os"
 	"strconv"
 	"strings"
@@ -11,7 +12,8 @@ func ReadThrottleCounts(cpus []int) ([]uint64, error) {
 	out := make([]uint64, len(cpus))
 	for i, cpu := range cpus {
 		path := fmt.Sprintf(
-			"/sys/devices/system/cpu/cpu%d/thermal_throttle/core_throttle_count", cpu)
+			generic.SysCPU + 
+			"/cpu%d/thermal_throttle/core_throttle_count", cpu)
 		text, err := os.ReadFile(path)
 		if err != nil {
 			continue // absent on some cpus/VMs, leave 0
