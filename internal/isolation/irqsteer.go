@@ -26,6 +26,7 @@ func isSteerableLabel(label string) bool {
 	return err == nil
 }
 
+// https://www.kernel.org/doc/html/latest/core-api/irq/irq-affinity.html
 func SteerIRQs(topo *cpu.Topology, bench generic.CPUSet, housekeeper int) (*SteerResult, error) {
 	allowed := topo.Online
 	allowed.AndNot(bench)
@@ -86,6 +87,7 @@ func SteerIRQs(topo *cpu.Topology, bench generic.CPUSet, housekeeper int) (*Stee
 }
 
 // RestoreIRQs restore smp_affinity_lists
+// https://www.kernel.org/doc/html/latest/core-api/irq/irq-affinity.html
 func RestoreIRQs(r *SteerResult) (restored, failed int) {
 	if r == nil {
 		return 0, 0
