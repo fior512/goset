@@ -18,15 +18,19 @@ type Environment struct {
 
 func GetEnvironment() (*Environment, error) {
 	env := &Environment{}
+	// https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-devices-system-cpu
 	env.SMT, _ = readFileTrim(generic.SysCPU + "/smt/control")
 	env.Boost = readBoost()
+	// https://docs.kernel.org/admin-guide/sysctl/kernel.html
 	env.NumaBalancing, _ = readFileTrim("/proc/sys/kernel/numa_balancing")
 	env.NmiWatchdog, _ = readFileTrim("/proc/sys/kernel/nmi_watchdog")
+	// https://docs.kernel.org/admin-guide/mm/transhuge.html
 	env.THP, _ = readFileTrim("/sys/kernel/mm/transparent_hugepage/enabled")
 	env.Mitigations = countMitigations()
 	return env, nil
 }
 
+// https://docs.kernel.org/admin-guide/pm/cpufreq.html
 func readBoost() string {
 	if text, err := readFileTrim(generic.SysCPU + "/cpufreq/boost"); err == nil {
 		if text == "1" {
@@ -43,6 +47,7 @@ func readBoost() string {
 	return "n/a"
 }
 
+// https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-devices-system-cpu
 func countMitigations() int {
 	entries, err := os.ReadDir(generic.SysCPU + "/vulnerabilities")
 	if err != nil {

@@ -18,6 +18,7 @@ type Cgroup struct {
 	destroyed bool
 }
 
+// https://docs.kernel.org/admin-guide/cgroup-v2.html
 func cgroupV2Available() bool {
 	_, err := os.Stat(filepath.Join(generic.SysCgroup, generic.CgroupControllers))
 	return err == nil
@@ -31,6 +32,7 @@ func readFileTrim(path string) (string, error) {
 	return strings.TrimSpace(string(data)), nil
 }
 
+// https://docs.kernel.org/admin-guide/cgroup-v2.html
 func InitCgroup(name string, cpus generic.CPUSet, memNode int) (*Cgroup, error) {
 	// prerequirements: check v2 and cpuset
 	if !cgroupV2Available() {
@@ -103,6 +105,7 @@ type CgroupInfo struct {
 	Stat      map[string]uint64
 }
 
+// https://docs.kernel.org/admin-guide/cgroup-v2.html
 func ListCgroups() ([]CgroupInfo, error) {
 	entries, err := os.ReadDir(generic.SysCgroup)
 	if err != nil {
@@ -139,6 +142,7 @@ func (group *Cgroup) FD() int {
 	return int(group.File.Fd())
 }
 
+// https://docs.kernel.org/admin-guide/cgroup-v2.html
 func (group *Cgroup) CPUStat() map[string]uint64 {
 	out := map[string]uint64{}
 	if group == nil {
@@ -160,6 +164,7 @@ func (group *Cgroup) CPUStat() map[string]uint64 {
 	return out
 }
 
+// https://docs.kernel.org/admin-guide/cgroup-v2.html
 func (group *Cgroup) Destroy() error {
 	if group == nil || group.destroyed {
 		return nil
@@ -180,6 +185,7 @@ func (group *Cgroup) Destroy() error {
 	return nil
 }
 
+// https://docs.kernel.org/admin-guide/cgroup-v2.html
 func RemoveCgroup(name string) error {
 	path := filepath.Join(generic.SysCgroup, filepath.Base(name))
 	partition, _ := readFileTrim(filepath.Join(path, generic.CpusetCpusPartition))

@@ -35,6 +35,7 @@ func readFileTrim(path string) (string, error) {
 }
 
 func GetTopology() (*Topology, error) {
+	// https://docs.kernel.org/core-api/cpu_hotplug.html
 	online, err := readCPUList(generic.SysCPU + "/online")
 	if err != nil {
 		return nil, err
@@ -52,6 +53,7 @@ func GetTopology() (*Topology, error) {
 	}
 
 	///Siblings
+	// https://docs.kernel.org/admin-guide/cputopology.html
 	for cpu := range online.All() {
 		siblings, err := readCPUList(fmt.Sprintf(
 			generic.SysCPU+"/cpu%d/topology/thread_siblings_list",
@@ -65,6 +67,7 @@ func GetTopology() (*Topology, error) {
 
 	///Cpufreq
 	for cpu := range online.All() {
+		// https://docs.kernel.org/admin-guide/pm/cpufreq.html
 		base := fmt.Sprintf(generic.SysCPU+"/cpu%d/cpufreq", cpu)
 		topo.Driver[cpu], _ = readFileTrim(filepath.Join(base, "scaling_driver"))
 		topo.Governor[cpu], _ = readFileTrim(filepath.Join(base, "scaling_governor"))
@@ -78,6 +81,7 @@ func GetTopology() (*Topology, error) {
 	}
 
 	///NumaNode
+	// https://www.kernel.org/doc/Documentation/ABI/stable/sysfs-devices-node
 	lists, err := filepath.Glob(generic.SysNode + "/node*/cpulist")
 	if err != nil {
 		return nil, err
@@ -99,6 +103,7 @@ func GetTopology() (*Topology, error) {
 	}
 
 	///KernelIsol & NohzFull
+	// https://www.kernel.org/doc/html/latest/admin-guide/kernel-parameters.html
 	topo.KernelIsol, _ = readCPUList(generic.SysCPU + "/isolated") // absent/null if not used
 	topo.NohzFull, _ = readCPUList(generic.SysCPU + "/nohz_full")
 
@@ -108,6 +113,7 @@ func GetTopology() (*Topology, error) {
 }
 
 // readCmdlineCPUList extracts a "<param>=<cpulist>" token from /proc/cmdline
+// https://www.kernel.org/doc/html/latest/admin-guide/kernel-parameters.html
 func readCmdlineCPUList(param string) (generic.CPUSet, error) {
 	text, err := os.ReadFile(generic.ProcCmd)
 	if err != nil {
