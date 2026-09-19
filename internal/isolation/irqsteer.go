@@ -21,14 +21,12 @@ type SteerResult struct {
 	Saved     map[string]string // IRQ label -> original smp_affinity_list
 }
 
-
 func isSteerableLabel(label string) bool {
 	_, err := strconv.Atoi(label) // soft: digit, hard:letters
 	return err == nil
 }
 
-
-func SteerIRQs(topo *cpu.Topology, bench cpu.CPUSet, housekeeper int) (*SteerResult, error) {
+func SteerIRQs(topo *cpu.Topology, bench generic.CPUSet, housekeeper int) (*SteerResult, error) {
 	allowed := topo.Online
 	allowed.AndNot(bench)
 	allowed.ClearBit(housekeeper)
@@ -70,12 +68,12 @@ func SteerIRQs(topo *cpu.Topology, bench cpu.CPUSet, housekeeper int) (*SteerRes
 				continue
 			}
 		}
-		cpus, err := cpu.ParseCPUList(s)
+		cpus, err := generic.ParseCPUList(s)
 		if err != nil {
 			continue
 		}
 		if cpus.Any() {
-			var overlap cpu.CPUSet
+			var overlap generic.CPUSet
 			overlap = cpus
 			overlap.And(bench)
 			if overlap.Any() {
@@ -86,7 +84,6 @@ func SteerIRQs(topo *cpu.Topology, bench cpu.CPUSet, housekeeper int) (*SteerRes
 	sort.Strings(res.Remaining)
 	return res, nil
 }
-
 
 // RestoreIRQs restore smp_affinity_lists
 func RestoreIRQs(r *SteerResult) (restored, failed int) {
@@ -103,7 +100,6 @@ func RestoreIRQs(r *SteerResult) (restored, failed int) {
 	}
 	return
 }
-
 
 func errnoLabel(err error) string {
 	if pe, ok := err.(*os.PathError); ok {

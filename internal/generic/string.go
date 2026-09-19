@@ -27,6 +27,17 @@ const (
 	EffectiveAffinityList = "effective_affinity_list"
 )
 
+// cpufreq control files
+const (
+	CpufreqDir     = "cpufreq"
+	ScalingDriver  = "scaling_driver"
+	ScalingGov     = "scaling_governor"
+	EnergyPref     = "energy_performance_preference"
+	ScalingMinFreq = "scaling_min_freq"
+	ScalingMaxFreq = "scaling_max_freq"
+	ScalingCurFreq = "scaling_cur_freq"
+)
+
 // names
 const (
 	CgroupIdentifier = "goset-"

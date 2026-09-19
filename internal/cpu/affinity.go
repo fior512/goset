@@ -1,12 +1,13 @@
 package cpu
 
 import (
+	"goset/internal/generic"
 	"syscall"
 	"unsafe"
 )
 
-func GetAffinity(pid int) (CPUSet, error) {
-	cpus := CPUSet{}
+func GetAffinity(pid int) (generic.CPUSet, error) {
+	cpus := generic.CPUSet{}
 	_, _, errno := syscall.RawSyscall(
 		syscall.SYS_SCHED_GETAFFINITY,
 		uintptr(pid),
@@ -14,14 +15,13 @@ func GetAffinity(pid int) (CPUSet, error) {
 		uintptr(unsafe.Pointer(&cpus[0])))
 
 	if errno != 0 {
-		return CPUSet{}, errno
+		return generic.CPUSet{}, errno
 	}
 
 	return cpus, nil
 }
 
-
-func SetAffinity(pid int, cpus CPUSet) error {
+func SetAffinity(pid int, cpus generic.CPUSet) error {
 	_, _, errno := syscall.RawSyscall(
 		syscall.SYS_SCHED_SETAFFINITY,
 		uintptr(pid),

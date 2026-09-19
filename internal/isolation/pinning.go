@@ -8,9 +8,10 @@ import (
 	"syscall"
 
 	"goset/internal/cpu"
+	"goset/internal/generic"
 )
 
-func ApplyPin(argv []string, cpus cpu.CPUSet, group *Cgroup) (*syscall.Rusage, error) {
+func ApplyPin(argv []string, cpus generic.CPUSet, group *Cgroup) (*syscall.Rusage, error) {
 	task := exec.Command(argv[0], argv[1:]...)
 	task.Stdin = os.Stdin
 	task.Stdout = os.Stdout
@@ -32,7 +33,7 @@ func ApplyPin(argv []string, cpus cpu.CPUSet, group *Cgroup) (*syscall.Rusage, e
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 
-		var prevCPUs cpu.CPUSet
+		var prevCPUs generic.CPUSet
 		var gerr error
 		if group == nil {
 			prevCPUs, gerr = cpu.GetAffinity(0) // goset affinity

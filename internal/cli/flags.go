@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 
-	"goset/internal/cpu"
 	"goset/internal/generic"
 )
 
@@ -20,9 +19,9 @@ type Config struct {
 	Cgroup   bool // (root if >1) thread amount
 
 	/* Selection Preference */
-	Include  cpu.CPUSet // subset of threads
-	Exclude  cpu.CPUSet // subset of threads
-	NumaNode int        // Numa node
+	Include  generic.CPUSet // subset of threads
+	Exclude  generic.CPUSet // subset of threads
+	NumaNode int            // Numa node
 
 	/* Telemetry */
 	SamplingMS int // housekeeper (Not rankCPUs())
@@ -31,11 +30,9 @@ type Config struct {
 	RmCgroup string
 }
 
-
 func isSudo() bool {
 	return os.Geteuid() == 0
 }
-
 
 func (cfg *Config) Validate() error { // definition, bad behavior, suggestion
 	/* Threads Selection */
@@ -74,7 +71,6 @@ func (cfg *Config) Validate() error { // definition, bad behavior, suggestion
 	return nil
 }
 
-
 // Register binds flags with struct items
 func Register(fs *flag.FlagSet) *Config {
 	cfg := &Config{}
@@ -88,7 +84,6 @@ func Register(fs *flag.FlagSet) *Config {
 	fs.StringVar(&cfg.RmCgroup, "rm-cgroup", "", "remove a leaked goset cgroup by name (see diagnose Cgroups table)")
 	return cfg
 }
-
 
 func Parse(args []string) (*Config, error) {
 	fs := flag.NewFlagSet("goset", flag.ContinueOnError)
