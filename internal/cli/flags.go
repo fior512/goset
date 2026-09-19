@@ -68,7 +68,7 @@ func (cfg *Config) Validate() error { // definition, bad behavior, suggestion
 	}
 
 	if cfg.RmCgroup != "" && !strings.HasPrefix(cfg.RmCgroup, generic.CgroupIdentifier) {
-		return fmt.Errorf("-rm-cgroup is targetting a non-Goset cgroup (Goset's cgroup start with '%s').", generic.CgroupIdentifier)
+		return fmt.Errorf("-rm-cgroup is targetting a non-Goset cgroup (Goset's cgroup start with '%s')", generic.CgroupIdentifier)
 	}
 
 	return nil
