@@ -4,14 +4,14 @@
 GOSET : Efficient IRQ task pinning
 ============================================
 
-<img src="images/logo/goset.png" width="10%" style="float: right">
+<img src="images/logo/goset.png" width="40%" style="float: right">
 
 Goset is a systematic CPU-pinning CLI tool.
-It takes a task, single|multi threaded, ranks cores by interrupt rate and scheduler noise, isolates the task, steers future interrupt and reports kernel and hardware counters for the run.
+It takes a task, single|multi threaded, ranks cores by interrupt rate and scheduler noise, isolates the task, steers future interrupts and reports kernel and hardware counters for the run.
 
 * **Noise-aware:** Ranks CPUs by IRQ rate and scheduler load before pinning.
 * **Isolated:** cgroup v2 + IRQ steering, for exclusive CPU access.
-* **Telemetry built in:** IRQ, throttle, ctxsw counts, and more reported with the run.
+* **Telemetry built in:** IRQ, throttle, ctxsw counts, ...; reported with the run.
 * **No IPI:** Housekeeper thread reads every CPU's counters remotely, from kernel-maintained state.
 * **Diagnostics:** Reports topology, environment, existing cgroups.
 
@@ -39,7 +39,7 @@ Goset needs sudo only for `-cgroup` and `-steer`.
 | `-n` |int| 1 | How many threads to book | n>=1 |
 | `-cgroup` |bool| false | Containerize task inside Cgroupv2. Required for N>1 | **sudo** |
 | `-steer` |bool| false | Push away steerable IRQs, automatically handle IRQBalance | **sudo** |
-| `-interval` |int| 1000 | Interval in miliseconds for telemetry collection | |
+| `-interval` |int| 1000 | Poll interval in milliseconds for telemetry collection | |
 | `-include` |string| | List of threads to select first, handles ranges (e.g.: `1,3-5` -> 1,3,4,5)| |
 | `-exclude` |string| | List of threads to avoid, handles ranges (e.g.: `1,3-5` -> 1,3,4,5) |differ from `-include`|
 | `-node` |int| -2 | Numa node preference 0..N, -1:Auto (single node), -2:Off (multi node) | |
@@ -47,15 +47,14 @@ Goset needs sudo only for `-cgroup` and `-steer`.
 > Multi-thread tasks: linux `sched_setaffinity` can't pin multithreaded tasks, for this reason `-cgroup` is needed.
 
 
-Goset have a second form called `Diagnostic`, callable in the same way but without task (`sudo goset`; `-- ./task` absent).
+Goset has a second form called `Diagnostic`, callable in the same way but without task (`sudo goset`; `-- ./task` absent).
 
 | flag | description | rule |
 |---|---|---|
 | *bare* | Report Topology, CPU state, cgroups.. | | 
 | `-rm-cgroup` | Let you **brut-force delete** an existing group. In case of non-identified goset bug | **sudo** |
 
-> Identifying Goset's cgroup: name follows this pattern "*`goset-`+task*"
-
+> Identifying Goset's cgroup: name is "goset-" + the task binary's basename (e.g. task: `./mybench arg1, arg2` -> cgroup name: `goset-mybench`).
 
 *Real usage*:
 ```bash
@@ -224,9 +223,10 @@ flowchart TB
 
 **Telemetry**
 - Reader: Only the housekeeper reads.
-- Reads: Goset avoids `rdmsr` (because of IPIs), instead, it use `sysfs`.
+- No IPI: every counter comes from procfs/sysfs. The pinned housekeeper thread does the mid-run poll; the before/after baseline runs on the calling thread.
 - Source: kernel software counters only: `/proc/interrupts`, sysfs throttle, `wait4()` rusage...
-- `-interval`: define the sampling metric subject to polling rate. (Housekeeper only, not `SelectCPUs()`)
+- `-interval`: mid-run poll tick, ms. Not used by `SelectCPUs()`.
+
 
 Performance results
 --------------------
