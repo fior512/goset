@@ -8,6 +8,7 @@ import (
 
 	"goset/internal/cli"
 	"goset/internal/cpu"
+	"goset/internal/generic"
 	"goset/internal/isolation"
 	"goset/internal/report"
 	"goset/internal/telemetry"
@@ -26,7 +27,7 @@ func startTelemetry(selection *cpu.SelectionResult, cfg *cli.Config) (func(time.
 
 	// HK pin
 	pinHousekeeper := func() error {
-		var mask cpu.CPUSet
+		var mask generic.CPUSet
 		mask.SetBit(selection.HouseKeeper)
 		return cpu.SetAffinity(0, mask)
 	}

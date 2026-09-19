@@ -9,53 +9,14 @@ import (
 	"strings"
 )
 
-// ParseCPUList translate strings to CPUSet
-func ParseCPUList(list string) (CPUSet, error) {
-	str := strings.TrimSpace(list)
-	if str == "" {
-		return CPUSet{}, nil
-	}
-
-	var out CPUSet
-	for _, element := range strings.Split(str, ",") {
-		if element = strings.TrimSpace(element); element == "" {
-			continue
-		}
-
-		if lo, hi, ok := strings.Cut(element, "-"); ok {
-			l, err := strconv.Atoi(strings.TrimSpace(lo))
-			if err != nil {
-				return CPUSet{}, err
-			}
-			h, err := strconv.Atoi(strings.TrimSpace(hi))
-			if err != nil {
-				return CPUSet{}, err
-			}
-
-			// ranges and gremlins
-			for id := min(l, h); id <= max(l, h); id++ {
-				out.SetBit(id)
-			}
-		} else {
-			id, err := strconv.Atoi(element)
-			if err != nil {
-				return CPUSet{}, err
-			}
-			out.SetBit(id)
-		}
-	}
-	return out, nil
-}
-
-
 // Topology follows `/sys/devices/system/cpu/`
 type Topology struct {
-	Online     CPUSet // availabe threads
-	Core       []int  // index: cpu id
-	NumaNode   []int  // index: cpu id
-	KernelIsol CPUSet
-	NohzFull   CPUSet
-	RcuNocb    CPUSet
+	Online     generic.CPUSet // availabe threads
+	Core       []int          // index: cpu id
+	NumaNode   []int          // index: cpu id
+	KernelIsol generic.CPUSet
+	NohzFull   generic.CPUSet
+	RcuNocb    generic.CPUSet
 
 	Driver   []string // index: cpu id, cpufreq/scaling_driver
 	Governor []string // index: cpu id, cpufreq/scaling_governor
@@ -63,7 +24,6 @@ type Topology struct {
 	MinFreq  []int    // index: cpu id, cpufreq/scaling_min_freq, kHz
 	MaxFreq  []int    // index: cpu id, cpufreq/scaling_max_freq, kHz
 }
-
 
 // readFileTrim reads a file and trims surrounding whitespace.
 func readFileTrim(path string) (string, error) {
@@ -73,7 +33,6 @@ func readFileTrim(path string) (string, error) {
 	}
 	return strings.TrimSpace(string(text)), nil
 }
-
 
 func GetTopology() (*Topology, error) {
 	online, err := readCPUList(generic.SysCPU + "/online")
@@ -98,7 +57,7 @@ func GetTopology() (*Topology, error) {
 	///Siblings
 	for cpu := range online.All() {
 		siblings, err := readCPUList(fmt.Sprintf(
-			generic.SysCPU + "/cpu%d/topology/thread_siblings_list",
+			generic.SysCPU+"/cpu%d/topology/thread_siblings_list",
 			cpu))
 		topo.Core[cpu] = cpu
 		if first := siblings.NextSet(0); err == nil && first >= 0 {
@@ -109,7 +68,7 @@ func GetTopology() (*Topology, error) {
 
 	///Cpufreq
 	for cpu := range online.All() {
-		base := fmt.Sprintf(generic.SysCPU + "/cpu%d/cpufreq", cpu)
+		base := fmt.Sprintf(generic.SysCPU+"/cpu%d/cpufreq", cpu)
 		topo.Driver[cpu], _ = readFileTrim(filepath.Join(base, "scaling_driver"))
 		topo.Governor[cpu], _ = readFileTrim(filepath.Join(base, "scaling_governor"))
 		topo.EPP[cpu], _ = readFileTrim(filepath.Join(base, "energy_performance_preference"))
@@ -151,32 +110,30 @@ func GetTopology() (*Topology, error) {
 	return topo, nil
 }
 
-
 // readCmdlineCPUList extracts a "<param>=<cpulist>" token from /proc/cmdline
-func readCmdlineCPUList(param string) (CPUSet, error) {
+func readCmdlineCPUList(param string) (generic.CPUSet, error) {
 	text, err := os.ReadFile(generic.ProcCmd)
 	if err != nil {
-		return CPUSet{}, err
+		return generic.CPUSet{}, err
 	}
 	prefix := param + "="
 	for _, field := range strings.Fields(string(text)) {
 		if list, ok := strings.CutPrefix(field, prefix); ok {
-			return ParseCPUList(list)
+			return generic.ParseCPUList(list)
 		}
 	}
-	return CPUSet{}, nil // param absent
+	return generic.CPUSet{}, nil // param absent
 }
 
-
 // readCPUList wrapper for read+ParseCPUList
-func readCPUList(path string) (CPUSet, error) {
+func readCPUList(path string) (generic.CPUSet, error) {
 	text, err := os.ReadFile(path)
 	if err != nil {
-		return CPUSet{}, err
+		return generic.CPUSet{}, err
 	}
-	set, err := ParseCPUList(string(text))
+	set, err := generic.ParseCPUList(string(text))
 	if err != nil {
-		return CPUSet{}, fmt.Errorf("%s: %w", path, err)
+		return generic.CPUSet{}, fmt.Errorf("%s: %w", path, err)
 	}
 	return set, nil
 }
