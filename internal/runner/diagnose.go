@@ -9,7 +9,7 @@ import (
 	"goset/internal/report"
 )
 
-// used in bare BASH("goset")
+// used in bare goset
 func Diagnose(cfg *cli.Config) error {
 	topo, err := cpu.GetTopology()
 	if err != nil {

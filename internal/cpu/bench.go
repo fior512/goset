@@ -9,18 +9,6 @@ import (
 	"goset/internal/telemetry"
 )
 
-type CPUScore struct {
-	CPU          int
-	Included     uint8  // 0|1
-	Steerable    uint64 // numbered rows
-	NonSteerable uint64 // named rows: LOC, RES, CAL, TLB
-	SiblingLoad  uint64 // IRQs of the SMT siblings, self excluded
-	NumaNode     int
-	KernelIsol   bool
-	NohzFull     bool
-	RcuNocb      bool
-}
-
 func sampleIRQDelta(interval time.Duration) ([]telemetry.IRQCount, error) {
 	before, err := telemetry.ReadIRQCounts()
 	if err != nil {
@@ -68,7 +56,7 @@ func siblingLoads(topo *Topology, delta []telemetry.IRQCount) map[int]uint64 {
 	return sibling
 }
 
-func rankCPUs(topo *Topology, candidates, include generic.CPUSet, NumaNode int) ([]CPUScore, error) {
+func rankCPUs(topo *Topology, candidates, include generic.CPUSet, NumaNode int) ([]generic.CPUScore, error) {
 	/*
 		include{1,2,5} // threads id requested
 		candidates{1,2,3,4,5,6} // all available threads
@@ -99,10 +87,10 @@ func rankCPUs(topo *Topology, candidates, include generic.CPUSet, NumaNode int) 
 	sibling := siblingLoads(topo, delta)
 
 	// saving
-	out := make([]CPUScore, 0, candidates.Count())
+	out := make([]generic.CPUScore, 0, candidates.Count())
 	for cpu := range candidates.All() {
 		irq := deltaAt(delta, cpu)
-		score := CPUScore{
+		score := generic.CPUScore{
 			CPU:          cpu,
 			Steerable:    irq.Steerable,
 			NonSteerable: irq.NonSteerable,
@@ -131,7 +119,7 @@ func rankCPUs(topo *Topology, candidates, include generic.CPUSet, NumaNode int) 
 	}
 
 	// sorting
-	slices.SortStableFunc(out, func(left, right CPUScore) int {
+	slices.SortStableFunc(out, func(left, right generic.CPUScore) int {
 		return cmp.Or(
 			cmp.Compare(right.Included, left.Included), // desc
 			cmp.Compare(b2i(right.NumaNode == node), b2i(left.NumaNode == node)), // desc
