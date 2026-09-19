@@ -4,8 +4,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"goset/internal/cpu"
+	"goset/internal/generic"
 )
 
 type Config struct {
@@ -64,6 +66,11 @@ func (cfg *Config) Validate() error { // definition, bad behavior, suggestion
 	if cfg.SamplingMS < 0 {
 		return fmt.Errorf("-interval can't be negative; 0: before/after only")
 	}
+
+	if cfg.RmCgroup != "" && !strings.HasPrefix(cfg.RmCgroup, generic.CgroupIdentifier) {
+		return fmt.Errorf("-rm-cgroup is targetting a non-Goset cgroup (Goset's cgroup start with '%s').", generic.CgroupIdentifier)
+	}
+
 	return nil
 }
 

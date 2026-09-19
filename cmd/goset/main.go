@@ -23,8 +23,10 @@ func main() {
 		err = isolation.RemoveCgroup(cfg.RmCgroup)
 	case len(cfg.Task) == 0:
 		err = runner.Diagnose(cfg)
-	default:
+	case len(cfg.Task) != 0:
 		err = runner.Run(cfg)
+	default:
+		err = fmt.Errorf("[GOSET] Error: flag error, no goset form defined")
 	}
 	if err != nil {
 		var exitErr *exec.ExitError
