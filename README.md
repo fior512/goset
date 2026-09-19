@@ -1,2 +1,235 @@
-# goset
-Efficient IRQ task pinning
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+
+
+GOSET : Efficient IRQ task pinning
+============================================
+
+<img src="images/logo/goset.png" width="10%" style="float: right">
+
+Goset is a systematic CPU-pinning CLI tool.
+It takes a task, single|multi threaded, ranks cores by interrupt rate and scheduler noise, isolates the task, steers future interrupt and reports kernel and hardware counters for the run.
+
+* **Noise-aware:** Ranks CPUs by IRQ rate and scheduler load before pinning.
+* **Isolated:** cgroup v2 + IRQ steering, for exclusive CPU access.
+* **Telemetry built in:** IRQ, throttle, ctxsw counts, and more reported with the run.
+* **No IPI:** Housekeeper thread reads every CPU's counters remotely, from kernel-maintained state.
+* **Diagnostics:** Reports topology, environment, existing cgroups.
+
+Table of Contents
+-----------------
+
+* [Quick Start](#quick-start)
+* [Report](#report)
+* [Documentation](#documentation)
+* [Performance results](#performance-results)
+* [Contributing](CONTRIBUTING.md)
+* [AI Policy](AGENTS.md)
+* [License](LICENSE)
+
+
+
+Quick Start
+-----------
+
+Goset needs sudo only for `-cgroup` and `-steer`.
+
+| flag | type | default | description | rule |
+|---|---|---|---|---|
+| ` -- ` |string| | Separating Goset flags and task | |
+| `-n` |int| 1 | How many threads to book | n>=1 |
+| `-cgroup` |bool| false | Containerize task inside Cgroupv2. Required for N>1 | **sudo** |
+| `-steer` |bool| false | Push away steerable IRQs, automatically handle IRQBalance | **sudo** |
+| `-interval` |int| 1000 | Interval in miliseconds for telemetry collection | |
+| `-include` |string| | List of threads to select first, handles ranges (e.g.: `1,3-5` -> 1,3,4,5)| |
+| `-exclude` |string| | List of threads to avoid, handles ranges (e.g.: `1,3-5` -> 1,3,4,5) |differ from `-include`|
+| `-node` |int| -2 | Numa node preference 0..N, -1:Auto (single node), -2:Off (multi node) | |
+
+> Multi-thread tasks: linux `sched_setaffinity` can't pin multithreaded tasks, for this reason `-cgroup` is needed.
+
+
+Goset have a second form called `Diagnostic`, callable in the same way but without task (`sudo goset`; `-- ./task` absent).
+
+| flag | description | rule |
+|---|---|---|
+| *bare* | Report Topology, CPU state, cgroups.. | | 
+| `-rm-cgroup` | Let you **brut-force delete** an existing group. In case of non-identified goset bug | **sudo** |
+
+> Identifying Goset's cgroup: name follows this pattern "*`goset-`+task*"
+
+
+*Real usage*:
+```bash
+# Diagnose: topology, environment, existing cgroups.
+goset
+
+# Pin to one quiet CPU ('-n 1' under the hood)
+goset -- ./task
+
+# Full isolation: exclusive CPU, IRQ steered away.
+sudo goset -n 1 -cgroup -steer -- ./mybench
+
+# Build STREAM.c, goset's own bundled benchmark
+cp benchmark/stream/stream.c.tmpl /tmp/stream.c
+cc -O2 -o /tmp/stream /tmp/stream.c
+
+# Pin it, full isolation
+sudo goset -n 1 -cgroup -steer -- /tmp/stream 20000000 50
+
+# Multi-thread task. -cgroup is required at n>1
+sudo goset -n 4 -cgroup -- ./mybench -threads 4
+
+# Force selection onto specific CPUs
+goset -include 2,4-6 -- ./mybench
+
+# Keep selection off specific CPUs
+goset -exclude 0,1 -- ./mybench
+
+# Constrain selection to one NUMA node
+goset -node 0 -- ./mybench
+
+# Change the telemetry sampling window (ms).
+goset -interval 500 -- ./mybench
+
+# Remove a cgroup goset left behind (incase of bug)
+sudo goset -rm-cgroup goset-mybench
+```
+
+**Output**:
+
+Real output from the STREAM run above (`sudo goset -n 1 -cgroup -steer -- /tmp/stream 20000000 50`):
+
+```
+--- GOSET ---
+
+Selection
+  cpu  sel  soft  hard  sibl  isol  node  nohz  rcu
+   11   *      0     8    62           0
+    8   &      0     9    64           0
+   10          0    17    68           0
+    6          0    19    48           0
+
+Telemetry
+  counters        cpu11  avg  sd  sum
+  irq soft            0    0   0    0
+  irq hard          644  644   0  644
+  throttle count      0    0   0    0
+
+Global
+  key                  value
+  irq steer applied       40
+  irq steer rejected      26
+  irq steer remaining      0
+  ctxsw voluntary          1
+  ctxsw involuntary        9
+  wall                 1.99s
+  exit                     0
+```
+
+* `sel`: `*` marks the pinned CPU, `&` marks the housekeeper.
+* `soft` / `hard`: IRQ rate measured on that CPU before pinning.
+* `sibl`: sibling core's scheduler load, used to rank CPUs.
+* `Telemetry`: per-CPU counters sampled during the run, one row per counter source.
+* `Global`: steer/cgroup/ctxsw summary and the task's own wall time and exit code.
+
+
+Documentation
+-------------
+
+**Pipeline** (`internal/runner/run.go`):
+
+```mermaid
+flowchart TB
+    subgraph Row1[" "]
+        direction LR
+        subgraph A["Topology<br/><sub>cpu.GetTopology()</sub>"]
+            direction TB
+            a1["readCPUList()"]
+        end
+        subgraph B["Select CPUs<br/><sub>cpu.SelectCPUs()</sub>"]
+            direction TB
+            b1["rankCPUs()"]
+            b2["sampleIRQDelta()"]
+            b3["siblingLoads()"]
+            b1 --> b2 --> b3
+        end
+        subgraph C["Cgroup<br/><sub>isolation.InitCgroup()</sub>"]
+            direction TB
+            c1["cgroupV2Available()"]
+        end
+        subgraph D["Steer<br/><sub>isolation.SteerIRQs()</sub>"]
+            direction TB
+            d1["isSteerableLabel()"]
+        end
+        A --> B --> C --> D
+    end
+
+    subgraph Row2[" "]
+        direction RL
+        subgraph E["Telemetry start<br/><sub>startTelemetry()</sub>"]
+            direction TB
+            e1["Sampler.Start()"]
+            e2["IRQSource.Baseline()"]
+            e3["ThrottleSource.Baseline()"]
+            e1 --> e2 & e3
+        end
+        subgraph F["Run task<br/><sub>isolation.ApplyPin()</sub>"]
+            direction TB
+            f1["cpu.SetAffinity()"]
+            f2["exec.Cmd.Run()"]
+            f3["wait4() rusage"]
+            f1 --> f2 --> f3
+        end
+        subgraph G["Telemetry stop<br/><sub>stop()</sub>"]
+            direction TB
+            g1["Sampler.Stop()"]
+            g2["IRQSource.Stop()"]
+            g3["ThrottleSource.Stop()"]
+            g1 --> g2 & g3
+        end
+        subgraph H["Report<br/><sub>report.Render()</sub>"]
+            direction TB
+            h1["SelectionTable()"]
+            h2["TelemetryTable()"]
+            h3["GlobalTable()"]
+        end
+        E --> F --> G --> H
+    end
+
+    D --> E
+    Row1 ~~~ Row2
+
+    classDef stage fill:transparent,stroke:#888,stroke-width:1px,color:inherit;
+    class A,B,C,D,E,F,G,H stage;
+    style Row1 fill:transparent,stroke:none
+    style Row2 fill:transparent,stroke:none
+```
+`C`, `D`: optional stage, gated by `-cgroup` / `-steer`.
+
+**Selection** (`internal/cpu/bench.go`)
+- Rank input: IRQ delta (500ms sample) + sibling runqueue load.
+- Lowest noise: booked for the task and the next lowest become housekeeper.
+- Housekeeper avoids the task's core and its SMT sibling.
+
+**Isolation**
+| mode | mechanism | scope |
+|---|---|---|
+| default | `sched_setaffinity` | 1 thread |
+| `-cgroup` | cgroupv2 cpuset, placed at clone (`CLONE_INTO_CGROUP`) | N threads |
+
+`-n>1` requires `-cgroup`. Affinity alone can't hold a process tree.
+
+**IRQ steering** (`-steer`)
+- Writes `/proc/irq/*/smp_affinity_list` for IRQs on selected CPUs.
+- Restores prior affinity on exit.
+
+**Telemetry**
+- Reader: Only the housekeeper reads.
+- Reads: Goset avoids `rdmsr` (because of IPIs), instead, it use `sysfs`.
+- Source: kernel software counters only: `/proc/interrupts`, sysfs throttle, `wait4()` rusage...
+- `-interval`: define the sampling metric subject to polling rate. (Housekeeper only, not `SelectCPUs()`)
+
+Performance results
+--------------------
+
+COMING SOON
+
