@@ -1,0 +1,20 @@
+package generic
+
+type CPUScore struct {
+	CPU          int
+	Included     uint8  // 0|1
+	Steerable    uint64 // numbered rows
+	NonSteerable uint64 // named rows: LOC, RES, CAL, TLB
+	SiblingLoad  uint64 // IRQs of the SMT siblings, self excluded
+	NumaNode     int
+	KernelIsol   bool
+	NohzFull     bool
+	RcuNocb      bool
+}
+
+
+type Selection struct {
+	Scores      []CPUScore // SelectCPUs -> Report
+	Task        CPUSet
+	HouseKeeper int
+}

@@ -19,7 +19,7 @@ func Run(cfg *cli.Config) error {
 	}
 
 	// Selection
-	selection, err := cpu.SelectCPUs(topo, cfg.NThreads, cfg.Include, cfg.Exclude, cfg.NumaNode)
+	selected, err := cpu.SelectCPUs(topo, cfg.NThreads, cfg.Include, cfg.Exclude, cfg.NumaNode)
 	if err != nil {
 		return err
 	}
@@ -29,7 +29,7 @@ func Run(cfg *cli.Config) error {
 	if cfg.Cgroup {
 		var err error
 		cgroupName := generic.CgroupIdentifier + filepath.Base(cfg.Task[0])
-		group, err = isolation.InitCgroup(cgroupName, selection.Benchmark, cfg.NumaNode)
+		group, err = isolation.InitCgroup(cgroupName, selected.Task, cfg.NumaNode)
 		if err != nil {
 			return err
 		}
@@ -39,7 +39,7 @@ func Run(cfg *cli.Config) error {
 	// IRQ steering
 	var steer *isolation.SteerResult
 	if cfg.Steering {
-		steer, err = isolation.SteerIRQs(topo, selection.Benchmark, selection.HouseKeeper)
+		steer, err = isolation.SteerIRQs(topo, selected.Task, selected.HouseKeeper)
 		if err != nil {
 			return err
 		}
@@ -47,14 +47,14 @@ func Run(cfg *cli.Config) error {
 	}
 
 	// Telemetry
-	stop, err := startTelemetry(selection, cfg)
+	stop, err := startTelemetry(selected, cfg)
 	if err != nil {
 		return err
 	}
 
 	// Run task
 	started := time.Now()
-	rusage, runErr := isolation.ApplyPin(cfg.Task, selection.Benchmark, group)
+	rusage, runErr := isolation.ApplyPin(cfg.Task, selected.Task, group)
 	stop(time.Since(started), runErr, steer, rusage) // lazy-print returned by startTelemetry
 
 	return runErr

@@ -8,19 +8,20 @@ import (
 	"time"
 
 	"goset/internal/cpu"
+	"goset/internal/generic"
 	"goset/internal/isolation"
 	"goset/internal/telemetry"
 )
 
-func SelectionTable(sel *cpu.SelectionResult) Table {
+func SelectionTable(selected *generic.Selection) Table {
 	header := []string{"cpu", "sel", "soft", "hard", "sibl", "isol", "node", "nohz", "rcu"}
-	rows := make([][]string, 0, len(sel.Scores))
-	for _, candidate := range sel.Scores {
+	rows := make([][]string, 0, len(selected.Scores))
+	for _, candidate := range selected.Scores {
 		mark := ""
 		switch {
-		case candidate.CPU == sel.HouseKeeper:
+		case candidate.CPU == selected.HouseKeeper:
 			mark = "& "
-		case sel.Benchmark.GetBit(candidate.CPU):
+		case selected.Task.GetBit(candidate.CPU):
 			mark = "* "
 		}
 		flag := func(on bool) string {

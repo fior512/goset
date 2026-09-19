@@ -18,9 +18,9 @@ type Sampler struct {
 
 
 func (sam *Sampler) Start(pin func() error) error {
-	target := Target{BenchCPUs: sam.Cpus}
+	selected := generic.Selection{Task: sam.Cpus}
 	for _, src := range sam.Sources {
-		if err := src.Baseline(target); err != nil {
+		if err := src.Baseline(selected); err != nil {
 			return fmt.Errorf("telemetry baseline %s: %w", "irq", err)
 		}
 	}
