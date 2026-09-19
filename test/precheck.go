@@ -23,11 +23,11 @@ func preflight(t *testing.T, minCPUs int) {
 		t.Skipf("%s: %s", name, remedy)
 	}
 
-	_, err := os.Stat(filepath.Join(generic.SysCgroup, "cgroup.controllers"))
+	_, err := os.Stat(filepath.Join(generic.SysCgroup, generic.CgroupControllers))
 	check("cgroup v2 unified hierarchy", err == nil,
 		"mount cgroup v2 at "+generic.SysCgroup+" (not available: legacy cgroup v1 host?)")
 
-	ctl, err := os.ReadFile(filepath.Join(generic.SysCgroup, "cgroup.controllers"))
+	ctl, err := os.ReadFile(filepath.Join(generic.SysCgroup, generic.CgroupControllers))
 	check("cpuset controller available", err == nil && strings.Contains(string(ctl), "cpuset"),
 		"enable the cpuset controller in the kernel/cgroup config")
 

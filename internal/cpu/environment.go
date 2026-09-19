@@ -19,7 +19,7 @@ type Environment struct {
 
 func GetEnvironment() (*Environment, error) {
 	env := &Environment{}
-	env.SMT, _ = readFileTrim(generic.SysCPU + "smt/control")
+	env.SMT, _ = readFileTrim(generic.SysCPU + "/smt/control")
 	env.Boost = readBoost()
 	env.NumaBalancing, _ = readFileTrim("/proc/sys/kernel/numa_balancing")
 	env.NmiWatchdog, _ = readFileTrim("/proc/sys/kernel/nmi_watchdog")

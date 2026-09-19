@@ -67,7 +67,7 @@ func (cfg *Config) Validate() error { // definition, bad behavior, suggestion
 		return fmt.Errorf("-interval can't be negative; 0: before/after only")
 	}
 
-	if strings.HasPrefix(cfg.RmCgroup, generic.CgroupIdentifier) {
+	if cfg.RmCgroup != "" && !strings.HasPrefix(cfg.RmCgroup, generic.CgroupIdentifier) {
 		return fmt.Errorf("-rm-cgroup is targetting a non-Goset cgroup (Goset's cgroup start with '%s').", generic.CgroupIdentifier)
 	}
 
