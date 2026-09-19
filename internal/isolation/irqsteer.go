@@ -27,9 +27,10 @@ func isSteerableLabel(label string) bool {
 }
 
 
-func SteerIRQs(topo *cpu.Topology, bench cpu.CPUSet) (*SteerResult, error) {
+func SteerIRQs(topo *cpu.Topology, bench cpu.CPUSet, housekeeper int) (*SteerResult, error) {
 	allowed := topo.Online
 	allowed.AndNot(bench)
+	allowed.ClearBit(housekeeper)
 	if !allowed.Any() {
 		return nil, fmt.Errorf("no cpus left outside the benchmark set to receive irqs")
 	}
