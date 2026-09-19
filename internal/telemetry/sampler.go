@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"runtime"
 	"time"
+
+	"goset/internal/generic"
 )
 
 type Sampler struct {
-	Cpus     []int
+	Cpus     generic.CPUSet
 	Interval time.Duration
 	Sources  []Source
 	Exit     chan struct{} // message exit
