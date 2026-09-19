@@ -39,10 +39,7 @@ func GetTopology() (*Topology, error) {
 	if err != nil {
 		return nil, err
 	}
-	size := 0 // highest online cpu id + 1
-	for cpu := range online.All() {
-		size = cpu + 1
-	}
+	size := online.Max()+1
 	topo := &Topology{
 		Online:   online,
 		Core:     make([]int, size),
