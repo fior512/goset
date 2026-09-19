@@ -16,7 +16,7 @@ type IRQCount struct {
 
 
 type IRQSource struct {
-	cpus  []int
+	cpus  generic.CPUSet
 	start []IRQCount
 	end   []IRQCount
 	err   error
@@ -43,8 +43,8 @@ func (src *IRQSource) Summary() []Counter {
 	if src.err != nil {
 		return nil
 	}
-	out := make([]Counter, 0, len(src.cpus)*2)
-	for _, cpu := range src.cpus {
+	out := make([]Counter, 0, src.cpus.Count()*2)
+	for cpu := range src.cpus.All() {
 		if cpu >= len(src.start) || cpu >= len(src.end) {
 			continue
 		}

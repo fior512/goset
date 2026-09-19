@@ -8,24 +8,28 @@ import (
 	"strings"
 )
 
-func ReadThrottleCounts(cpus []int) ([]uint64, error) {
-	out := make([]uint64, len(cpus))
-	for i, cpu := range cpus {
+func ReadThrottleCounts(cpus generic.CPUSet) ([]uint64, error) {
+	size := 0
+	for cpu := range cpus.All() {
+		size = cpu + 1
+	}
+	out := make([]uint64, size)
+	for cpu := range cpus.All() {
 		path := fmt.Sprintf(
-			generic.SysCPU + 
-			"/cpu%d/thermal_throttle/core_throttle_count", cpu)
+			generic.SysCPU+
+				"/cpu%d/thermal_throttle/core_throttle_count", cpu)
 		text, err := os.ReadFile(path)
 		if err != nil {
 			continue // absent on some cpus/VMs, leave 0
 		}
-		out[i], _ = strconv.ParseUint(strings.TrimSpace(string(text)), 10, 64)
+		out[cpu], _ = strconv.ParseUint(strings.TrimSpace(string(text)), 10, 64)
 	}
 	return out, nil
 }
 
 
 type ThrottleSource struct {
-	cpus  []int
+	cpus  generic.CPUSet
 	start []uint64
 	end   []uint64
 }
@@ -47,11 +51,14 @@ func (src *ThrottleSource) Stop() error {
 
 
 func (src *ThrottleSource) Summary() []Counter {
-	out := make([]Counter, 0, len(src.cpus))
-	for i, cpu := range src.cpus {
+	out := make([]Counter, 0, src.cpus.Count())
+	for cpu := range src.cpus.All() {
+		if cpu >= len(src.start) || cpu >= len(src.end) {
+			continue
+		}
 		out = append(out, Counter{
 			Source: "throttle", CPU: cpu, Name: "count",
-			Value: float64(src.end[i] - src.start[i]),
+			Value: float64(src.end[cpu] - src.start[cpu]),
 		})
 	}
 	return out
