@@ -160,8 +160,8 @@ func TestErrorMissingTaskBinary(t *testing.T) {
 	if res.exitCode == 0 {
 		t.Fatalf("expected non-zero exit for missing task binary, got 0 (stdout: %s)", res.stdout)
 	}
-	if !strings.Contains(res.stderr, "goset:") {
-		t.Errorf("stderr missing user-facing prefix %q: %s", "goset:", res.stderr)
+	if !strings.Contains(res.stderr, "[GOSET]: ") {
+		t.Errorf("stderr missing user-facing prefix %q: %s", "[GOSET]: ", res.stderr)
 	}
 	leaked, missing := diffSnapshots(before, after)
 	if len(leaked) != 0 || len(missing) != 0 {
@@ -230,5 +230,23 @@ func TestErrorIncludeExcludeOverlap(t *testing.T) {
 	}
 	if !strings.Contains(res.stderr, "overlap") {
 		t.Errorf("stderr should mention the include/exclude overlap, got: %s", res.stderr)
+	}
+}
+
+
+// goset never writes stdout while a task runs.
+func TestStdoutHoldsOnlyTaskOutput(t *testing.T) {
+	gosetBin, probeBin := setup(t)
+
+	res := runGoset(t, gosetBin, "-n", "1", "--", probeBin)
+	if res.exitCode != 0 {
+		t.Fatalf("goset -n 1 exited %d, stderr: %s", res.exitCode, res.stderr)
+	}
+	parseProbe(t, res.stdout)
+	if !strings.HasSuffix(strings.TrimSpace(res.stdout), "}") {
+		t.Errorf("goset wrote to stdout during a run: %s", res.stdout)
+	}
+	if !strings.Contains(res.stderr, "GOSET") {
+		t.Errorf("stderr missing the goset report banner: %s", res.stderr)
 	}
 }
