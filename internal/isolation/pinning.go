@@ -52,7 +52,7 @@ func ApplyPin(argv []string, cpus generic.CPUSet, group *Cgroup) (*syscall.Rusag
 			rusage, _ = task.ProcessState.SysUsage().(*syscall.Rusage)
 		}
 		if derr := group.Destroy(); derr != nil {
-			fmt.Fprintln(os.Stderr, "[goset] cgroup destroy: ", derr)
+			fmt.Fprintf(os.Stderr, "%scgroup destroy: %v\n", generic.LogPrefix, derr)
 		}
 		done <- result{err, rusage}
 	}()
