@@ -41,4 +41,5 @@ const (
 // names
 const (
 	CgroupIdentifier = "goset-"
+	LogPrefix        = "[GOSET]: "
 )
