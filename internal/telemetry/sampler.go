@@ -3,6 +3,7 @@ package telemetry
 import (
 	"fmt"
 	"runtime"
+	"sync"
 	"time"
 
 	"goset/internal/generic"
@@ -12,38 +13,57 @@ type Sampler struct {
 	Cpus     generic.CPUSet
 	Interval time.Duration
 	Sources  []Source
-	Exit     chan struct{} // message exit
-	Done     chan struct{} // confirm exit
+
+	exit     chan struct{}
+	counters chan []Counter
+	once     sync.Once
 }
 
 
 func (sam *Sampler) Start(pin func() error) error {
+	sam.exit = make(chan struct{})
+	sam.counters = make(chan []Counter, 1)
+
+	ready := make(chan error, 1)
+	go func() {
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+		_ = pin()
+
+		if err := sam.baseline(); err != nil {
+			ready <- err
+			return
+		}
+		ready <- nil
+
+		sam.poll()
+		sam.counters <- sam.summary()
+	}()
+	return <-ready
+}
+
+
+func (sam *Sampler) baseline() error {
 	selected := generic.Selection{Task: sam.Cpus}
 	for _, src := range sam.Sources {
 		if err := src.Baseline(selected); err != nil {
-			return fmt.Errorf("telemetry baseline %s: %w", "irq", err)
+			return fmt.Errorf("telemetry baseline %T: %w", src, err)
 		}
 	}
-	go sam.run(pin)
 	return nil
 }
 
 
-func (sam *Sampler) run(pin func() error) {
-	defer close(sam.Done)
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-	_ = pin()
-
+func (sam *Sampler) poll() {
 	if sam.Interval <= 0 {
-		<-sam.Exit
+		<-sam.exit
 		return
 	}
 	ticker := time.NewTicker(sam.Interval)
 	defer ticker.Stop()
 	for {
 		select {
-		case <-sam.Exit:
+		case <-sam.exit:
 			return
 		case <-ticker.C:
 			for _, src := range sam.Sources {
@@ -54,13 +74,17 @@ func (sam *Sampler) run(pin func() error) {
 }
 
 
-func (sam *Sampler) Stop() []Counter {
-	close(sam.Exit)
-	<-sam.Done
+func (sam *Sampler) summary() []Counter {
 	var counters []Counter
 	for _, src := range sam.Sources {
 		_ = src.Stop()
 		counters = append(counters, src.Summary()...)
 	}
 	return counters
+}
+
+
+func (sam *Sampler) Stop() []Counter {
+	sam.once.Do(func() { close(sam.exit) })
+	return <-sam.counters
 }

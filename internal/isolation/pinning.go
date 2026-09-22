@@ -11,7 +11,7 @@ import (
 	"goset/internal/generic"
 )
 
-func ApplyPin(argv []string, cpus generic.CPUSet, group *Cgroup) (*syscall.Rusage, error) {
+func ApplyPin(argv []string, cpus generic.CPUSet, group *Cgroup) (*exec.Cmd, error) {
 	task := exec.Command(argv[0], argv[1:]...)
 	task.Stdin = os.Stdin
 	task.Stdout = os.Stdout
@@ -23,40 +23,37 @@ func ApplyPin(argv []string, cpus generic.CPUSet, group *Cgroup) (*syscall.Rusag
 		task.SysProcAttr.CgroupFD = group.FD()
 	}
 
-	type result struct {
-		err    error
-		rusage *syscall.Rusage
-	}
-
-	done := make(chan result, 1)
+	started := make(chan error, 1)
 	go func() {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 
-		var prevCPUs generic.CPUSet
-		var gerr error
-		if group == nil {
-			prevCPUs, gerr = cpu.GetAffinity(0) // goset affinity
-			if err := cpu.SetAffinity(0, cpus); err != nil {
-				done <- result{err: fmt.Errorf("set thread affinity: %w", err)}
-				return
-			}
+		if group != nil {
+			started <- task.Start()
+			return
 		}
-		err := task.Run() // start and wait for the task to exit
 
-		if group == nil && gerr == nil {
+		prevCPUs, gerr := cpu.GetAffinity(0) // goset affinity
+		if err := cpu.SetAffinity(0, cpus); err != nil {
+			started <- fmt.Errorf("set thread affinity: %w", err)
+			return
+		}
+		err := task.Start()
+		if gerr == nil {
 			_ = cpu.SetAffinity(0, prevCPUs)
 		}
-		var rusage *syscall.Rusage
-		if task.ProcessState != nil {
-			rusage, _ = task.ProcessState.SysUsage().(*syscall.Rusage)
-		}
-		if derr := group.Destroy(); derr != nil {
-			fmt.Fprintf(os.Stderr, "%scgroup destroy: %v\n", generic.LogPrefix, derr)
-		}
-		done <- result{err, rusage}
+		started <- err
 	}()
 
-	res := <-done
-	return res.rusage, res.err
+	if err := <-started; err != nil {
+		return nil, err
+	}
+	return task, nil
+}
+
+
+func WaitTask(task *exec.Cmd) (*syscall.Rusage, error) {
+	err := task.Wait()
+	rusage, _ := task.ProcessState.SysUsage().(*syscall.Rusage)
+	return rusage, err
 }

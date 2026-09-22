@@ -185,6 +185,12 @@ func (group *Cgroup) Destroy() error {
 	return nil
 }
 
+func Teardown(group *Cgroup, steer *SteerResult) {
+	group.Destroy()
+	RestoreIRQs(steer)
+}
+
+
 // https://docs.kernel.org/admin-guide/cgroup-v2.html
 func RemoveCgroup(name string) error {
 	path := filepath.Join(generic.SysCgroup, filepath.Base(name))
