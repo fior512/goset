@@ -2,6 +2,8 @@ package runner
 
 import (
 	"errors"
+	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"time"
@@ -10,6 +12,7 @@ import (
 	"goset/internal/cpu"
 	"goset/internal/generic"
 	"goset/internal/isolation"
+	"goset/internal/report"
 )
 
 func Run(cfg *cli.Config) error {
@@ -33,7 +36,6 @@ func Run(cfg *cli.Config) error {
 		if err != nil {
 			return err
 		}
-		defer group.Destroy()
 	}
 
 	// IRQ steering
@@ -41,21 +43,43 @@ func Run(cfg *cli.Config) error {
 	if cfg.Steering {
 		steer, err = isolation.SteerIRQs(topo, selected.Task, selected.HouseKeeper)
 		if err != nil {
+			group.Destroy()
 			return err
 		}
-		defer isolation.RestoreIRQs(steer)
 	}
 
 	// Telemetry
-	stop, err := startTelemetry(selected, cfg)
+	sampler, err := startTelemetry(selected, cfg)
 	if err != nil {
+		isolation.Teardown(group, steer)
 		return err
 	}
 
 	// Run task
+	// TODO: it is leaking
 	started := time.Now()
-	rusage, runErr := isolation.ApplyPin(cfg.Task, selected.Task, group)
-	stop(time.Since(started), runErr, steer, rusage) // lazy-print returned by startTelemetry
+	task, err := isolation.ApplyPin(cfg.Task, selected.Task, group)
+	if err != nil {
+		sampler.Stop()
+		isolation.Teardown(group, steer)
+		return err
+	}
+	rusage, runErr := isolation.WaitTask(task)
+
+	rep := report.Report{
+		Steer:    steer,
+		Rusage:   rusage,
+		Wall:     time.Since(started),
+		Counters: sampler.Stop(),
+		ExitCode: exitCode(runErr),
+	}
+	isolation.Teardown(group, steer)
+	
+	fmt.Fprintln(os.Stderr, "\n\n----------------- GOSET -----------------")
+	report.Render(os.Stderr,
+		report.SelectionTable(selected),
+		report.TelemetryTable(rep),
+		report.GlobalTable(rep))
 
 	return runErr
 }
