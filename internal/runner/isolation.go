@@ -1,0 +1,36 @@
+package runner
+
+import (
+	"path/filepath"
+
+	"goset/internal/cli"
+	"goset/internal/cpu"
+	"goset/internal/generic"
+	"goset/internal/isolation"
+)
+
+func startIsolation(cfg *cli.Config, topo *cpu.Topology, selected *generic.Selection) (*isolation.Cgroup, *isolation.SteerResult, func(), error) {
+	var group *isolation.Cgroup
+	if cfg.Cgroup {
+		cgroupName := generic.CgroupIdentifier + filepath.Base(cfg.Task[0])
+		var err error
+		if group, err = isolation.InitCgroup(cgroupName, selected.Task, cfg.NumaNode); err != nil {
+			return nil, nil, nil, err
+		}
+	}
+
+	var steer *isolation.SteerResult
+	if cfg.Steering {
+		var err error
+		if steer, err = isolation.SteerIRQs(topo, selected.Task, selected.HouseKeeper); err != nil {
+			group.Destroy()
+			return nil, nil, nil, err
+		}
+	}
+
+	release := func() {
+		group.Destroy()
+		isolation.RestoreIRQs(steer)
+	}
+	return group, steer, release, nil
+}

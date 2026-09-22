@@ -11,7 +11,9 @@ import (
 	"goset/internal/generic"
 )
 
-func ApplyPin(argv []string, cpus generic.CPUSet, group *Cgroup) (*exec.Cmd, error) {
+
+func ApplyPn(argv []string, cpus generic.CPUSet, group *Cgroup) (*exec.Cmd, error) {
+	// Task In/Out
 	task := exec.Command(argv[0], argv[1:]...)
 	task.Stdin = os.Stdin
 	task.Stdout = os.Stdout
@@ -23,6 +25,7 @@ func ApplyPin(argv []string, cpus generic.CPUSet, group *Cgroup) (*exec.Cmd, err
 		task.SysProcAttr.CgroupFD = group.FD()
 	}
 
+	// Run Protocol
 	started := make(chan error, 1)
 	go func() {
 		runtime.LockOSThread()
@@ -49,11 +52,4 @@ func ApplyPin(argv []string, cpus generic.CPUSet, group *Cgroup) (*exec.Cmd, err
 		return nil, err
 	}
 	return task, nil
-}
-
-
-func WaitTask(task *exec.Cmd) (*syscall.Rusage, error) {
-	err := task.Wait()
-	rusage, _ := task.ProcessState.SysUsage().(*syscall.Rusage)
-	return rusage, err
 }
