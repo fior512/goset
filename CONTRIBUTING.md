@@ -1,36 +1,52 @@
 The Goset tool is an open project written in Go. Contributions are welcomed. Contributors must agree to the project's license.
 
-In particular:
+---
+
+Wanted:
 - Bug fixes
 - New features that serve a majority of users
-- Readability changes (segmenting logical modules and depths of details)
+- Readability changes
 - Documentation
 - Security
 - Portability
 
-On the other side, we discourage:
+Not wanted:
 - Multi-module refactors
 - New formatting style
 - New dependencies
+
 ---
 
-Forbidden code-style:
-- Messy code (wrappers of wrappers, logic bleeding outside modules/layers, ..)
-- A function hides one level of abstraction. It does not leak that level to its caller.
-- A function is self-contained. It builds the structures its own job needs.
+Code style: structure
+- A function hides one level of abstraction (SLA). It does not leak that level to its caller. A function is the `main()` of its level of detail.
+- A pipeline reads as a sequence in the caller: `setup(); run(); report();`. Depth lives in the callees, not in nested calls (stepdown rule).
+- A function is self-contained. It builds the structures its own job needs. Everything it needs is inside it. No dangling logic in the caller above the call.
 - A caller must not do a callee's setup, translation, or init. That work stays inside the callee.
-- Non-ASCII characters
-- Prose comments. (A comment must only be written for technical or logical cues about the code)
-- One-letter object names (other than loop idx)
-- Code without proper error handling
-- Error handling for a state that cannot occur
-- A structure object must keep the same name at every callsite (`name := Structure{}` reusing `name`)
+- A helper lives in the file of the code it serves, not in the file of its caller (locality of behavior).
+
+Code style: naming
+- A function name states the purpose of its logic, not its mechanics (intention-revealing name).
+- A structure object keeps the same name at every callsite (`name := Structure{}` reusing `name`).
+- One-letter object names are forbidden (other than loop idx).
+
+Code style: comments
+- Prose comments are forbidden. A comment states only a technical or logical cue about the code.
+- A one-word `/* label */` may segment two blocks of logic inside a single function.
+
+Code style: errors
+- Code without proper error handling is forbidden.
+- Do not handle a state that cannot occur.
+
+Code style: misc
+- Non-ASCII characters are forbidden.
+- Messy code (wrappers of wrappers, logic bleeding outside modules/layers, ..) is forbidden.
 
 ---
-Branch naming
-We follow the classic convention of branch roots `feat/`, `fix/`, `doc/`, ..
-Commit messages must include enough information to use `git bisect`.
-A PR must be about a single aspect, use the stacked-PRs GitHub feature to break down every change independently.
+
+Git:
+- Branch roots follow the classic convention: `feat/`, `fix/`, `doc/`, ..
+- Commit messages must include enough information to use `git bisect`.
+- A PR is about a single aspect. Use stacked PRs to break down every change independently.
 
 A PR description must state:
 - the current state
@@ -40,11 +56,11 @@ A PR description must state:
 
 If the author cannot explain any line of their own PR on request, the PR is discarded.
 
----
 If the benefit of your PR remains unclear, or too specialized for a single use case, we may discard it or leave it waiting.
 
 ---
+
 AI policy
 AI assistance is allowed if the author remains accountable for every line, per the accountability rule above.
-Low-quality code, even if implementing a major feature or fixing a bug will always be discarded.
+Low-quality code, even if implementing a major feature or fixing a bug, will always be discarded.
 [see AI Policy](AGENTS.md)
