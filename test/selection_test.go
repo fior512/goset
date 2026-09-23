@@ -34,11 +34,6 @@ func csv(ids ...int) string {
 }
 
 
-func itoa(n int) string {
-	return strconv.Itoa(n)
-}
-
-
 func containsInt(list []int, want int) bool {
 	for _, v := range list {
 		if v == want {
@@ -76,13 +71,13 @@ func TestSelectionIncludeExactlyN(t *testing.T) {
 	gosetBin, probeBin := setup(t)
 	want := ids[0]
 
-	res := runGoset(t, gosetBin, "-n", "1", "-include", itoa(want), "--", probeBin)
+	res := runGoset(t, gosetBin, "-n", "1", "-include", strconv.Itoa(want), "--", probeBin)
 	if res.exitCode != 0 {
 		t.Fatalf("exited %d, stderr: %s", res.exitCode, res.stderr)
 	}
 	rep := parseProbe(t, res.stdout)
-	if rep.Threads[0].Allowed != itoa(want) {
-		t.Errorf("allowed=%q, want exactly %q (include size == n)", rep.Threads[0].Allowed, itoa(want))
+	if rep.Threads[0].Allowed != strconv.Itoa(want) {
+		t.Errorf("allowed=%q, want exactly %q (include size == n)", rep.Threads[0].Allowed, strconv.Itoa(want))
 	}
 }
 
@@ -112,7 +107,7 @@ func TestSelectionExcludeShrinksPool(t *testing.T) {
 	gosetBin, probeBin := setup(t)
 	excluded := ids[len(ids)-1]
 
-	res := runGoset(t, gosetBin, "-n", "1", "-exclude", itoa(excluded), "--", probeBin)
+	res := runGoset(t, gosetBin, "-n", "1", "-exclude", strconv.Itoa(excluded), "--", probeBin)
 	if res.exitCode != 0 {
 		t.Fatalf("exited %d, stderr: %s", res.exitCode, res.stderr)
 	}
@@ -163,7 +158,7 @@ func TestSelectionIncludeOffline(t *testing.T) {
 	gosetBin, probeBin := setup(t)
 	bogus := ids[len(ids)-1] + 1000
 
-	res := runGoset(t, gosetBin, "-n", "1", "-include", itoa(bogus), "--", probeBin)
+	res := runGoset(t, gosetBin, "-n", "1", "-include", strconv.Itoa(bogus), "--", probeBin)
 	if res.exitCode == 0 {
 		t.Fatalf("expected error for out-of-range -include, got exit 0")
 	}
@@ -179,12 +174,12 @@ func TestSelectionIncludeAndExcludeDisjoint(t *testing.T) {
 	want := ids[0]
 	excluded := ids[1]
 
-	res := runGoset(t, gosetBin, "-n", "1", "-include", itoa(want), "-exclude", itoa(excluded), "--", probeBin)
+	res := runGoset(t, gosetBin, "-n", "1", "-include", strconv.Itoa(want), "-exclude", strconv.Itoa(excluded), "--", probeBin)
 	if res.exitCode != 0 {
 		t.Fatalf("exited %d, stderr: %s", res.exitCode, res.stderr)
 	}
 	rep := parseProbe(t, res.stdout)
-	if rep.Threads[0].Allowed != itoa(want) {
-		t.Errorf("allowed=%q, want exactly %q", rep.Threads[0].Allowed, itoa(want))
+	if rep.Threads[0].Allowed != strconv.Itoa(want) {
+		t.Errorf("allowed=%q, want exactly %q", rep.Threads[0].Allowed, strconv.Itoa(want))
 	}
 }
