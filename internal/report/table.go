@@ -131,6 +131,9 @@ func GlobalTable(rep Report) Table {
 	if migrations, ok := telemetry.CountMigrations(rep.Counters); ok {
 		rows = append(rows, []string{"migrations", fmt.Sprintf("%d", migrations)})
 	}
+	if runDelay, ok := telemetry.CountRunqueue(rep.Counters); ok {
+		rows = append(rows, []string{"run_delay", FormatTime(time.Duration(runDelay))})
+	}
 	rows = append(rows,
 		[]string{"wall", FormatTime(rep.Wall)},
 		[]string{"exit", fmt.Sprintf("%d", rep.ExitCode)},
