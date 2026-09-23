@@ -23,21 +23,21 @@ func Run(cfg *cli.Config) error {
 	}
 
 	// Isolation (steer/cgroup)
-	group, steer, release, err := startIsolation(cfg, topo, selected)
+	group, steering, release, err := startIsolation(cfg, topo, selected)
 	if err != nil {
 		return err
 	}
 	defer release() // destroy cgroup + counter-steer
 
 	// Telemetry
-	stop, err := startTelemetry(selected, cfg)
+	stop, err := startTelemetry(selected, cfg, steering)
 	if err != nil {
 		return err
 	}
 
 	// Pin + run task
 	rusage, wall, runErr := isolation.ApplyPin(cfg.Task, selected.Task, group)
-	stop(wall, runErr, steer, rusage) // Lazy telemetry report
+	stop(wall, runErr, steering, rusage) // Lazy telemetry report
 	return runErr
 }
 

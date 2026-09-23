@@ -4,6 +4,7 @@ import (
 	"goset/internal/generic"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -105,7 +106,7 @@ func TestSteerNoRoomToSteer(t *testing.T) {
 		t.Skip("need at least 2 online cpus")
 	}
 
-	res := runGoset(t, gosetBin, "-n", itoa(n), "-steer", "--", probeBin)
+	res := runGoset(t, gosetBin, "-n", strconv.Itoa(n), "-steer", "--", probeBin)
 	if res.exitCode != 0 {
 		t.Fatalf("goset -n %d -steer exited %d, stderr: %s", n, res.exitCode, res.stderr)
 	}

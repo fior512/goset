@@ -1,0 +1,69 @@
+package telemetry
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+
+	"goset/internal/generic"
+)
+
+// https://www.kernel.org/doc/html/latest/core-api/irq/irq-affinity.html
+type IRQDriftSource struct {
+	Root     string
+	Expected map[string]string // IRQ label -> applied affinity list
+	Drifted  map[string]bool   // sticky: once drifted, stays counted
+}
+
+func (src *IRQDriftSource) Baseline(generic.Selection) error {
+	src.sample()
+	return nil
+}
+
+func (src *IRQDriftSource) Poll() error {
+	src.sample()
+	return nil
+}
+
+func (src *IRQDriftSource) Stop() error {
+	src.sample()
+	return nil
+}
+
+func (src *IRQDriftSource) sample() {
+	for label, want := range src.Expected {
+		path := filepath.Join(src.Root, label, generic.SmpAffinityList)
+		data, err := os.ReadFile(path)
+		if err != nil {
+			src.Drifted[label] = true // IRQ vanished or unreadable: state not held
+			continue
+		}
+		got := strings.TrimSpace(string(data))
+		if !generic.CPUListEqual(want, got) {
+			src.Drifted[label] = true
+		}
+	}
+}
+
+func (src *IRQDriftSource) Summary() []Counter {
+	if len(src.Expected) == 0 {
+		return nil
+	}
+	return []Counter{{
+		Source: "irq steer",
+		CPU:    -1, // run-global, not per-cpu
+		Name:   "drift",
+		Value:  float64(len(src.Drifted)),
+	}}
+}
+
+// CountDriftedIRQs extracts the run-global drift counter from a summary.
+// 0 when steering was off or nothing drifted.
+func CountDriftedIRQs(counters []Counter) int {
+	for _, counter := range counters {
+		if counter.Source == "irq steer" && counter.Name == "drift" {
+			return int(counter.Value)
+		}
+	}
+	return 0
+}
