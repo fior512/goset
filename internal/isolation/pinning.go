@@ -6,13 +6,19 @@ import (
 	"os/exec"
 	"runtime"
 	"syscall"
+	"time"
 
 	"goset/internal/cpu"
 	"goset/internal/generic"
 )
 
+type TaskResult struct {
+	Err    error
+	Rusage *syscall.Rusage
+	Wall   time.Duration
+}
 
-func ApplyPn(argv []string, cpus generic.CPUSet, group *Cgroup) (*exec.Cmd, error) {
+func ApplyPin(argv []string, cpus generic.CPUSet, group *Cgroup) *TaskResult {
 	// Task In/Out
 	task := exec.Command(argv[0], argv[1:]...)
 	task.Stdin = os.Stdin
@@ -26,30 +32,43 @@ func ApplyPn(argv []string, cpus generic.CPUSet, group *Cgroup) (*exec.Cmd, erro
 	}
 
 	// Run Protocol
-	started := make(chan error, 1)
+	type launch struct {
+		begin time.Time // t0 = the instant the task is exec'd
+		err   error
+	}
+	started := make(chan launch, 1)
 	go func() {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 
 		if group != nil {
-			started <- task.Start()
+			err := task.Start()
+			started <- launch{time.Now(), err}
 			return
 		}
 
 		prevCPUs, gerr := cpu.GetAffinity(0) // goset affinity
 		if err := cpu.SetAffinity(0, cpus); err != nil {
-			started <- fmt.Errorf("set thread affinity: %w", err)
+			started <- launch{err: fmt.Errorf("set thread affinity: %w", err)}
 			return
 		}
 		err := task.Start()
+		begin := time.Now() // after exec, before affinity restore
 		if gerr == nil {
 			_ = cpu.SetAffinity(0, prevCPUs)
 		}
-		started <- err
+		started <- launch{begin, err}
 	}()
 
-	if err := <-started; err != nil {
-		return nil, err
+	l := <-started
+	if l.err != nil {
+		return &TaskResult{Err: l.err}
 	}
-	return task, nil
+
+	err := task.Wait()
+	res := &TaskResult{Err: err, Wall: time.Since(l.begin)}
+	if task.ProcessState != nil {
+		res.Rusage, _ = task.ProcessState.SysUsage().(*syscall.Rusage)
+	}
+	return res
 }

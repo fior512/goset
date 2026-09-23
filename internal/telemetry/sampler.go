@@ -19,7 +19,6 @@ type Sampler struct {
 	once     sync.Once
 }
 
-
 func (sam *Sampler) Start(pin func() error) error {
 	sam.exit = make(chan struct{})
 	sam.counters = make(chan []Counter, 1)
@@ -42,7 +41,6 @@ func (sam *Sampler) Start(pin func() error) error {
 	return <-ready
 }
 
-
 func (sam *Sampler) baseline() error {
 	selected := generic.Selection{Task: sam.Cpus}
 	for _, src := range sam.Sources {
@@ -52,7 +50,6 @@ func (sam *Sampler) baseline() error {
 	}
 	return nil
 }
-
 
 func (sam *Sampler) poll() {
 	if sam.Interval <= 0 {
@@ -73,7 +70,6 @@ func (sam *Sampler) poll() {
 	}
 }
 
-
 func (sam *Sampler) summary() []Counter {
 	var counters []Counter
 	for _, src := range sam.Sources {
@@ -82,7 +78,6 @@ func (sam *Sampler) summary() []Counter {
 	}
 	return counters
 }
-
 
 func (sam *Sampler) Stop() []Counter {
 	sam.once.Do(func() { close(sam.exit) })

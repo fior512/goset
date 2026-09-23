@@ -19,7 +19,6 @@ type FreqSource struct {
 	n     []int
 }
 
-
 func (src *FreqSource) Baseline(selected generic.Selection) error {
 	src.cpus = selected.Task
 	size := src.cpus.Max() + 1
@@ -43,7 +42,6 @@ func (src *FreqSource) Baseline(selected generic.Selection) error {
 	return src.sample()
 }
 
-
 func (src *FreqSource) Poll() error { return src.sample() }
 
 func (src *FreqSource) sample() error {
@@ -63,7 +61,7 @@ func (src *FreqSource) sample() error {
 		if err != nil {
 			continue
 		}
-		hz := khz*1000
+		hz := khz * 1000
 		if src.min[cpu] < 0 || hz < src.min[cpu] {
 			src.min[cpu] = hz
 		}
@@ -76,7 +74,6 @@ func (src *FreqSource) sample() error {
 	return nil
 }
 
-
 func (src *FreqSource) Stop() error {
 	for _, file := range src.files {
 		if file != nil {
@@ -88,7 +85,6 @@ func (src *FreqSource) Stop() error {
 	return nil
 }
 
-
 func (src *FreqSource) Summary() []Counter {
 	out := make([]Counter, 0, src.cpus.Count()*3)
 	for cpu := range src.cpus.All() {
@@ -96,11 +92,10 @@ func (src *FreqSource) Summary() []Counter {
 			continue
 		}
 		out = append(out,
-			Counter{Source: "freq", CPU: cpu, Name: "min MHz", Value: src.min[cpu]/1e6},
-			Counter{Source: "freq", CPU: cpu, Name: "max MHz", Value: src.max[cpu]/1e6},
-			Counter{Source: "freq", CPU: cpu, Name: "avg MHz", Value: src.sum[cpu]/float64(src.n[cpu])/1e6},
+			Counter{Source: "freq", CPU: cpu, Name: "min MHz", Value: src.min[cpu] / 1e6},
+			Counter{Source: "freq", CPU: cpu, Name: "max MHz", Value: src.max[cpu] / 1e6},
+			Counter{Source: "freq", CPU: cpu, Name: "avg MHz", Value: src.sum[cpu] / float64(src.n[cpu]) / 1e6},
 		)
 	}
 	return out
 }
-

@@ -35,18 +35,11 @@ func Run(cfg *cli.Config) error {
 		return err
 	}
 
-	// Pin
-	task, err := isolation.ApplyPin(cfg.Task, selected.Task, group)
-	if err != nil {
-		return err
-	}
-
-	// Run task
-	runErr := task.Wait()
-	stop(runErr, steer, task) // Lazy telemetry report
-	return runErr
+	// Pin + run task
+	res := isolation.ApplyPin(cfg.Task, selected.Task, group)
+	stop(res, steer) // Lazy telemetry report
+	return res.Err
 }
-
 
 // exitCode task's exit code
 func exitCode(err error) int {
