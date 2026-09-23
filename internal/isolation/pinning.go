@@ -12,13 +12,7 @@ import (
 	"goset/internal/generic"
 )
 
-type TaskResult struct {
-	Err    error
-	Rusage *syscall.Rusage
-	Wall   time.Duration
-}
-
-func ApplyPin(argv []string, cpus generic.CPUSet, group *Cgroup) *TaskResult {
+func ApplyPin(argv []string, cpus generic.CPUSet, group *Cgroup) (*syscall.Rusage, time.Duration, error) {
 	// Task In/Out
 	task := exec.Command(argv[0], argv[1:]...)
 	task.Stdin = os.Stdin
@@ -32,43 +26,40 @@ func ApplyPin(argv []string, cpus generic.CPUSet, group *Cgroup) *TaskResult {
 	}
 
 	// Run Protocol
-	type launch struct {
-		begin time.Time // t0 = the instant the task is exec'd
-		err   error
-	}
-	started := make(chan launch, 1)
+	var wall time.Duration
+	done := make(chan error, 1)
 	go func() {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 
-		if group != nil {
-			err := task.Start()
-			started <- launch{time.Now(), err}
-			return
+		var prevCPUs generic.CPUSet
+		var gerr error
+		if group == nil {
+			prevCPUs, gerr = cpu.GetAffinity(0) // goset affinity
+			if err := cpu.SetAffinity(0, cpus); err != nil {
+				done <- fmt.Errorf("set thread affinity: %w", err)
+				return
+			}
 		}
 
-		prevCPUs, gerr := cpu.GetAffinity(0) // goset affinity
-		if err := cpu.SetAffinity(0, cpus); err != nil {
-			started <- launch{err: fmt.Errorf("set thread affinity: %w", err)}
+		if err := task.Start(); err != nil {
+			done <- err
 			return
 		}
-		err := task.Start()
-		begin := time.Now() // after exec, before affinity restore
-		if gerr == nil {
+		t0 := time.Now() // the instant the task is exec'd
+		if group == nil && gerr == nil {
 			_ = cpu.SetAffinity(0, prevCPUs)
 		}
-		started <- launch{begin, err}
+
+		err := task.Wait()
+		wall = time.Since(t0) // Wait() return = process reaped
+		done <- err
 	}()
 
-	l := <-started
-	if l.err != nil {
-		return &TaskResult{Err: l.err}
-	}
-
-	err := task.Wait()
-	res := &TaskResult{Err: err, Wall: time.Since(l.begin)}
+	err := <-done
+	var rusage *syscall.Rusage
 	if task.ProcessState != nil {
-		res.Rusage, _ = task.ProcessState.SysUsage().(*syscall.Rusage)
+		rusage, _ = task.ProcessState.SysUsage().(*syscall.Rusage)
 	}
-	return res
+	return rusage, wall, err
 }

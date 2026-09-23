@@ -3,6 +3,7 @@ package runner
 import (
 	"fmt"
 	"os"
+	"syscall"
 	"time"
 
 	"goset/internal/cli"
@@ -13,7 +14,7 @@ import (
 	"goset/internal/telemetry"
 )
 
-func startTelemetry(selected *generic.Selection, cfg *cli.Config) (func(*isolation.TaskResult, *isolation.SteerResult), error) {
+func startTelemetry(selected *generic.Selection, cfg *cli.Config) (func(time.Duration, error, *isolation.SteerResult, *syscall.Rusage), error) {
 	pinHousekeeper := func() error {
 		var mask generic.CPUSet
 		mask.SetBit(selected.HouseKeeper)
@@ -36,14 +37,14 @@ func startTelemetry(selected *generic.Selection, cfg *cli.Config) (func(*isolati
 	}
 
 	// lazy print
-	stop := func(res *isolation.TaskResult, steer *isolation.SteerResult) {
+	stop := func(wall time.Duration, runErr error, steer *isolation.SteerResult, rusage *syscall.Rusage) {
 		fmt.Fprintln(os.Stderr, "\n\n----------------- GOSET -----------------")
 		rep := report.Report{
 			Steer:    steer,
-			Rusage:   res.Rusage,
-			Wall:     res.Wall,
+			Rusage:   rusage,
+			Wall:     wall,
 			Counters: sampler.Stop(),
-			ExitCode: exitCode(res.Err),
+			ExitCode: exitCode(runErr),
 		}
 		report.Render(os.Stderr,
 			report.SelectionTable(selected),
