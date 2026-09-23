@@ -18,13 +18,11 @@ type Cgroup struct {
 	destroyed bool
 }
 
-
 // https://docs.kernel.org/admin-guide/cgroup-v2.html
 func cgroupV2Available() bool {
 	_, err := os.Stat(filepath.Join(generic.SysCgroup, generic.CgroupControllers))
 	return err == nil
 }
-
 
 func readFileTrim(path string) (string, error) {
 	data, err := os.ReadFile(path)
@@ -33,7 +31,6 @@ func readFileTrim(path string) (string, error) {
 	}
 	return strings.TrimSpace(string(data)), nil
 }
-
 
 // https://docs.kernel.org/admin-guide/cgroup-v2.html
 func InitCgroup(name string, cpus generic.CPUSet, memNode int) (*Cgroup, error) {
@@ -98,7 +95,6 @@ func InitCgroup(name string, cpus generic.CPUSet, memNode int) (*Cgroup, error) 
 	return group, nil
 }
 
-
 // Diagnosis path
 type CgroupInfo struct {
 	Name      string
@@ -108,7 +104,6 @@ type CgroupInfo struct {
 	Procs     int
 	Stat      map[string]uint64
 }
-
 
 // https://docs.kernel.org/admin-guide/cgroup-v2.html
 func ListCgroups() ([]CgroupInfo, error) {
@@ -140,14 +135,12 @@ func ListCgroups() ([]CgroupInfo, error) {
 	return out, nil
 }
 
-
 func (group *Cgroup) FD() int {
 	if group == nil || group.File == nil {
 		return -1
 	}
 	return int(group.File.Fd())
 }
-
 
 // https://docs.kernel.org/admin-guide/cgroup-v2.html
 func (group *Cgroup) CPUStat() map[string]uint64 {
@@ -171,7 +164,6 @@ func (group *Cgroup) CPUStat() map[string]uint64 {
 	return out
 }
 
-
 // https://docs.kernel.org/admin-guide/cgroup-v2.html
 func (group *Cgroup) Destroy() error {
 	if group == nil || group.destroyed {
@@ -192,7 +184,6 @@ func (group *Cgroup) Destroy() error {
 	group.destroyed = true
 	return nil
 }
-
 
 // https://docs.kernel.org/admin-guide/cgroup-v2.html
 func RemoveCgroup(name string) error {

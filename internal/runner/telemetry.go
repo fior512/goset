@@ -3,8 +3,6 @@ package runner
 import (
 	"fmt"
 	"os"
-	"os/exec"
-	"syscall"
 	"time"
 
 	"goset/internal/cli"
@@ -15,7 +13,7 @@ import (
 	"goset/internal/telemetry"
 )
 
-func startTelemetry(selected *generic.Selection, cfg *cli.Config) (func(error, *isolation.SteerResult, *exec.Cmd), error) {
+func startTelemetry(selected *generic.Selection, cfg *cli.Config) (func(*isolation.TaskResult, *isolation.SteerResult), error) {
 	pinHousekeeper := func() error {
 		var mask generic.CPUSet
 		mask.SetBit(selected.HouseKeeper)
@@ -32,20 +30,21 @@ func startTelemetry(selected *generic.Selection, cfg *cli.Config) (func(error, *
 		},
 	}
 
-	//HouseKeeper
+	// HouseKeeper
 	if err := sampler.Start(pinHousekeeper); err != nil {
 		return nil, err
 	}
-	start := time.Now()
 
 	// lazy print
-	stop := func(runErr error, steer *isolation.SteerResult, task *exec.Cmd) {
+	stop := func(res *isolation.TaskResult, steer *isolation.SteerResult) {
 		fmt.Fprintln(os.Stderr, "\n\n----------------- GOSET -----------------")
-		var rusage *syscall.Rusage
-		if task.ProcessState != nil {
-			rusage, _ = task.ProcessState.SysUsage().(*syscall.Rusage)
+		rep := report.Report{
+			Steer:    steer,
+			Rusage:   res.Rusage,
+			Wall:     res.Wall,
+			Counters: sampler.Stop(),
+			ExitCode: exitCode(res.Err),
 		}
-		rep := report.Report{Steer: steer, Rusage: rusage, Wall: time.Since(start), Counters: sampler.Stop(), ExitCode: exitCode(runErr)}
 		report.Render(os.Stderr,
 			report.SelectionTable(selected),
 			report.TelemetryTable(rep),
