@@ -7,7 +7,10 @@ import (
 	"strconv"
 	"strings"
 
+	"goset/internal/cpu"
 	"goset/internal/generic"
+
+	"golang.org/x/tools/go/analysis/passes/modernize"
 )
 
 type Cgroup struct {
@@ -75,7 +78,12 @@ func InitCgroup(name string, cpus generic.CPUSet, memNode int) (*Cgroup, error) 
 
 	// Try isolated, fall back to root
 	partitionPath := filepath.Join(path, generic.CpusetCpusPartition)
-	if err := os.WriteFile(partitionPath, []byte("isolated"), 0o644); err != nil {
+	partitionType := "isolated" // avoid load balancing
+	if cpus.Count() > 1 {
+		// keep load balancing inside control group
+		partitionType = "root"
+	}
+	if err := os.WriteFile(partitionPath, []byte(partitionType), 0o644); err != nil {
 		_ = os.WriteFile(partitionPath, []byte("root"), 0o644)
 	}
 	if partition, err := readFileTrim(partitionPath); err == nil {
