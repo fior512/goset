@@ -15,14 +15,12 @@ import (
 )
 
 func startTelemetry(selected *generic.Selection, cfg *cli.Config) (func(time.Duration, error, *isolation.SteerResult, *syscall.Rusage), error) {
-	// HK pin
 	pinHousekeeper := func() error {
 		var mask generic.CPUSet
 		mask.SetBit(selected.HouseKeeper)
 		return cpu.SetAffinity(0, mask)
 	}
 
-	// record
 	sampler := &telemetry.Sampler{
 		Cpus:     selected.Task,
 		Interval: time.Duration(cfg.SamplingMS) * time.Millisecond,
@@ -31,9 +29,9 @@ func startTelemetry(selected *generic.Selection, cfg *cli.Config) (func(time.Dur
 			&telemetry.ThrottleSource{},
 			&telemetry.FreqSource{},
 		},
-		Exit: make(chan struct{}),
-		Done: make(chan struct{}),
 	}
+
+	// HouseKeeper
 	if err := sampler.Start(pinHousekeeper); err != nil {
 		return nil, err
 	}
@@ -41,7 +39,13 @@ func startTelemetry(selected *generic.Selection, cfg *cli.Config) (func(time.Dur
 	// lazy print
 	stop := func(wall time.Duration, runErr error, steer *isolation.SteerResult, rusage *syscall.Rusage) {
 		fmt.Fprintln(os.Stderr, "\n\n----------------- GOSET -----------------")
-		rep := report.Report{Steer: steer, Rusage: rusage, Wall: wall, Counters: sampler.Stop(), ExitCode: exitCode(runErr)}
+		rep := report.Report{
+			Steer:    steer,
+			Rusage:   rusage,
+			Wall:     wall,
+			Counters: sampler.Stop(),
+			ExitCode: exitCode(runErr),
+		}
 		report.Render(os.Stderr,
 			report.SelectionTable(selected),
 			report.TelemetryTable(rep),

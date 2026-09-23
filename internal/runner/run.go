@@ -3,48 +3,31 @@ package runner
 import (
 	"errors"
 	"os/exec"
-	"path/filepath"
-	"time"
 
 	"goset/internal/cli"
 	"goset/internal/cpu"
-	"goset/internal/generic"
 	"goset/internal/isolation"
 )
 
 func Run(cfg *cli.Config) error {
+	// Topology
 	topo, err := cpu.GetTopology()
 	if err != nil {
 		return err
 	}
 
-	// Selection
+	// Select threads
 	selected, err := cpu.SelectCPUs(topo, cfg.NThreads, cfg.Include, cfg.Exclude, cfg.NumaNode)
 	if err != nil {
 		return err
 	}
 
-	// Cgroup
-	var group *isolation.Cgroup
-	if cfg.Cgroup {
-		var err error
-		cgroupName := generic.CgroupIdentifier + filepath.Base(cfg.Task[0])
-		group, err = isolation.InitCgroup(cgroupName, selected.Task, cfg.NumaNode)
-		if err != nil {
-			return err
-		}
-		defer group.Destroy()
+	// Isolation (steer/cgroup)
+	group, steer, release, err := startIsolation(cfg, topo, selected)
+	if err != nil {
+		return err
 	}
-
-	// IRQ steering
-	var steer *isolation.SteerResult
-	if cfg.Steering {
-		steer, err = isolation.SteerIRQs(topo, selected.Task, selected.HouseKeeper)
-		if err != nil {
-			return err
-		}
-		defer isolation.RestoreIRQs(steer)
-	}
+	defer release() // destroy cgroup + counter-steer
 
 	// Telemetry
 	stop, err := startTelemetry(selected, cfg)
@@ -52,14 +35,11 @@ func Run(cfg *cli.Config) error {
 		return err
 	}
 
-	// Run task
-	started := time.Now()
-	rusage, runErr := isolation.ApplyPin(cfg.Task, selected.Task, group)
-	stop(time.Since(started), runErr, steer, rusage) // lazy-print returned by startTelemetry
-
+	// Pin + run task
+	rusage, wall, runErr := isolation.ApplyPin(cfg.Task, selected.Task, group)
+	stop(wall, runErr, steer, rusage) // Lazy telemetry report
 	return runErr
 }
-
 
 // exitCode task's exit code
 func exitCode(err error) int {

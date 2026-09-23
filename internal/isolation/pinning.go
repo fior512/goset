@@ -6,12 +6,14 @@ import (
 	"os/exec"
 	"runtime"
 	"syscall"
+	"time"
 
 	"goset/internal/cpu"
 	"goset/internal/generic"
 )
 
-func ApplyPin(argv []string, cpus generic.CPUSet, group *Cgroup) (*syscall.Rusage, error) {
+func ApplyPin(argv []string, cpus generic.CPUSet, group *Cgroup) (*syscall.Rusage, time.Duration, error) {
+	// Task In/Out
 	task := exec.Command(argv[0], argv[1:]...)
 	task.Stdin = os.Stdin
 	task.Stdout = os.Stdout
@@ -23,12 +25,9 @@ func ApplyPin(argv []string, cpus generic.CPUSet, group *Cgroup) (*syscall.Rusag
 		task.SysProcAttr.CgroupFD = group.FD()
 	}
 
-	type result struct {
-		err    error
-		rusage *syscall.Rusage
-	}
-
-	done := make(chan result, 1)
+	// Run Protocol
+	var wall time.Duration
+	done := make(chan error, 1)
 	go func() {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
@@ -38,25 +37,29 @@ func ApplyPin(argv []string, cpus generic.CPUSet, group *Cgroup) (*syscall.Rusag
 		if group == nil {
 			prevCPUs, gerr = cpu.GetAffinity(0) // goset affinity
 			if err := cpu.SetAffinity(0, cpus); err != nil {
-				done <- result{err: fmt.Errorf("set thread affinity: %w", err)}
+				done <- fmt.Errorf("set thread affinity: %w", err)
 				return
 			}
 		}
-		err := task.Run() // start and wait for the task to exit
 
+		if err := task.Start(); err != nil {
+			done <- err
+			return
+		}
+		t0 := time.Now() // the instant the task is exec'd
 		if group == nil && gerr == nil {
 			_ = cpu.SetAffinity(0, prevCPUs)
 		}
-		var rusage *syscall.Rusage
-		if task.ProcessState != nil {
-			rusage, _ = task.ProcessState.SysUsage().(*syscall.Rusage)
-		}
-		if derr := group.Destroy(); derr != nil {
-			fmt.Fprintf(os.Stderr, "%scgroup destroy: %v\n", generic.LogPrefix, derr)
-		}
-		done <- result{err, rusage}
+
+		err := task.Wait()
+		wall = time.Since(t0) // Wait() return = process reaped
+		done <- err
 	}()
 
-	res := <-done
-	return res.rusage, res.err
+	err := <-done
+	var rusage *syscall.Rusage
+	if task.ProcessState != nil {
+		rusage, _ = task.ProcessState.SysUsage().(*syscall.Rusage)
+	}
+	return rusage, wall, err
 }
