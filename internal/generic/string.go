@@ -5,6 +5,7 @@ const (
 	SysCPU         = "/sys/devices/system/cpu"
 	SysNode        = "/sys/devices/system/node"
 	SysCgroup      = "/sys/fs/cgroup"
+	ProcRoot       = "/proc"
 	ProcIRQ        = "/proc/irq"
 	ProcInterrupts = "/proc/interrupts"
 	ProcCmd        = "/proc/cmdline"
