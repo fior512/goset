@@ -62,7 +62,7 @@ func TelemetryTable(rep Report) Table {
 	cpuSeen := map[int]bool{}
 
 	for _, counter := range rep.Counters {
-		if counter.Source == "irq steer" { // run-global: reported in Global
+		if counter.CPU < 0 { // run-global: reported in Global
 			continue
 		}
 		label := counter.Source + " " + counter.Name
@@ -127,6 +127,9 @@ func GlobalTable(rep Report) Table {
 			[]string{"ctxsw voluntary", fmt.Sprintf("%d", rep.Rusage.Nvcsw)},
 			[]string{"ctxsw involuntary", fmt.Sprintf("%d", rep.Rusage.Nivcsw)},
 		)
+	}
+	if migrations, ok := telemetry.CountMigrations(rep.Counters); ok {
+		rows = append(rows, []string{"migrations", fmt.Sprintf("%d", migrations)})
 	}
 	rows = append(rows,
 		[]string{"wall", FormatTime(rep.Wall)},

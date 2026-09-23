@@ -25,6 +25,7 @@ func startTelemetry(selected *generic.Selection, cfg *cli.Config, steering *isol
 		&telemetry.IRQSource{},
 		&telemetry.ThrottleSource{},
 		&telemetry.FreqSource{},
+		&telemetry.MigrationsSource{Root: generic.ProcRoot},
 	}
 	if steering != nil {
 		if expected := steering.ExpectedAffinities(); len(expected) > 0 {
