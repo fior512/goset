@@ -36,9 +36,9 @@ func Run(cfg *cli.Config) error {
 	}
 
 	// Pin + run task
-	res := isolation.ApplyPin(cfg.Task, selected.Task, group)
-	stop(res, steer) // Lazy telemetry report
-	return res.Err
+	rusage, wall, runErr := isolation.ApplyPin(cfg.Task, selected.Task, group)
+	stop(wall, runErr, steer, rusage) // Lazy telemetry report
+	return runErr
 }
 
 // exitCode task's exit code
