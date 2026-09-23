@@ -48,7 +48,7 @@ func SelectionTable(selected *generic.Selection) Table {
 
 type Report struct {
 	Counters []telemetry.Counter
-	Steer    *isolation.SteerResult
+	Steer    *isolation.Steering
 	Rusage   *syscall.Rusage
 	Wall     time.Duration
 	ExitCode int
@@ -62,6 +62,9 @@ func TelemetryTable(rep Report) Table {
 	cpuSeen := map[int]bool{}
 
 	for _, counter := range rep.Counters {
+		if counter.Source == "irq steer" { // run-global: reported in Global
+			continue
+		}
 		label := counter.Source + " " + counter.Name
 		if !seen[label] {
 			seen[label] = true
@@ -112,9 +115,11 @@ func GlobalTable(rep Report) Table {
 	rows := [][]string{}
 	if rep.Steer != nil {
 		rows = append(rows,
+			[]string{"irqbalance held", rep.Steer.Status()},
 			[]string{"irq steer applied", fmt.Sprintf("%d", rep.Steer.Applied)},
 			[]string{"irq steer rejected", fmt.Sprintf("%d", rep.Steer.Rejected)},
 			[]string{"irq steer remaining", fmt.Sprintf("%d", len(rep.Steer.Remaining))},
+			[]string{"irq steer drift", fmt.Sprintf("%d", telemetry.CountDriftedIRQs(rep.Counters))},
 		)
 	}
 	if rep.Rusage != nil {

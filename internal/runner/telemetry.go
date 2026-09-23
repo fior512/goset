@@ -14,21 +14,33 @@ import (
 	"goset/internal/telemetry"
 )
 
-func startTelemetry(selected *generic.Selection, cfg *cli.Config) (func(time.Duration, error, *isolation.SteerResult, *syscall.Rusage), error) {
+func startTelemetry(selected *generic.Selection, cfg *cli.Config, steering *isolation.Steering) (func(time.Duration, error, *isolation.Steering, *syscall.Rusage), error) {
 	pinHousekeeper := func() error {
 		var mask generic.CPUSet
 		mask.SetBit(selected.HouseKeeper)
 		return cpu.SetAffinity(0, mask)
 	}
 
+	sources := []telemetry.Source{
+		&telemetry.IRQSource{},
+		&telemetry.ThrottleSource{},
+		&telemetry.FreqSource{},
+	}
+	if steering != nil {
+		if expected := steering.ExpectedAffinities(); len(expected) > 0 {
+			IRQDrift := &telemetry.IRQDriftSource{
+				Root:     generic.ProcIRQ,
+				Expected: expected,
+				Drifted:  map[string]bool{},
+			}
+
+			sources = append(sources, IRQDrift)
+		}
+	}
 	sampler := &telemetry.Sampler{
 		Cpus:     selected.Task,
 		Interval: time.Duration(cfg.SamplingMS) * time.Millisecond,
-		Sources: []telemetry.Source{
-			&telemetry.IRQSource{},
-			&telemetry.ThrottleSource{},
-			&telemetry.FreqSource{},
-		},
+		Sources:  sources,
 	}
 
 	// HouseKeeper
@@ -37,10 +49,10 @@ func startTelemetry(selected *generic.Selection, cfg *cli.Config) (func(time.Dur
 	}
 
 	// lazy print
-	stop := func(wall time.Duration, runErr error, steer *isolation.SteerResult, rusage *syscall.Rusage) {
+	stop := func(wall time.Duration, runErr error, steering *isolation.Steering, rusage *syscall.Rusage) {
 		fmt.Fprintln(os.Stderr, "\n\n----------------- GOSET -----------------")
 		rep := report.Report{
-			Steer:    steer,
+			Steer:    steering,
 			Rusage:   rusage,
 			Wall:     wall,
 			Counters: sampler.Stop(),
