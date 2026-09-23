@@ -230,3 +230,16 @@ func ParseCPUList(list string) (CPUSet, error) {
 	}
 	return out, nil
 }
+
+
+func CPUListEqual(a, b string) bool {
+	if a == b {
+		return true
+	}
+	setA, errA := ParseCPUList(a)
+	setB, errB := ParseCPUList(b)
+	if errA != nil || errB != nil {
+		return false
+	}
+	return setA.String() == setB.String()
+}

@@ -29,7 +29,6 @@ func TestParseCPUListRoundTrip(t *testing.T) {
 	}
 }
 
-
 func TestParseCPUListInvalid(t *testing.T) {
 	for _, in := range []string{"x", "1-", "-a"} {
 		if _, err := generic.ParseCPUList(in); err == nil {
@@ -37,7 +36,6 @@ func TestParseCPUListInvalid(t *testing.T) {
 		}
 	}
 }
-
 
 func TestCPUSetAndAndNot(t *testing.T) {
 	a, _ := generic.ParseCPUList("0-3")
@@ -56,7 +54,6 @@ func TestCPUSetAndAndNot(t *testing.T) {
 	}
 }
 
-
 func TestCPUSetCountAndSubset(t *testing.T) {
 	full, _ := generic.ParseCPUList("0-7")
 	sub, _ := generic.ParseCPUList("2,4")
@@ -69,5 +66,24 @@ func TestCPUSetCountAndSubset(t *testing.T) {
 	}
 	if full.IsSubset(sub) {
 		t.Error("full.IsSubset(sub) = true, want false")
+	}
+}
+
+func TestCPUListEqual(t *testing.T) {
+	cases := []struct {
+		a, b string
+		want bool
+	}{
+		{"0-3", "0-3", true},
+		{"0-3", "0,1,2,3", true},
+		{"2,0,1", "0-2", true},
+		{"0-3", "0-4", false},
+		{"0-3", "x", false},
+		{"", "", true},
+	}
+	for _, c := range cases {
+		if got := generic.CPUListEqual(c.a, c.b); got != c.want {
+			t.Errorf("CPUListEqual(%q, %q) = %v, want %v", c.a, c.b, got, c.want)
+		}
 	}
 }

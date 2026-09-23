@@ -147,6 +147,8 @@ Technical insights
 `-n>1` requires `-cgroup`. Affinity alone can't hold a process tree.
 
 **IRQ steering** (`-steer`)
+- Holds `irqbalance` for the run: stops the systemd unit, restarts it on exit.
+- Unmanaged daemon (no systemd): warns and steers anyway.
 - Writes `/proc/irq/*/smp_affinity_list` for IRQs on selected CPUs.
 - Restores prior affinity on exit.
 
