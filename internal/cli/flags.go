@@ -103,7 +103,7 @@ func Register(fs *flag.FlagSet) *Config {
 	fs.Var(&cfg.Include, "include", "cpu list to force into the benchmark set, e.g. 2,4-6")
 	fs.Var(&cfg.Exclude, "exclude", "cpu list to exclude from selection")
 	fs.IntVar(&cfg.NumaNode, "node", -2, "constrain benchmark cpus to one NUMA node when possible")
-	fs.IntVar(&cfg.SamplingMS, "interval", 1000, "interrupt sampling window for the housekeeper telemetry loop, ms (not used by cpu ranking)")
+	fs.IntVar(&cfg.SamplingMS, "interval", 100, "interrupt sampling window for the housekeeper telemetry loop, ms (not used by cpu ranking)")
 	fs.StringVar(&cfg.RmCgroup, "rm-cgroup", "", "remove a leaked goset cgroup by name (see diagnose Cgroups table)")
 	return cfg
 }
