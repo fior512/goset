@@ -68,7 +68,10 @@ func InitCgroup(name string, cpus generic.CPUSet, memNode int) (*Cgroup, error) 
 		return nil, fmt.Errorf("write cpuset.cpus: %w", err)
 	}
 	if memNode >= 0 { // mems is optional
-		_ = os.WriteFile(filepath.Join(path, generic.CpusetMems), []byte(strconv.Itoa(memNode)), 0o644)
+		if err := os.WriteFile(filepath.Join(path, generic.CpusetMems), []byte(strconv.Itoa(memNode)), 0o644); err != nil {
+			group.Destroy()
+			return nil, fmt.Errorf("write cpuset.mems: %w", err)
+		}
 	}
 	// absent on older kernels
 	_ = os.WriteFile(filepath.Join(path, generic.CpusetCpusExclusive), []byte(list), 0o644)
