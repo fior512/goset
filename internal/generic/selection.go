@@ -15,6 +15,7 @@ type CPUScore struct {
 
 type Selection struct {
 	Scores      []CPUScore // SelectCPUs -> Report
+	NumaNode    int
 	Task        CPUSet
 	HouseKeeper int
 }

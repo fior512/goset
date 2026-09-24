@@ -14,7 +14,7 @@ func startIsolation(cfg *cli.Config, topo *cpu.Topology, selected *generic.Selec
 	if cfg.Cgroup {
 		cgroupName := generic.CgroupIdentifier + filepath.Base(cfg.Task[0])
 		var err error
-		if group, err = isolation.InitCgroup(cgroupName, selected.Task, cfg.NumaNode); err != nil {
+		if group, err = isolation.InitCgroup(cgroupName, selected.Task, selected.NumaNode); err != nil {
 			return nil, nil, nil, err
 		}
 	}
