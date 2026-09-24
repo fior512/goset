@@ -56,7 +56,7 @@ func siblingLoads(topo *Topology, delta []telemetry.IRQCount) map[int]uint64 {
 	return sibling
 }
 
-func rankCPUs(topo *Topology, candidates, include generic.CPUSet, NumaNode int) ([]generic.CPUScore, error) {
+func rankCPUs(topo *Topology, candidates, include generic.CPUSet, NumaNode int) ([]generic.CPUScore, int, error) {
 	/*
 		include{1,2,5} // threads id requested
 		candidates{1,2,3,4,5,6} // all available threads
@@ -82,7 +82,7 @@ func rankCPUs(topo *Topology, candidates, include generic.CPUSet, NumaNode int) 
 
 	delta, err := sampleIRQDelta(500 * time.Millisecond)
 	if err != nil {
-		return nil, err
+		return nil, NumaNode, err
 	}
 	sibling := siblingLoads(topo, delta)
 
@@ -128,5 +128,5 @@ func rankCPUs(topo *Topology, candidates, include generic.CPUSet, NumaNode int) 
 			cmp.Compare(left.Steerable, right.Steerable),
 		)
 	})
-	return out, nil
+	return out, node, nil
 }
