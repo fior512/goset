@@ -7,10 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"goset/internal/cpu"
 	"goset/internal/generic"
-
-	"golang.org/x/tools/go/analysis/passes/modernize"
 )
 
 type Cgroup struct {
