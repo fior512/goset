@@ -22,7 +22,7 @@ func SelectCPUs(topo *Topology, n int, include generic.CPUSet, exclude generic.C
 	}
 
 	// evaluate
-	scores, err := rankCPUs(topo, candidates, include, NumaNode)
+	scores, numaNode, err := rankCPUs(topo, candidates, include, NumaNode)
 	if err != nil {
 		return nil, err
 	}
@@ -45,6 +45,7 @@ func SelectCPUs(topo *Topology, n int, include generic.CPUSet, exclude generic.C
 
 	return &generic.Selection{
 		Scores:      scores,
+		NumaNode:    numaNode,
 		Task:        selection,
 		HouseKeeper: housekeeper,
 	}, nil
