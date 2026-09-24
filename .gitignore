@@ -37,5 +37,6 @@ go.work.sum
 /.gocache
 tags
 .serena
-goset
-goset-bench
+/goset
+/goset-bench
+/bin/
