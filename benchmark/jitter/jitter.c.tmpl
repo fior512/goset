@@ -1,0 +1,42 @@
+/*
+ * CPU-bound jitter probe: one dependent xorshift+mul chain, no memory
+ * traffic, fixed instruction count per iteration. Every SAMPLE is one
+ * timed chain, so tail stats measure scheduler noise, not bandwidth.
+ *
+ * Usage: `jitter [ops] [ntimes]`, defaulting to 3000000 chain steps
+ * (~5ms per iteration) and 300 timed repetitions.
+ */
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+static long long now_ns(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (long long)ts.tv_sec * 1000000000LL + ts.tv_nsec;
+}
+
+int main(int argc, char **argv) {
+    long long ops = argc > 1 ? atoll(argv[1]) : 3000000;
+    int ntimes = argc > 2 ? (int)atol(argv[2]) : 300;
+    uint64_t final = 0;
+
+    for (int t = 0; t < ntimes; t++) {
+        uint64_t x = 0x9e3779b97f4a7c15ULL ^ (uint64_t)t;
+        long long t0 = now_ns();
+        for (long long i = 0; i < ops; i++) {
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            x *= 0x2545f4914f6cdd1dULL;
+        }
+        long long t1 = now_ns();
+        final ^= x;
+        printf("SAMPLE jitter %d %lld\n", t, t1 - t0);
+    }
+
+    // Touch the state so the compiler can't discard the loop.
+    printf("checksum: %llu\n", (unsigned long long)final);
+    return 0;
+}

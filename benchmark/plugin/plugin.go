@@ -3,9 +3,11 @@ package plugin
 import "flag"
 
 type Metric struct {
-	Name  string
-	Value float64
+	Name    string // alignment identity (masked label, column, unit)
+	Display string // compact label for rendering (row name + unit)
+	Value   float64
 	Samples []float64
+	Col     int // source column ordinal within the row (for ordering)
 }
 
 
