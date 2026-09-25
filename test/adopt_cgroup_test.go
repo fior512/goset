@@ -63,8 +63,13 @@ func TestInitCgroupRefusesCgroupWithTasks(t *testing.T) {
 
 	if _, err := isolation.InitCgroup(name, oneCPU(t), -1); err == nil {
 		t.Fatalf("InitCgroup adopted %s while it held a task", path)
-	} else if !strings.Contains(err.Error(), "leftover") {
-		t.Errorf("InitCgroup error = %q, want it to say the cgroup is not a leftover", err)
+	} else {
+		if !strings.Contains(err.Error(), "leftover") {
+			t.Errorf("InitCgroup error = %q, want it to say the cgroup is not a leftover", err)
+		}
+		if !strings.Contains(err.Error(), strconv.Itoa(child.Process.Pid)) {
+			t.Errorf("InitCgroup error = %q, want it to name pid %d", err, child.Process.Pid)
+		}
 	}
 	if _, err := os.Stat(path); err != nil {
 		t.Errorf("busy cgroup %s gone: %v", path, err)
