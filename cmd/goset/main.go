@@ -32,7 +32,7 @@ func main() {
 	if err != nil {
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
-			os.Exit(exitErr.ExitCode())
+			os.Exit(runner.ExitCode(err))
 		}
 		fmt.Fprintf(os.Stderr, "%s%v\n", generic.LogPrefix, err)
 		os.Exit(1)
