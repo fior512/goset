@@ -55,7 +55,7 @@ func TestMigrationsSumsTaskThreads(t *testing.T) {
 	writeSched(t, root, child, child+1, 5)
 
 	src := &telemetry.MigrationsSource{Root: root}
-	if err := src.Baseline(generic.Selection{}); err != nil {
+	if err := src.Baseline(generic.CPUSet{}); err != nil {
 		t.Fatal(err)
 	}
 	if err := src.Poll(); err != nil {
@@ -77,7 +77,7 @@ func TestMigrationsStickyAfterChildVanishes(t *testing.T) {
 	writeSched(t, root, child, child, 7)
 
 	src := &telemetry.MigrationsSource{Root: root}
-	if err := src.Baseline(generic.Selection{}); err != nil {
+	if err := src.Baseline(generic.CPUSet{}); err != nil {
 		t.Fatal(err)
 	}
 	if err := src.Poll(); err != nil {
@@ -108,7 +108,7 @@ func TestMigrationsStickyAfterChildVanishes(t *testing.T) {
 
 func TestMigrationsNoChildNoCounter(t *testing.T) {
 	src := &telemetry.MigrationsSource{Root: t.TempDir()}
-	if err := src.Baseline(generic.Selection{}); err != nil {
+	if err := src.Baseline(generic.CPUSet{}); err != nil {
 		t.Fatal(err)
 	}
 	if err := src.Poll(); err != nil {
@@ -128,7 +128,7 @@ func TestMigrationsMissingSchedFile(t *testing.T) {
 	writeChildren(t, root, child) // child listed but sched unreadable (mid-exit race)
 
 	src := &telemetry.MigrationsSource{Root: root}
-	if err := src.Baseline(generic.Selection{}); err != nil {
+	if err := src.Baseline(generic.CPUSet{}); err != nil {
 		t.Fatal(err)
 	}
 	if err := src.Poll(); err != nil {

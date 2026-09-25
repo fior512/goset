@@ -15,7 +15,7 @@ type IRQDriftSource struct {
 	Drifted  map[string]bool   // sticky: once drifted, stays counted
 }
 
-func (src *IRQDriftSource) Baseline(generic.Selection) error {
+func (src *IRQDriftSource) Baseline(generic.CPUSet) error {
 	src.sample()
 	return nil
 }

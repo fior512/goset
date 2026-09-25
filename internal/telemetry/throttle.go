@@ -32,8 +32,8 @@ type ThrottleSource struct {
 	end   []uint64
 }
 
-func (src *ThrottleSource) Baseline(selected generic.Selection) error {
-	src.cpus = selected.Task
+func (src *ThrottleSource) Baseline(cpus generic.CPUSet) error {
+	src.cpus = cpus
 	var err error
 	src.start, err = ReadThrottleCounts(src.cpus)
 	return err

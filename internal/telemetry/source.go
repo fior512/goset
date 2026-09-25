@@ -14,8 +14,8 @@ func (counter Counter) Label() string {
 }
 
 type Source interface {
-	Baseline(selected generic.Selection) error // starting point
-	Poll() error                  // sample
-	Stop() error                  // ending point
-	Summary() []Counter           // report
+	Baseline(cpus generic.CPUSet) error // starting point
+	Poll() error                        // sample
+	Stop() error                        // ending point
+	Summary() []Counter                 // report
 }
