@@ -214,9 +214,22 @@ func (group *Cgroup) verifyLeftover() error {
 		return fmt.Errorf("read %s in %s: %w", generic.CgroupProcs, group.Path, err)
 	}
 	if tasks := strings.Fields(procs); len(tasks) > 0 {
-		return fmt.Errorf("%s holds %d task(s) and is not a leftover, remove it with -rm-cgroup", group.Path, len(tasks))
+		return fmt.Errorf(
+			"%s holds %d task(s) and is not a leftover.\n"+
+				"  pids: %s\n"+
+				"  check them, then remove the cgroup with -rm-cgroup",
+			group.Path, len(tasks), taskPids(tasks))
 	}
 	return nil
+}
+
+// one pid per thread
+func taskPids(tasks []string) string {
+	const shown = 8
+	if len(tasks) <= shown {
+		return strings.Join(tasks, " ")
+	}
+	return fmt.Sprintf("%s and %d more", strings.Join(tasks[:shown], " "), len(tasks)-shown)
 }
 
 // https://docs.kernel.org/admin-guide/cgroup-v2.html
