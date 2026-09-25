@@ -61,11 +61,3 @@ body:
         - the task kept running after goset exited
     validations:
       required: true
-  - type: textarea
-    id: ipi
-    attributes:
-      label: IPI impact
-      description: |
-        Optional. Whether a monitor showed inter-processor interrupts landing where they
-        should not: the selected CPUs, or the housekeeper during the run. Paste counts if
-        you have them.
