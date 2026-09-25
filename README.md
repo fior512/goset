@@ -55,6 +55,8 @@ Goset has a second form called `Diagnostic`, callable in the same way but withou
 
 > Identifying Goset's cgroup: name is "goset-" + the task binary's basename (e.g. task: `./mybench arg1, arg2` -> cgroup name: `goset-mybench`).
 
+> Concurrent runs: each cgroup name and IRQ steering are guarded by a lock under `/run/lock`. A second run that would reuse the same cgroup or steer at the same time fails immediately and reports the holder pid.
+
 **Real usage**:
 ```bash
 # Diagnose: topology, environment, existing cgroups.
