@@ -55,7 +55,7 @@ func (src *ThrottleSource) Summary() []Counter {
 			continue
 		}
 		out = append(out, Counter{
-			Source: SourceThrottle, CPU: cpu, Name: ThrottleCount,
+			Source: generic.SourceThrottle, CPU: cpu, Name: generic.ThrottleCount,
 			Value: float64(src.end[cpu] - src.start[cpu]),
 		})
 	}

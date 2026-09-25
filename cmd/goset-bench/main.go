@@ -549,9 +549,9 @@ func parseCount(s string) float64 {
 // short and per-run visible: an HPC engineer needs to see which run was
 // the outlier, not just a folded average.
 var counterKeys = []string{
-	telemetry.Counter{Source: telemetry.SourceIRQ, Name: telemetry.IRQSoft}.Label(),
-	telemetry.Counter{Source: telemetry.SourceIRQ, Name: telemetry.IRQHard}.Label(),
-	telemetry.Counter{Source: telemetry.SourceThrottle, Name: telemetry.ThrottleCount}.Label(),
+	telemetry.Counter{Source: generic.SourceIRQ, Name: generic.IRQSoft}.Label(),
+	telemetry.Counter{Source: generic.SourceIRQ, Name: generic.IRQHard}.Label(),
+	telemetry.Counter{Source: generic.SourceThrottle, Name: generic.ThrottleCount}.Label(),
 }
 var globalKeys = []string{
 	generic.GlobalCtxswVoluntary, generic.GlobalCtxswInvoluntary, generic.GlobalMigrations, generic.GlobalRunDelay,
