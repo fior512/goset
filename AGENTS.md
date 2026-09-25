@@ -6,4 +6,4 @@ Run both before reporting a task done. Report any skipped check.
 
 Do not draft PR descriptions or replies to other contributors. GitHub is for the human author; if they cannot explain their own commit, the PR is discarded.
 
-State AI assistance in the PR when it applies. Disclosure does not replace the author's accountability for every line.
+AI Disclosure is not mandatory, and does not replace the author's accountability for every line.
