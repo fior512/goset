@@ -1,0 +1,64 @@
+name: Feature request
+description: A new flag, a new report, a new counter, or a new document for goset.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        One concern per issue. A request that needs more than one concern arrives as a chain
+        of issues, so each part can be reviewed and merged on its own.
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: |
+        One line, imperative. "add -warmup N", not "it would be nice if".
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What you cannot do today, and the run where it shows.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: The flag, table, counter, or output you want, and how it changes a run.
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      options:
+        - CLI flag or validation
+        - report table or row
+        - telemetry counter
+        - goset-bench
+        - documentation
+    validations:
+      required: true
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      description: CONTRIBUTING.md asks for a single aspect, no new dependency, no new formatting style, no multi-module refactor.
+      options:
+        - label: this request is one concern
+          required: true
+        - label: it needs no new dependency
+          required: true
+        - label: it needs no new formatting style
+        - label: it needs no multi-module refactor
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: What you tried, or a different design you considered.
