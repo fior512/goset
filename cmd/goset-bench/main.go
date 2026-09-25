@@ -32,6 +32,7 @@ import (
 	"goset/benchmark/plugin"
 	"goset/internal/generic"
 	rpt "goset/internal/report"
+	"goset/internal/telemetry"
 )
 
 type sample struct {
@@ -395,8 +396,8 @@ func run(gosetBin string, bench plugin.Benchmark, label string, i int, gosetArgs
 		return sample{}, false
 	}
 	s := parseReport(stderr.Bytes())
-	if s.global["exit"] != 0 {
-		fmt.Fprintf(os.Stderr, "%s run %d: task exited %v, run discarded\n%s%s", label, i, s.global["exit"], stdout.Bytes(), stderr.Bytes())
+	if s.global[generic.GlobalExit] != 0 {
+		fmt.Fprintf(os.Stderr, "%s run %d: task exited %v, run discarded\n%s%s", label, i, s.global[generic.GlobalExit], stdout.Bytes(), stderr.Bytes())
 		return sample{}, false
 	}
 	s.metrics, s.structure = collectMetrics(bench, taskOutput(stdout.Bytes(), stderr.Bytes()))
@@ -450,8 +451,8 @@ func runBaseline(bench plugin.Benchmark, argv []string) (sample, bool) {
 	s.wall = time.Since(start).Seconds()
 	s.metrics, s.structure = collectMetrics(bench, buf.Bytes())
 	if ru, ok := cmd.ProcessState.SysUsage().(*syscall.Rusage); ok {
-		s.global["ctxsw voluntary"] = float64(ru.Nvcsw)
-		s.global["ctxsw involuntary"] = float64(ru.Nivcsw)
+		s.global[generic.GlobalCtxswVoluntary] = float64(ru.Nvcsw)
+		s.global[generic.GlobalCtxswInvoluntary] = float64(ru.Nivcsw)
 	}
 	return s, true
 }
@@ -485,9 +486,9 @@ func parseReport(out []byte) sample {
 		switch section {
 		case "Global":
 			if len(fields) == 2 {
-				if fields[0] == "wall" {
+				if fields[0] == generic.GlobalWall {
 					s.wall = parseDuration(fields[1])
-				} else if fields[0] == "run_delay" {
+				} else if fields[0] == generic.GlobalRunDelay {
 					s.global[fields[0]] = parseDuration(fields[1])
 				} else {
 					s.global[fields[0]] = parseCount(fields[1])
@@ -547,8 +548,15 @@ func parseCount(s string) float64 {
 // counterKeys are the goset counters shown per run and summarized. Kept
 // short and per-run visible: an HPC engineer needs to see which run was
 // the outlier, not just a folded average.
-var counterKeys = []string{"irq soft", "irq hard", "throttle count"}
-var globalKeys = []string{"ctxsw voluntary", "ctxsw involuntary", "migrations", "run_delay", "irq steer applied", "irq steer rejected", "irq steer remaining"}
+var counterKeys = []string{
+	telemetry.Counter{Source: generic.SourceIRQ, Name: generic.IRQSoft}.Label(),
+	telemetry.Counter{Source: generic.SourceIRQ, Name: generic.IRQHard}.Label(),
+	telemetry.Counter{Source: generic.SourceThrottle, Name: generic.ThrottleCount}.Label(),
+}
+var globalKeys = []string{
+	generic.GlobalCtxswVoluntary, generic.GlobalCtxswInvoluntary, generic.GlobalMigrations, generic.GlobalRunDelay,
+	generic.GlobalIRQSteerApplied, generic.GlobalIRQSteerRejected, generic.GlobalIRQSteerRemaining,
+}
 
 func report(label string, samples []sample, hasGoset bool, metricNames []string) {
 	fmt.Printf("\n%s (n=%d)\n", label, len(samples))
@@ -792,11 +800,11 @@ func printStat(label string, width int, values []float64) {
 // extracted benchmarks can print any row name, so only a namespaced
 // built-in label and goset's own key may trigger time formatting.
 func isTimeLabel(label string) bool {
-	return label == "run_delay" || label == "jitter iter"
+	return label == generic.GlobalRunDelay || label == "jitter iter"
 }
 
 func fmtVal(label string, v float64) string {
-	if label == "run_delay" {
+	if label == generic.GlobalRunDelay {
 		return rpt.FormatTime(time.Duration(v * float64(time.Second)))
 	}
 	return rpt.FormatTime(time.Duration(v))
