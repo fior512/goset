@@ -58,7 +58,7 @@ func startTelemetry(selected *generic.Selection, cfg *cli.Config, steering *isol
 			Rusage:   rusage,
 			Wall:     wall,
 			Counters: sampler.Stop(),
-			ExitCode: exitCode(runErr),
+			ExitCode: ExitCode(runErr),
 		}
 		report.Render(os.Stderr,
 			report.SelectionTable(selected),
