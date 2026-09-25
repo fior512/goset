@@ -54,11 +54,11 @@ func ApplyPin(ctx context.Context, argv []string, cpus generic.CPUSet, group *Cg
 			}
 		}
 
+		t0 := time.Now() // launch instant, wall covers fork and exec
 		if err := task.Start(); err != nil {
 			done <- err
 			return
 		}
-		t0 := time.Now() // the instant the task is exec'd
 		if group == nil && gerr == nil {
 			_ = cpu.SetAffinity(0, prevCPUs)
 		}
