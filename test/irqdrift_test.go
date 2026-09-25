@@ -37,7 +37,7 @@ func TestIRQDriftCountsChangedAffinity(t *testing.T) {
 		Expected: map[string]string{"74": "0-3"},
 		Drifted:  map[string]bool{},
 	}
-	if err := src.Baseline(generic.Selection{}); err != nil {
+	if err := src.Baseline(generic.CPUSet{}); err != nil {
 		t.Fatal(err)
 	}
 	if err := src.Poll(); err != nil {

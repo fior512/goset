@@ -16,7 +16,7 @@ type RunqueueSource struct {
 	sampled bool
 }
 
-func (src *RunqueueSource) Baseline(generic.Selection) error {
+func (src *RunqueueSource) Baseline(generic.CPUSet) error {
 	return nil //file doesnt exist yet
 }
 

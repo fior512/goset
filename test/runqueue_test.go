@@ -36,7 +36,7 @@ func TestRunqueueSumsTaskThreads(t *testing.T) {
 	writeSchedstat(t, root, child, child+1, 2500)
 
 	src := &telemetry.RunqueueSource{Root: root}
-	if err := src.Baseline(generic.Selection{}); err != nil {
+	if err := src.Baseline(generic.CPUSet{}); err != nil {
 		t.Fatal(err)
 	}
 	if err := src.Poll(); err != nil {
@@ -58,7 +58,7 @@ func TestRunqueueStickyAfterChildVanishes(t *testing.T) {
 	writeSchedstat(t, root, child, child, 700)
 
 	src := &telemetry.RunqueueSource{Root: root}
-	if err := src.Baseline(generic.Selection{}); err != nil {
+	if err := src.Baseline(generic.CPUSet{}); err != nil {
 		t.Fatal(err)
 	}
 	if err := src.Poll(); err != nil {
@@ -89,7 +89,7 @@ func TestRunqueueStickyAfterChildVanishes(t *testing.T) {
 
 func TestRunqueueNoChildNoCounter(t *testing.T) {
 	src := &telemetry.RunqueueSource{Root: t.TempDir()}
-	if err := src.Baseline(generic.Selection{}); err != nil {
+	if err := src.Baseline(generic.CPUSet{}); err != nil {
 		t.Fatal(err)
 	}
 	if err := src.Poll(); err != nil {
@@ -109,7 +109,7 @@ func TestRunqueueMissingSchedstatFile(t *testing.T) {
 	writeChildren(t, root, child) // child listed but schedstat unreadable (mid-exit race)
 
 	src := &telemetry.RunqueueSource{Root: root}
-	if err := src.Baseline(generic.Selection{}); err != nil {
+	if err := src.Baseline(generic.CPUSet{}); err != nil {
 		t.Fatal(err)
 	}
 	if err := src.Poll(); err != nil {

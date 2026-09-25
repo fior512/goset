@@ -45,9 +45,8 @@ func (sam *Sampler) Start(pin func() error) error {
 }
 
 func (sam *Sampler) baseline() error {
-	selected := generic.Selection{Task: sam.Cpus}
 	for _, src := range sam.Sources {
-		if err := src.Baseline(selected); err != nil {
+		if err := src.Baseline(sam.Cpus); err != nil {
 			return fmt.Errorf("telemetry baseline %T: %w", src, err)
 		}
 	}

@@ -19,8 +19,8 @@ type FreqSource struct {
 	n     []int
 }
 
-func (src *FreqSource) Baseline(selected generic.Selection) error {
-	src.cpus = selected.Task
+func (src *FreqSource) Baseline(cpus generic.CPUSet) error {
+	src.cpus = cpus
 	size := src.cpus.Max() + 1
 
 	src.files = make([]*os.File, size)
