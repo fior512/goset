@@ -50,9 +50,9 @@ func (src *IRQDriftSource) Summary() []Counter {
 		return nil
 	}
 	return []Counter{{
-		Source: "irq steer",
+		Source: SourceIRQSteer,
 		CPU:    -1, // run-global, not per-cpu
-		Name:   "drift",
+		Name:   IRQSteerDrift,
 		Value:  float64(len(src.Drifted)),
 	}}
 }
@@ -61,7 +61,7 @@ func (src *IRQDriftSource) Summary() []Counter {
 // 0 when steering was off or nothing drifted.
 func CountDriftedIRQs(counters []Counter) int {
 	for _, counter := range counters {
-		if counter.Source == "irq steer" && counter.Name == "drift" {
+		if counter.Source == SourceIRQSteer && counter.Name == IRQSteerDrift {
 			return int(counter.Value)
 		}
 	}

@@ -65,7 +65,7 @@ func TelemetryTable(rep Report) Table {
 		if counter.CPU < 0 { // run-global: reported in Global
 			continue
 		}
-		label := counter.Source + " " + counter.Name
+		label := counter.Label()
 		if !seen[label] {
 			seen[label] = true
 			labels = append(labels, label)
@@ -115,28 +115,28 @@ func GlobalTable(rep Report) Table {
 	rows := [][]string{}
 	if rep.Steer != nil {
 		rows = append(rows,
-			[]string{"irqbalance held", rep.Steer.Status()},
-			[]string{"irq steer applied", fmt.Sprintf("%d", rep.Steer.Applied)},
-			[]string{"irq steer rejected", fmt.Sprintf("%d", rep.Steer.Rejected)},
-			[]string{"irq steer remaining", fmt.Sprintf("%d", len(rep.Steer.Remaining))},
-			[]string{"irq steer drift", fmt.Sprintf("%d", telemetry.CountDriftedIRQs(rep.Counters))},
+			[]string{generic.GlobalIRQBalanceHeld, rep.Steer.Status()},
+			[]string{generic.GlobalIRQSteerApplied, fmt.Sprintf("%d", rep.Steer.Applied)},
+			[]string{generic.GlobalIRQSteerRejected, fmt.Sprintf("%d", rep.Steer.Rejected)},
+			[]string{generic.GlobalIRQSteerRemaining, fmt.Sprintf("%d", len(rep.Steer.Remaining))},
+			[]string{generic.GlobalIRQSteerDrift, fmt.Sprintf("%d", telemetry.CountDriftedIRQs(rep.Counters))},
 		)
 	}
 	if rep.Rusage != nil {
 		rows = append(rows,
-			[]string{"ctxsw voluntary", fmt.Sprintf("%d", rep.Rusage.Nvcsw)},
-			[]string{"ctxsw involuntary", fmt.Sprintf("%d", rep.Rusage.Nivcsw)},
+			[]string{generic.GlobalCtxswVoluntary, fmt.Sprintf("%d", rep.Rusage.Nvcsw)},
+			[]string{generic.GlobalCtxswInvoluntary, fmt.Sprintf("%d", rep.Rusage.Nivcsw)},
 		)
 	}
 	if migrations, ok := telemetry.CountMigrations(rep.Counters); ok {
-		rows = append(rows, []string{"migrations", fmt.Sprintf("%d", migrations)})
+		rows = append(rows, []string{generic.GlobalMigrations, fmt.Sprintf("%d", migrations)})
 	}
 	if runDelay, ok := telemetry.CountRunqueue(rep.Counters); ok {
-		rows = append(rows, []string{"run_delay", FormatTime(time.Duration(runDelay))})
+		rows = append(rows, []string{generic.GlobalRunDelay, FormatTime(time.Duration(runDelay))})
 	}
 	rows = append(rows,
-		[]string{"wall", FormatTime(rep.Wall)},
-		[]string{"exit", fmt.Sprintf("%d", rep.ExitCode)},
+		[]string{generic.GlobalWall, FormatTime(rep.Wall)},
+		[]string{generic.GlobalExit, fmt.Sprintf("%d", rep.ExitCode)},
 	)
 	return Table{Title: "Global", Header: []string{"key", "value"}, Rows: rows}
 }
