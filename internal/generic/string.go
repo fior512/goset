@@ -9,6 +9,7 @@ const (
 	ProcIRQ        = "/proc/irq"
 	ProcInterrupts = "/proc/interrupts"
 	ProcCmd        = "/proc/cmdline"
+	RunLockDir     = "/run/lock"
 )
 
 // cgroup v2 control files
@@ -43,6 +44,7 @@ const (
 const (
 	CgroupIdentifier = "goset-"
 	LogPrefix        = "[GOSET]: "
+	SteerLockName    = "goset-steer.lock"
 )
 
 // counter identity
