@@ -92,9 +92,9 @@ func (src *FreqSource) Summary() []Counter {
 			continue
 		}
 		out = append(out,
-			Counter{Source: SourceFreq, CPU: cpu, Name: FreqMin, Value: src.min[cpu] / 1e6},
-			Counter{Source: SourceFreq, CPU: cpu, Name: FreqMax, Value: src.max[cpu] / 1e6},
-			Counter{Source: SourceFreq, CPU: cpu, Name: FreqAvg, Value: src.sum[cpu] / float64(src.n[cpu]) / 1e6},
+			Counter{Source: generic.SourceFreq, CPU: cpu, Name: generic.FreqMin, Value: src.min[cpu] / 1e6},
+			Counter{Source: generic.SourceFreq, CPU: cpu, Name: generic.FreqMax, Value: src.max[cpu] / 1e6},
+			Counter{Source: generic.SourceFreq, CPU: cpu, Name: generic.FreqAvg, Value: src.sum[cpu] / float64(src.n[cpu]) / 1e6},
 		)
 	}
 	return out
