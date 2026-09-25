@@ -17,6 +17,12 @@ Not wanted:
 
 ---
 
+Issues:
+- A report starts from the issue form that matches it: a bug report or a feature request.
+- One concern per issue. A request that needs more than one arrives as a chain of issues.
+
+---
+
 Code style: structure
 - A function hides one level of abstraction (SLA). It does not leak that level to its caller. A function is the `main()` of its level of detail.
 - A pipeline reads as a sequence in the caller: `setup(); run(); report();`. Depth lives in the callees, not in nested calls (stepdown rule).
