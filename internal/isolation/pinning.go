@@ -1,6 +1,8 @@
 package isolation
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -12,13 +14,23 @@ import (
 	"goset/internal/generic"
 )
 
-func ApplyPin(argv []string, cpus generic.CPUSet, group *Cgroup) (*syscall.Rusage, time.Duration, error) {
+const taskKillDelay = 3 * time.Second
+
+func ApplyPin(ctx context.Context, argv []string, cpus generic.CPUSet, group *Cgroup) (*syscall.Rusage, time.Duration, error) {
 	// Task In/Out
-	task := exec.Command(argv[0], argv[1:]...)
+	task := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	task.Stdin = os.Stdin
 	task.Stdout = os.Stdout
 	task.Stderr = os.Stderr
-	task.SysProcAttr = &syscall.SysProcAttr{}
+	task.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	task.Cancel = func() error {
+		err := syscall.Kill(-task.Process.Pid, syscall.SIGINT) // group
+		if err != nil && !errors.Is(err, syscall.ESRCH) {
+			return err
+		}
+		return nil
+	}
+	task.WaitDelay = taskKillDelay
 
 	if group != nil {
 		task.SysProcAttr.UseCgroupFD = true
