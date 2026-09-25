@@ -16,7 +16,7 @@ type MigrationsSource struct {
 	sampled bool
 }
 
-func (src *MigrationsSource) Baseline(generic.Selection) error {
+func (src *MigrationsSource) Baseline(generic.CPUSet) error {
 	return nil //file doesnt exist yet
 }
 
