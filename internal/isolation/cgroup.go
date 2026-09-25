@@ -11,11 +11,12 @@ import (
 )
 
 type Cgroup struct {
-	Path      string
-	Name      string
-	Partition string   // kernel cpuset.cpus.partition: "member", "root", or "isolated"
-	File      *os.File // 0o644, owner: read/write, else: read
-	destroyed bool
+	Path          string
+	Name          string
+	Partition     string   // kernel cpuset.cpus.partition: "member", "root", or "isolated"
+	File          *os.File // 0o644, owner: read/write, else: read
+	cpusetEnabled bool     // root subtree_control gained cpuset from this group
+	destroyed     bool
 }
 
 // https://docs.kernel.org/admin-guide/cgroup-v2.html
@@ -48,18 +49,21 @@ func InitCgroup(name string, cpus generic.CPUSet, memNode int) (*Cgroup, error) 
 
 	// Enable cpuset on the root subtree
 	sub := filepath.Join(generic.SysCgroup, generic.CgroupSubtreeControl)
+	cpusetEnabled := false
 	if cur, err := readFileTrim(sub); err == nil && !strings.Contains(cur, "cpuset") {
 		if err := os.WriteFile(sub, []byte("+cpuset"), 0o644); err != nil {
 			return nil, fmt.Errorf("enable cpuset in root subtree_control: %w", err)
 		}
+		cpusetEnabled = true
 	}
 
 	// Create the group directory
 	path := filepath.Join(generic.SysCgroup, filepath.Base(name))
+	group := &Cgroup{Path: path, Name: name, cpusetEnabled: cpusetEnabled}
 	if err := os.Mkdir(path, 0o755); err != nil && !os.IsExist(err) {
+		_ = group.restoreSubtreeControl()
 		return nil, fmt.Errorf("mkdir %s: %w", path, err)
 	}
-	group := &Cgroup{Path: path, Name: name}
 
 	// Assign the pinned CPUs
 	list := cpus.String()
@@ -190,6 +194,19 @@ func (group *Cgroup) Destroy() error {
 		return err
 	}
 	group.destroyed = true
+	return group.restoreSubtreeControl()
+}
+
+// https://docs.kernel.org/admin-guide/cgroup-v2.html
+func (group *Cgroup) restoreSubtreeControl() error {
+	if group == nil || !group.cpusetEnabled {
+		return nil
+	}
+	group.cpusetEnabled = false
+	sub := filepath.Join(generic.SysCgroup, generic.CgroupSubtreeControl)
+	if err := os.WriteFile(sub, []byte("-cpuset"), 0o644); err != nil {
+		return fmt.Errorf("disable cpuset in root subtree_control: %w", err)
+	}
 	return nil
 }
 
