@@ -1,0 +1,71 @@
+name: Bug report
+description: A defect in goset, in a run it made, or in the report it printed.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A bare `goset` run, with no task, prints the Selection, Topology, Environment and
+        Cgroups tables. Those tables plus the GOSET report of the failing run carry the
+        machine state a bug report needs.
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: |
+        The exact goset binary (path, tag, or commit) and the full command line, then what
+        the run printed.
+      placeholder: |
+        sudo ./goset -n 2 -cgroup -steer -- sleep 30
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected
+      description: What the run or the report should have shown instead.
+    validations:
+      required: true
+  - type: textarea
+    id: hardware
+    attributes:
+      label: Hardware
+      description: The output of a bare `goset` run, plus the kernel release and the CPU model.
+      render: shell
+    validations:
+      required: true
+  - type: dropdown
+    id: privilege
+    attributes:
+      label: Privilege
+      description: How the failing run reached the machine.
+      options:
+        - no sudo
+        - sudo, cgroup only
+        - sudo, steer only
+        - sudo, cgroup and steer
+    validations:
+      required: true
+  - type: dropdown
+    id: safety
+    attributes:
+      label: Safety impact
+      description: What the run left behind after goset exited. List the leftovers in the reproduction.
+      options:
+        - nothing stayed behind
+        - a goset cgroup stayed in /sys/fs/cgroup
+        - smp_affinity_list stayed steered
+        - irqbalance stayed stopped
+        - the task kept running after goset exited
+    validations:
+      required: true
+  - type: textarea
+    id: ipi
+    attributes:
+      label: IPI impact
+      description: |
+        Optional. Whether a monitor showed inter-processor interrupts landing where they
+        should not: the selected CPUs, or the housekeeper during the run. Paste counts if
+        you have them.
