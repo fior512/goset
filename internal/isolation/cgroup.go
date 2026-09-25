@@ -60,7 +60,14 @@ func InitCgroup(name string, cpus generic.CPUSet, memNode int) (*Cgroup, error) 
 	// Create the group directory
 	path := filepath.Join(generic.SysCgroup, filepath.Base(name))
 	group := &Cgroup{Path: path, Name: name, cpusetEnabled: cpusetEnabled}
-	if err := os.Mkdir(path, 0o755); err != nil && !os.IsExist(err) {
+	switch err := os.Mkdir(path, 0o755); {
+	case err == nil:
+	case os.IsExist(err):
+		if err := group.verifyLeftover(); err != nil {
+			_ = group.restoreSubtreeControl()
+			return nil, err
+		}
+	default:
 		_ = group.restoreSubtreeControl()
 		return nil, fmt.Errorf("mkdir %s: %w", path, err)
 	}
@@ -195,6 +202,21 @@ func (group *Cgroup) Destroy() error {
 	}
 	group.destroyed = true
 	return group.restoreSubtreeControl()
+}
+
+// https://docs.kernel.org/admin-guide/cgroup-v2.html
+func (group *Cgroup) verifyLeftover() error {
+	if !strings.HasPrefix(filepath.Base(group.Name), generic.CgroupIdentifier) {
+		return fmt.Errorf("%s exists and is not a %s cgroup", group.Path, generic.CgroupIdentifier)
+	}
+	procs, err := readFileTrim(filepath.Join(group.Path, generic.CgroupProcs))
+	if err != nil {
+		return fmt.Errorf("read %s in %s: %w", generic.CgroupProcs, group.Path, err)
+	}
+	if tasks := strings.Fields(procs); len(tasks) > 0 {
+		return fmt.Errorf("%s holds %d task(s) and is not a leftover, remove it with -rm-cgroup", group.Path, len(tasks))
+	}
+	return nil
 }
 
 // https://docs.kernel.org/admin-guide/cgroup-v2.html
