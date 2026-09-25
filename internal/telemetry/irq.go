@@ -23,8 +23,8 @@ type IRQSource struct {
 }
 
 
-func (src *IRQSource) Baseline(selected generic.Selection) error {
-	src.cpus = selected.Task
+func (src *IRQSource) Baseline(cpus generic.CPUSet) error {
+	src.cpus = cpus
 	var err error
 	src.start, err = ReadIRQCounts()
 	return err
