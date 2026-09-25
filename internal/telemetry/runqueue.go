@@ -44,9 +44,9 @@ func (src *RunqueueSource) Summary() []Counter {
 		return nil
 	}
 	return []Counter{{
-		Source: "sched",
+		Source: SourceSched,
 		CPU:    -1, // run-global, not per-cpu
-		Name:   "run_delay",
+		Name:   SchedRunDelay,
 		Value:  src.value,
 	}}
 }
@@ -102,7 +102,7 @@ func parseRunDelay(content string) (float64, bool) {
 
 func CountRunqueue(counters []Counter) (float64, bool) {
 	for _, counter := range counters {
-		if counter.Source == "sched" && counter.Name == "run_delay" {
+		if counter.Source == SourceSched && counter.Name == SchedRunDelay {
 			return counter.Value, true
 		}
 	}

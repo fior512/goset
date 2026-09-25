@@ -44,3 +44,18 @@ const (
 	CgroupIdentifier = "goset-"
 	LogPrefix        = "[GOSET]: "
 )
+
+// global report keys
+const (
+	GlobalIRQBalanceHeld    = "irqbalance held"
+	GlobalIRQSteerApplied   = "irq steer applied"
+	GlobalIRQSteerRejected  = "irq steer rejected"
+	GlobalIRQSteerRemaining = "irq steer remaining"
+	GlobalIRQSteerDrift     = "irq steer drift"
+	GlobalCtxswVoluntary    = "ctxsw voluntary"
+	GlobalCtxswInvoluntary  = "ctxsw involuntary"
+	GlobalMigrations        = "migrations"
+	GlobalRunDelay          = "run_delay"
+	GlobalWall              = "wall"
+	GlobalExit              = "exit"
+)
