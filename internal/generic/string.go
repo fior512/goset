@@ -44,3 +44,39 @@ const (
 	CgroupIdentifier = "goset-"
 	LogPrefix        = "[GOSET]: "
 )
+
+// counter identity
+const (
+	SourceIRQ      = "irq"
+	SourceThrottle = "throttle"
+	SourceFreq     = "freq"
+	SourceSched    = "sched"
+	SourceIRQSteer = "irq steer"
+)
+
+const (
+	IRQSoft         = "soft"
+	IRQHard         = "hard"
+	ThrottleCount   = "count"
+	FreqMin         = "min MHz"
+	FreqMax         = "max MHz"
+	FreqAvg         = "avg MHz"
+	SchedRunDelay   = "run_delay"
+	SchedMigrations = "nr_migrations"
+	IRQSteerDrift   = "drift"
+)
+
+// global report keys
+const (
+	GlobalIRQBalanceHeld    = "irqbalance held"
+	GlobalIRQSteerApplied   = "irq steer applied"
+	GlobalIRQSteerRejected  = "irq steer rejected"
+	GlobalIRQSteerRemaining = "irq steer remaining"
+	GlobalIRQSteerDrift     = "irq steer drift"
+	GlobalCtxswVoluntary    = "ctxsw voluntary"
+	GlobalCtxswInvoluntary  = "ctxsw involuntary"
+	GlobalMigrations        = "migrations"
+	GlobalRunDelay          = "run_delay"
+	GlobalWall              = "wall"
+	GlobalExit              = "exit"
+)

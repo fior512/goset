@@ -35,9 +35,9 @@ func (src *MigrationsSource) Summary() []Counter {
 		return nil
 	}
 	return []Counter{{
-		Source: "sched",
+		Source: generic.SourceSched,
 		CPU:    -1, // run-global, not per-cpu
-		Name:   "nr_migrations",
+		Name:   generic.SchedMigrations,
 		Value:  src.value,
 	}}
 }
@@ -125,7 +125,7 @@ func parseNrMigrations(sched string) (float64, bool) {
 
 func CountMigrations(counters []Counter) (int, bool) {
 	for _, counter := range counters {
-		if counter.Source == "sched" && counter.Name == "nr_migrations" {
+		if counter.Source == generic.SourceSched && counter.Name == generic.SchedMigrations {
 			return int(counter.Value), true
 		}
 	}
