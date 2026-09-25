@@ -172,14 +172,21 @@ func TopologyTable(topo *cpu.Topology) Table {
 
 func EnvironmentTable(env *cpu.Environment) Table {
 	rows := [][]string{
-		{"smt", env.SMT},
+		{"smt", optionalValue(env.SMT)},
 		{"boost", env.Boost},
-		{"numa_balancing", env.NumaBalancing},
-		{"nmi_watchdog", env.NmiWatchdog},
-		{"thp", env.THP},
-		{"mitigations", fmt.Sprintf("%d", env.Mitigations)},
+		{"numa_balancing", optionalValue(env.NumaBalancing)},
+		{"nmi_watchdog", optionalValue(env.NmiWatchdog)},
+		{"thp", optionalValue(env.THP)},
+		{"mitigations", optionalValue(env.Mitigations)},
 	}
 	return Table{Title: "Environment", Header: []string{"key", "value"}, Rows: rows}
+}
+
+func optionalValue[T any](value *T) string {
+	if value == nil {
+		return "unavailable"
+	}
+	return fmt.Sprint(*value)
 }
 
 
