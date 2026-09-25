@@ -27,7 +27,10 @@ func (sam *Sampler) Start(pin func() error) error {
 	go func() {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
-		_ = pin()
+		if err := pin(); err != nil {
+			ready <- fmt.Errorf("telemetry housekeeper pin: %w", err)
+			return
+		}
 
 		if err := sam.baseline(); err != nil {
 			ready <- err
