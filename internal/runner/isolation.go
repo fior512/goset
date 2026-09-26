@@ -1,6 +1,8 @@
 package runner
 
 import (
+	"errors"
+	"fmt"
 	"path/filepath"
 
 	"goset/internal/cli"
@@ -9,9 +11,24 @@ import (
 	"goset/internal/isolation"
 )
 
-func startIsolation(cfg *cli.Config, topo *cpu.Topology, selected *generic.Selection) (*isolation.Cgroup, *isolation.Steering, func(), error) {
+func startIsolation(cfg *cli.Config, topo *cpu.Topology, selected *generic.Selection) (*isolation.Cgroup, *isolation.Steering, func() error, error) {
 	var locks []*isolation.Lock
 	var group *isolation.Cgroup
+	var steering *isolation.Steering
+	release := func() error {
+		var failures []error
+		if err := group.Destroy(); err != nil {
+			failures = append(failures, err)
+		}
+		restored, failed := steering.RestoreIRQs()
+		if failed > 0 {
+			failures = append(failures, fmt.Errorf(
+				"restore smp_affinity_list: %d of %d failed", failed, restored+failed))
+		}
+		steering.Release()
+		releaseLocks(locks)
+		return errors.Join(failures...)
+	}
 	if cfg.Cgroup {
 		cgroupName := generic.CgroupIdentifier + filepath.Base(cfg.Task[0])
 		lock, err := isolation.AcquireLock(filepath.Join(generic.RunLockDir, cgroupName+".lock"))
@@ -20,35 +37,21 @@ func startIsolation(cfg *cli.Config, topo *cpu.Topology, selected *generic.Selec
 		}
 		locks = append(locks, lock)
 		if group, err = isolation.InitCgroup(cgroupName, selected.Task, selected.NumaNode); err != nil {
-			releaseLocks(locks)
-			return nil, nil, nil, err
+			return nil, nil, nil, errors.Join(err, release())
 		}
 	}
 
-	var steering *isolation.Steering
 	if cfg.Steering {
 		lock, err := isolation.AcquireLock(filepath.Join(generic.RunLockDir, generic.SteerLockName))
 		if err != nil {
-			group.Destroy()
-			releaseLocks(locks)
-			return nil, nil, nil, err
+			return nil, nil, nil, errors.Join(err, release())
 		}
 		locks = append(locks, lock)
 		if steering, err = isolation.Steer(topo, selected.Task, selected.HouseKeeper); err != nil {
-			group.Destroy()
-			releaseLocks(locks)
-			return nil, nil, nil, err
+			return nil, nil, nil, errors.Join(err, release())
 		}
 	}
 
-	release := func() {
-		group.Destroy() // cgroup
-		if steering != nil {
-			steering.RestoreIRQs() // Steer
-			steering.Release()     // IRQBalance
-		}
-		releaseLocks(locks)
-	}
 	return group, steering, release, nil
 }
 
