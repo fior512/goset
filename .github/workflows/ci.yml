@@ -15,12 +15,8 @@ jobs:
         with:
           go-version: "1.23"
       - run: go build ./...
-        # internal/runner/telemetry.go:50 intentionally passes a literal "\n"
-        # to Fprintln for spacing; vet's printf check flags it as redundant.
-        # Excluded on purpose, not a lapse.
-      - run: go vet $(go list ./... | grep -v goset/internal/runner)
-      - run: go test -vet=off ./...
-      # mock/ is a separate Go module (quietbench); not part of this harness.
+      - run: go vet ./...
+      - run: go test ./...
 
   integration:
     name: cgroup integration tests (sudo)
@@ -31,4 +27,4 @@ jobs:
         with:
           go-version: "1.23"
       - name: sudo go test (root required for cgroup v2 writes)
-        run: sudo env "PATH=$PATH" go test -tags integration ./test/... -v
+        run: sudo env "PATH=$PATH" go test -v ./test/...
