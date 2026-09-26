@@ -44,8 +44,14 @@ Code style: errors
 - Do not handle a state that cannot occur.
 
 Code style: misc
-- Non-ASCII characters are forbidden.
+- Non-ASCII characters are forbidden, in code, documentation, commit messages, and issue or PR text.
 - Messy code (wrappers of wrappers, logic bleeding outside modules/layers, ..) is forbidden.
+
+---
+
+Text:
+- Markdown is never hard-wrapped. A line runs to the end of its paragraph, the renderer wraps it.
+- Issue and PR bodies are terse and objective on the task.
 
 ---
 
