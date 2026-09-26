@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"fmt"
 	"os"
 
 	"goset/internal/cli"
@@ -13,15 +14,15 @@ import (
 func Diagnose(cfg *cli.Config) error {
 	topo, err := cpu.GetTopology()
 	if err != nil {
-		return err
+		return fmt.Errorf("read topology: %w", err)
 	}
 	cgroups, err := isolation.ListCgroups()
 	if err != nil {
-		return err
+		return fmt.Errorf("list cgroups: %w", err)
 	}
 	env, err := cpu.GetEnvironment()
 	if err != nil {
-		return err
+		return fmt.Errorf("read environment: %w", err)
 	}
 	report.Render(os.Stdout,
 		report.TopologyTable(topo),
