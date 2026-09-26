@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -14,6 +15,9 @@ import (
 
 func main() {
 	cfg, err := cli.Parse(os.Args[1:])
+	if errors.Is(err, flag.ErrHelp) { // usage already on stderr
+		return
+	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s%v\n", generic.LogPrefix, err)
 		os.Exit(2)

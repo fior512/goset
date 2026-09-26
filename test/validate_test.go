@@ -3,6 +3,8 @@ package integration
 import (
 	"strings"
 	"testing"
+
+	"goset/internal/generic"
 )
 
 func TestFlagNZeroRejected(t *testing.T) {
@@ -125,5 +127,20 @@ func TestFlagUnknown(t *testing.T) {
 	res := runGoset(t, gosetBin, "-n", "1", "-does-not-exist", "--", probeBin)
 	if res.exitCode == 0 {
 		t.Fatal("expected error for unknown flag")
+	}
+}
+
+
+func TestFlagHelp(t *testing.T) {
+	gosetBin, _ := setup(t)
+	res := runGoset(t, gosetBin, "-h")
+	if res.exitCode != 0 {
+		t.Fatalf("-h: got exit %d, want 0", res.exitCode)
+	}
+	if !strings.Contains(res.stderr, "-interval") {
+		t.Errorf("-h: no usage on stderr: %s", res.stderr)
+	}
+	if strings.Contains(res.stderr, generic.LogPrefix) {
+		t.Errorf("-h: usage re-emitted as an error: %s", res.stderr)
 	}
 }
