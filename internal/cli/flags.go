@@ -16,7 +16,7 @@ type Config struct {
 	/* Thread selection */
 	NThreads int
 	Steering bool // (root) smp_affinity_list
-	Cgroup   bool // (root if >1) thread amount
+	Cgroup   bool // (root, -n > 1) cgroup v2 cpuset
 
 	/* Selection Preference */
 	Include  generic.CPUSet // subset of threads
@@ -56,7 +56,7 @@ func (cfg *Config) Validate() error {
 	}
 	if cfg.Cgroup && !isSudo() {
 		return fmt.Errorf(
-			"-cgroup reserves selected threads exclusively for your task.\n" +
+			"-cgroup confines the task to the selected cpus.\n" +
 				"  this requires sudo (root)")
 	}
 
@@ -99,7 +99,7 @@ func Register(fs *flag.FlagSet) *Config {
 	cfg := &Config{}
 	fs.IntVar(&cfg.NThreads, "n", 1, "how many threads to book, minimum 1")
 	fs.BoolVar(&cfg.Steering, "steer", false, "set smp_affinity_list (sudo)")
-	fs.BoolVar(&cfg.Cgroup, "cgroup", false, "number of threads for cgroup containerization (sudo)")
+	fs.BoolVar(&cfg.Cgroup, "cgroup", false, "confine the task to the selected cpus (sudo, required for -n > 1)")
 	fs.Var(&cfg.Include, "include", "cpu list to force into the benchmark set, e.g. 2,4-6")
 	fs.Var(&cfg.Exclude, "exclude", "cpu list to exclude from selection")
 	fs.IntVar(&cfg.NumaNode, "node", -2, "constrain benchmark cpus to one NUMA node when possible")
