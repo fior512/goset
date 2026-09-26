@@ -66,12 +66,12 @@ func TestFlagCgroupWithoutRoot(t *testing.T) {
 
 func TestFlagNodeTooLow(t *testing.T) {
 	gosetBin, probeBin := setup(t)
-	res := runGoset(t, gosetBin, "-n", "1", "-node", "-3", "--", probeBin)
+	res := runGoset(t, gosetBin, "-n", "1", "-numa", "-3", "--", probeBin)
 	if res.exitCode == 0 {
-		t.Fatal("expected error for -node -3")
+		t.Fatal("expected error for -numa -3")
 	}
-	if !strings.Contains(res.stderr, "node") {
-		t.Errorf("stderr should mention node, got: %s", res.stderr)
+	if !strings.Contains(res.stderr, "numa") {
+		t.Errorf("stderr should mention numa, got: %s", res.stderr)
 	}
 }
 

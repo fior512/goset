@@ -34,7 +34,7 @@ func readFileTrim(path string) (string, error) {
 }
 
 // https://docs.kernel.org/admin-guide/cgroup-v2.html
-func InitCgroup(name string, cpus generic.CPUSet, memNode int) (*Cgroup, error) {
+func InitCgroup(name string, cpus generic.CPUSet, numa int) (*Cgroup, error) {
 	// prerequirements: check v2 and cpuset
 	if !cgroupV2Available() {
 		return nil, fmt.Errorf("cgroup v2 unified hierarchy not found at %s", generic.SysCgroup)
@@ -78,8 +78,8 @@ func InitCgroup(name string, cpus generic.CPUSet, memNode int) (*Cgroup, error) 
 		group.Destroy()
 		return nil, fmt.Errorf("write cpuset.cpus: %w", err)
 	}
-	if memNode >= 0 { // mems is optional
-		if err := os.WriteFile(filepath.Join(path, generic.CpusetMems), []byte(strconv.Itoa(memNode)), 0o644); err != nil {
+	if numa >= 0 { // mems is optional
+		if err := os.WriteFile(filepath.Join(path, generic.CpusetMems), []byte(strconv.Itoa(numa)), 0o644); err != nil {
 			group.Destroy()
 			return nil, fmt.Errorf("write cpuset.mems: %w", err)
 		}
