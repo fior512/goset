@@ -50,11 +50,11 @@ func (src *IRQSource) Summary() []Counter {
 		}
 		out = append(out,
 			Counter{
-				Source: generic.SourceIRQ, CPU: cpu, Name: generic.IRQSoft,
+				Source: generic.SourceIRQ, CPU: cpu, Name: generic.IRQSteerable,
 				Value: float64(src.end[cpu].Steerable - src.start[cpu].Steerable),
 			},
 			Counter{
-				Source: generic.SourceIRQ, CPU: cpu, Name: generic.IRQHard,
+				Source: generic.SourceIRQ, CPU: cpu, Name: generic.IRQNonSteerable,
 				Value: float64(src.end[cpu].NonSteerable - src.start[cpu].NonSteerable),
 			},
 		)

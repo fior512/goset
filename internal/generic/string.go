@@ -57,8 +57,8 @@ const (
 )
 
 const (
-	IRQSoft         = "soft"
-	IRQHard         = "hard"
+	IRQSteerable    = "steerable"
+	IRQNonSteerable = "non-steerable"
 	ThrottleCount   = "count"
 	FreqMin         = "min MHz"
 	FreqMax         = "max MHz"
