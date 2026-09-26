@@ -14,6 +14,12 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.23"
+      - name: ascii only
+        run: |
+          if git grep -IP '[^\x00-\x7F]'; then
+            echo "non-ASCII characters found"
+            exit 1
+          fi
       - run: go build ./...
       - run: go vet ./...
       - run: go test ./...
