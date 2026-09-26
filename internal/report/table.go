@@ -14,7 +14,7 @@ import (
 )
 
 func SelectionTable(selected *generic.Selection) Table {
-	header := []string{"cpu", "sel", "steerable", "non-steerable", "sibl", "isol", "node", "nohz", "rcu"}
+	header := []string{"cpu", "sel", "steerable", "non-steerable", "sibl", "isol", "numa", "nohz", "rcu"}
 	rows := make([][]string, 0, len(selected.Scores))
 	for _, candidate := range selected.Scores {
 		mark := ""
@@ -37,7 +37,7 @@ func SelectionTable(selected *generic.Selection) Table {
 			FormatValue(float64(candidate.NonSteerable)),
 			FormatValue(float64(candidate.SiblingLoad)),
 			flag(candidate.KernelIsol),
-			fmt.Sprintf("%4d", candidate.NumaNode),
+			fmt.Sprintf("%4d", candidate.Numa),
 			flag(candidate.NohzFull),
 			flag(candidate.RcuNocb),
 		})
@@ -143,7 +143,7 @@ func GlobalTable(rep Report) Table {
 
 
 func TopologyTable(topo *cpu.Topology) Table {
-	header := []string{"cpu", "core", "node", "isol", "nohz", "rcu", "driver", "gov", "epp", "minf", "maxf"}
+	header := []string{"cpu", "core", "numa", "isol", "nohz", "rcu", "driver", "gov", "epp", "minf", "maxf"}
 	flag := func(on bool) string {
 		if on {
 			return "y"
@@ -155,7 +155,7 @@ func TopologyTable(topo *cpu.Topology) Table {
 		rows = append(rows, []string{
 			fmt.Sprintf("%3d", id),
 			fmt.Sprintf("%4d", topo.Core[id]),
-			fmt.Sprintf("%4d", topo.NumaNode[id]),
+			fmt.Sprintf("%4d", topo.Numa[id]),
 			flag(topo.KernelIsol.GetBit(id)),
 			flag(topo.NohzFull.GetBit(id)),
 			flag(topo.RcuNocb.GetBit(id)),

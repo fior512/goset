@@ -41,7 +41,7 @@ Goset needs sudo only for `-cgroup` and `-steer`.
 | `-interval` |int| 100 | Poll interval in milliseconds for telemetry collection | |
 | `-include` |string| | List of threads to select first, handles ranges (e.g.: `1,3-5` -> 1,3,4,5)| |
 | `-exclude` |string| | List of threads to avoid, handles ranges (e.g.: `1,3-5` -> 1,3,4,5) |other tha `-include`|
-| `-node` |int| -2 | Numa node **preference** 0..N, -1:Auto (single node), -2:Off (multi node). | |
+| `-numa` |int| -2 | Constrain the task cpus and memory to one node: 0..N that node only, -1:Auto (widest node), -2:Off (multi node). A node that cannot fill `-n` is an error. | |
 
 > Multi-thread tasks: linux `sched_setaffinity` can't pin multithreaded tasks, for this reason `-cgroup` is needed.
 
@@ -85,7 +85,7 @@ goset -include 2,4-6 -- ./mybench
 goset -exclude 0,1 -- ./mybench
 
 # Constrain selection to one NUMA node
-goset -node 0 -- ./mybench
+goset -numa 0 -- ./mybench
 
 # Change the telemetry sampling window (ms).
 goset -interval 500 -- ./mybench

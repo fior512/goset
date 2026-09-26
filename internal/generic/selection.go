@@ -6,7 +6,7 @@ type CPUScore struct {
 	Steerable    uint64 // numbered rows
 	NonSteerable uint64 // named rows: LOC, RES, CAL, TLB
 	SiblingLoad  uint64 // IRQs of the SMT siblings, self excluded
-	NumaNode     int
+	Numa         int
 	KernelIsol   bool
 	NohzFull     bool
 	RcuNocb      bool
@@ -15,7 +15,7 @@ type CPUScore struct {
 
 type Selection struct {
 	Scores      []CPUScore // SelectCPUs -> Report
-	NumaNode    int
+	Numa        int
 	Task        CPUSet
 	HouseKeeper int
 }

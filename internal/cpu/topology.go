@@ -13,7 +13,7 @@ import (
 type Topology struct {
 	Online     generic.CPUSet // availabe threads
 	Core       []int          // index: cpu id
-	NumaNode   []int          // index: cpu id
+	Numa   []int          // index: cpu id
 	KernelIsol generic.CPUSet
 	NohzFull   generic.CPUSet
 	RcuNocb    generic.CPUSet
@@ -44,7 +44,7 @@ func GetTopology() (*Topology, error) {
 	topo := &Topology{
 		Online:   online,
 		Core:     make([]int, size),
-		NumaNode: make([]int, size),
+		Numa: make([]int, size),
 		Driver:   make([]string, size),
 		Governor: make([]string, size),
 		EPP:      make([]string, size),
@@ -62,7 +62,7 @@ func GetTopology() (*Topology, error) {
 		if first := siblings.NextSet(0); err == nil && first >= 0 {
 			topo.Core[cpu] = first
 		}
-		topo.NumaNode[cpu] = -1
+		topo.Numa[cpu] = -1
 	}
 
 	///Cpufreq
@@ -80,14 +80,14 @@ func GetTopology() (*Topology, error) {
 		}
 	}
 
-	///NumaNode
+	///Numa
 	// https://www.kernel.org/doc/Documentation/ABI/stable/sysfs-devices-node
 	lists, err := filepath.Glob(generic.SysNode + "/node*/cpulist")
 	if err != nil {
 		return nil, err
 	}
 	for _, path := range lists {
-		node, err := strconv.Atoi(
+		numa, err := strconv.Atoi(
 			strings.TrimPrefix(filepath.Base(filepath.Dir(path)), "node"))
 		if err != nil {
 			continue
@@ -98,7 +98,7 @@ func GetTopology() (*Topology, error) {
 		}
 		cpus.And(online) // cpulist may hold offline cpus
 		for cpu := range cpus.All() {
-			topo.NumaNode[cpu] = node
+			topo.Numa[cpu] = numa
 		}
 	}
 

@@ -56,7 +56,7 @@ func siblingLoads(topo *Topology, delta []telemetry.IRQCount) map[int]uint64 {
 	return sibling
 }
 
-func rankCPUs(topo *Topology, candidates, include generic.CPUSet, NumaNode int) ([]generic.CPUScore, int, error) {
+func rankCPUs(topo *Topology, candidates, include generic.CPUSet) ([]generic.CPUScore, error) {
 	/*
 		include{1,2,5} // threads id requested
 		candidates{1,2,3,4,5,6} // all available threads
@@ -80,9 +80,10 @@ func rankCPUs(topo *Topology, candidates, include generic.CPUSet, NumaNode int) 
 		//				so we pick include while still lowering IRQ
 	*/
 
+	// sample
 	delta, err := sampleIRQDelta(500 * time.Millisecond)
 	if err != nil {
-		return nil, NumaNode, err
+		return nil, err
 	}
 	sibling := siblingLoads(topo, delta)
 
@@ -95,7 +96,7 @@ func rankCPUs(topo *Topology, candidates, include generic.CPUSet, NumaNode int) 
 			Steerable:    irq.Steerable,
 			NonSteerable: irq.NonSteerable,
 			SiblingLoad:  sibling[cpu],
-			NumaNode:     topo.NumaNode[cpu],
+			Numa:     topo.Numa[cpu],
 			KernelIsol:   topo.KernelIsol.GetBit(cpu),
 			NohzFull:     topo.NohzFull.GetBit(cpu),
 			RcuNocb:      topo.RcuNocb.GetBit(cpu),
@@ -106,27 +107,14 @@ func rankCPUs(topo *Topology, candidates, include generic.CPUSet, NumaNode int) 
 		out = append(out, score)
 	}
 
-	// NumaNode
-	node := NumaNode
-	if NumaNode == -1 && len(out) > 0 {
-		// AUTO Numa
-		node = topo.NumaNode[out[0].CPU] // top
-	}
-	b2i := func(condition bool) int {
-		if NumaNode == -2 { return 0 } // OFF
-		if condition { return 1 }
-		return -1
-	}
-
 	// sorting
 	slices.SortStableFunc(out, func(left, right generic.CPUScore) int {
 		return cmp.Or(
 			cmp.Compare(right.Included, left.Included), // desc
-			cmp.Compare(b2i(right.NumaNode == node), b2i(left.NumaNode == node)), // desc
 			cmp.Compare(left.NonSteerable, right.NonSteerable),
 			cmp.Compare(left.SiblingLoad, right.SiblingLoad),
 			cmp.Compare(left.Steerable, right.Steerable),
 		)
 	})
-	return out, node, nil
+	return out, nil
 }
