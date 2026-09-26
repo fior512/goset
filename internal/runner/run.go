@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -10,10 +11,11 @@ import (
 
 	"goset/internal/cli"
 	"goset/internal/cpu"
+	"goset/internal/generic"
 	"goset/internal/isolation"
 )
 
-func Run(cfg *cli.Config) error {
+func Run(cfg *cli.Config) (err error) {
 	ctx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stopSignals()
 
@@ -34,7 +36,16 @@ func Run(cfg *cli.Config) error {
 	if err != nil {
 		return err
 	}
-	defer release() // destroy cgroup + counter-steer
+	defer func() { // destroy cgroup + counter-steer
+		failed := release()
+		if failed == nil {
+			return
+		}
+		fmt.Fprintf(os.Stderr, "%steardown: %v\n", generic.LogPrefix, failed)
+		if err == nil {
+			err = errors.New("isolation teardown incomplete")
+		}
+	}()
 
 	// Telemetry
 	stop, err := startTelemetry(selected, cfg, steering)
