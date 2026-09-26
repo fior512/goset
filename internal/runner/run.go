@@ -48,7 +48,7 @@ func Run(cfg *cli.Config) error {
 	return runErr
 }
 
-// ExitCode task's exit code
+// ExitCode task's exit code, -1: task produced none
 func ExitCode(err error) int {
 	if err == nil {
 		return 0
@@ -60,5 +60,5 @@ func ExitCode(err error) int {
 		}
 		return exitErr.ExitCode()
 	}
-	return -1 // TODO: find better undefined
+	return -1 // task never started, or failed outside the child itself
 }
