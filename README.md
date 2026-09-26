@@ -109,10 +109,10 @@ Selection
     6          0    19    48           0
 
 Telemetry
-  counters        cpu11  avg  sd  sum
-  irq soft            0    0   0    0
-  irq hard          644  644   0  644
-  throttle count      0    0   0    0
+  counters           cpu11  avg  sd  sum
+  irq steerable          0    0   0    0
+  irq non-steerable    644  644   0  644
+  throttle count         0    0   0    0
 
 Global
   key                  value
@@ -126,7 +126,7 @@ Global
 ```
 
 * `sel`: `*` marks the pinned CPU, `&` marks the housekeeper.
-* `soft` / `hard`: IRQ rate measured on that CPU before pinning.
+* `steerable` / `non-steerable`: interrupts counted on that CPU while ranking: device IRQs goset can steer away, and kernel-owned rows (NMI, LOC, RES) it cannot.
 * `sibl`: sibling core's scheduler load, used to rank CPUs.
 * `Telemetry`: per-CPU counters sampled during the run, one row per counter source.
 * `Global`: steer/cgroup/ctxsw summary and the task's own wall time and exit code.

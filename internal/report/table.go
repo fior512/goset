@@ -14,7 +14,7 @@ import (
 )
 
 func SelectionTable(selected *generic.Selection) Table {
-	header := []string{"cpu", "sel", "soft", "hard", "sibl", "isol", "node", "nohz", "rcu"}
+	header := []string{"cpu", "sel", "steerable", "non-steerable", "sibl", "isol", "node", "nohz", "rcu"}
 	rows := make([][]string, 0, len(selected.Scores))
 	for _, candidate := range selected.Scores {
 		mark := ""

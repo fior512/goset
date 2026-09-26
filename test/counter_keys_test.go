@@ -62,15 +62,15 @@ func TestGlobalTableOptionalRows(t *testing.T) {
 
 func TestTelemetryTableLabels(t *testing.T) {
 	rep := report.Report{Counters: []telemetry.Counter{
-		{Source: generic.SourceIRQ, CPU: 0, Name: generic.IRQSoft, Value: 1},
-		{Source: generic.SourceIRQ, CPU: 0, Name: generic.IRQHard, Value: 2},
+		{Source: generic.SourceIRQ, CPU: 0, Name: generic.IRQSteerable, Value: 1},
+		{Source: generic.SourceIRQ, CPU: 0, Name: generic.IRQNonSteerable, Value: 2},
 		{Source: generic.SourceThrottle, CPU: 0, Name: generic.ThrottleCount, Value: 3},
 		{Source: generic.SourceFreq, CPU: 0, Name: generic.FreqMin, Value: 4},
 		{Source: generic.SourceFreq, CPU: 0, Name: generic.FreqMax, Value: 5},
 		{Source: generic.SourceFreq, CPU: 0, Name: generic.FreqAvg, Value: 6},
 		{Source: generic.SourceIRQSteer, CPU: -1, Name: generic.IRQSteerDrift, Value: 7},
 	}}
-	want := []string{"irq soft", "irq hard", "throttle count", "freq min MHz", "freq max MHz", "freq avg MHz"}
+	want := []string{"irq steerable", "irq non-steerable", "throttle count", "freq min MHz", "freq max MHz", "freq avg MHz"}
 	rows := report.TelemetryTable(rep).Rows
 	if len(rows) != len(want) {
 		t.Fatalf("TelemetryTable rows = %d, want %d: %v", len(rows), len(want), rows)
