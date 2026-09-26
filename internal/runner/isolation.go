@@ -19,7 +19,7 @@ func startIsolation(cfg *cli.Config, topo *cpu.Topology, selected *generic.Selec
 			return nil, nil, nil, err
 		}
 		locks = append(locks, lock)
-		if group, err = isolation.InitCgroup(cgroupName, selected.Task, selected.NumaNode); err != nil {
+		if group, err = isolation.InitCgroup(cgroupName, selected.Task, selected.Numa); err != nil {
 			releaseLocks(locks)
 			return nil, nil, nil, err
 		}

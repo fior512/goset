@@ -24,7 +24,7 @@ func Run(cfg *cli.Config) error {
 	}
 
 	// Select threads
-	selected, err := cpu.SelectCPUs(topo, cfg.NThreads, cfg.Include, cfg.Exclude, cfg.NumaNode)
+	selected, err := cpu.SelectCPUs(topo, cfg.NThreads, cfg.Include, cfg.Exclude, cfg.Numa)
 	if err != nil {
 		return err
 	}
