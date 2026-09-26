@@ -28,6 +28,9 @@ type Config struct {
 
 	/*DIAGNOSIS*/
 	RmCgroup string
+
+	/* META */
+	Version bool
 }
 
 
@@ -105,6 +108,7 @@ func Register(fs *flag.FlagSet) *Config {
 	fs.IntVar(&cfg.NumaNode, "node", -2, "constrain benchmark cpus to one NUMA node when possible")
 	fs.IntVar(&cfg.SamplingMS, "interval", 100, "interrupt sampling window for the housekeeper telemetry loop, ms (not used by cpu ranking)")
 	fs.StringVar(&cfg.RmCgroup, "rm-cgroup", "", "remove a leaked goset cgroup by name (see diagnose Cgroups table)")
+	fs.BoolVar(&cfg.Version, "version", false, "print goset version and exit")
 	return cfg
 }
 
