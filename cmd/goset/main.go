@@ -10,6 +10,7 @@ import (
 	"goset/internal/generic"
 	"goset/internal/isolation"
 	"goset/internal/runner"
+	"goset/internal/version"
 )
 
 func main() {
@@ -17,6 +18,11 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s%v\n", generic.LogPrefix, err)
 		os.Exit(2)
+	}
+
+	if cfg.Version {
+		fmt.Println(version.String())
+		return
 	}
 
 	switch {
