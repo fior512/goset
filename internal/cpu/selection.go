@@ -2,27 +2,40 @@ package cpu
 
 import (
 	"fmt"
+	"strconv"
 
 	"goset/internal/generic"
 )
 
-func SelectCPUs(topo *Topology, n int, include generic.CPUSet, exclude generic.CPUSet, NumaNode int) (*generic.Selection, error) {
+func SelectCPUs(topo *Topology, n int, include generic.CPUSet, exclude generic.CPUSet, numa int) (*generic.Selection, error) {
 	candidates := topo.Online
 
 	// incl&excl overlap check by run()
-	candidates.AndNot(exclude)    // exclude
-	if candidates.Count() < n+1 { // +housekeeper
-		return nil, fmt.Errorf(
-			"need %d cpu(s) plus 1 housekeeper but only %d candidate(s) remain",
-			n, candidates.Count())
-	}
+	candidates.AndNot(exclude) // exclude
 	if !include.IsSubset(candidates) {
 		return nil, fmt.Errorf("include %s: offline or excluded cpu",
 			include.String())
 	}
 
+	// numa
+	candidates, numa, err := constrainNuma(topo, candidates, include, numa)
+	if err != nil {
+		return nil, err
+	}
+
+	// minimum
+	scope := " on any numa node"
+	if numa >= 0 {
+		scope = " on numa " + strconv.Itoa(numa)
+	}
+	if candidates.Count() < n+1 { // +housekeeper
+		return nil, fmt.Errorf(
+			"need %d cpu(s) plus 1 housekeeper but only %d candidate(s) remain%s",
+			n, candidates.Count(), scope)
+	}
+
 	// evaluate
-	scores, numaNode, err := rankCPUs(topo, candidates, include, NumaNode)
+	scores, err := rankCPUs(topo, candidates, include)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +58,7 @@ func SelectCPUs(topo *Topology, n int, include generic.CPUSet, exclude generic.C
 
 	return &generic.Selection{
 		Scores:      scores,
-		NumaNode:    numaNode,
+		Numa:        numa,
 		Task:        selection,
 		HouseKeeper: housekeeper,
 	}, nil

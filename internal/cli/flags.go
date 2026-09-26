@@ -19,9 +19,9 @@ type Config struct {
 	Cgroup   bool // (root, -n > 1) cgroup v2 cpuset
 
 	/* Selection Preference */
-	Include  generic.CPUSet // subset of threads
-	Exclude  generic.CPUSet // subset of threads
-	NumaNode int            // Numa node
+	Include generic.CPUSet // subset of threads
+	Exclude generic.CPUSet // subset of threads
+	Numa    int            // -2 off, -1 auto, 0..N
 
 	/* Telemetry */
 	SamplingMS int // housekeeper (Not rankCPUs())
@@ -71,10 +71,10 @@ func (cfg *Config) Validate() error {
 			"-include forces cpus in, -exclude forces cpus out.\n"+
 				"  overlap: cpu(s) %s appear in both", overlap.String())
 	}
-	if cfg.NumaNode < -2 {
+	if cfg.Numa < -2 {
 		return fmt.Errorf(
-			"-node selects a NUMA node preference.\n"+
-				"  got %d, only accepts -2: off (multi nodes), -1: auto (single, best), 0..N: single node index", cfg.NumaNode)
+			"-numa constrains the task cpus and memory to one numa node.\n"+
+				"  got %d, only accepts -2: off (multi nodes), -1: auto (single, best), 0..N: single node index", cfg.Numa)
 	}
 
 	/* Telemetry */
@@ -105,7 +105,7 @@ func Register(fs *flag.FlagSet) *Config {
 	fs.BoolVar(&cfg.Cgroup, "cgroup", false, "confine the task to the selected cpus (sudo, required for -n > 1)")
 	fs.Var(&cfg.Include, "include", "cpu list to force into the benchmark set, e.g. 2,4-6")
 	fs.Var(&cfg.Exclude, "exclude", "cpu list to exclude from selection")
-	fs.IntVar(&cfg.NumaNode, "node", -2, "constrain benchmark cpus to one NUMA node when possible")
+	fs.IntVar(&cfg.Numa, "numa", -2, "constrain task cpus and memory to one numa node: -2 off, -1 auto, 0..N index")
 	fs.IntVar(&cfg.SamplingMS, "interval", 100, "interrupt sampling window for the housekeeper telemetry loop, ms (not used by cpu ranking)")
 	fs.StringVar(&cfg.RmCgroup, "rm-cgroup", "", "remove a leaked goset cgroup by name (see diagnose Cgroups table)")
 	fs.BoolVar(&cfg.Version, "version", false, "print goset version and exit")
