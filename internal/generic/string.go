@@ -45,6 +45,8 @@ const (
 	CgroupIdentifier = "goset-"
 	LogPrefix        = "[GOSET]: "
 	SteerLockName    = "goset-steer.lock"
+	IRQBalanceComm   = "irqbalance"
+	IRQBalanceUnit   = "irqbalance.service"
 )
 
 // counter identity
