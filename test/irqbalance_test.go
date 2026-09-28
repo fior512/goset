@@ -70,4 +70,8 @@ func TestSteeringStatus(t *testing.T) {
 	if got := unmanaged.Status(); got != "unmanaged pid 42" {
 		t.Errorf("unmanaged Status() = %q, want \"unmanaged pid 42\"", got)
 	}
+	survived := &isolation.Steering{WasRunning: true, ViaSystemd: true, Note: "still running pid 812"}
+	if got := survived.Status(); got != "still running pid 812" {
+		t.Errorf("survived Status() = %q, want the note", got)
+	}
 }
