@@ -138,7 +138,7 @@ func GlobalTable(rep Report) Table {
 		[]string{generic.GlobalWall, FormatTime(rep.Wall)},
 		[]string{generic.GlobalExit, fmt.Sprintf("%d", rep.ExitCode)},
 	)
-	return Table{Title: "Global", Header: []string{"key", "value"}, Rows: rows}
+	return Table{Title: "Global", Rows: rows}
 }
 
 

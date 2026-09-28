@@ -24,17 +24,23 @@ func Render(out io.Writer, tables ...Table) {
 		if tab.Title != "" {
 			fmt.Fprintln(out, tab.Title)
 		}
-		widths := make([]int, len(tab.Header))
-		for i, head := range tab.Header {
-			widths[i] = len(head)
-		}
-		for _, row := range tab.Rows {
+		widths := make([]int, 0, len(tab.Header))
+		widest := func(row []string) {
+			for len(widths) < len(row) {
+				widths = append(widths, 0)
+			}
 			for i, cell := range row {
 				widths[i] = max(widths[i], len(cell))
 			}
 		}
+		widest(tab.Header)
+		for _, row := range tab.Rows {
+			widest(row)
+		}
 
-		printRow(out, tab.Header, widths)
+		if len(tab.Header) > 0 {
+			printRow(out, tab.Header, widths)
+		}
 		for _, row := range tab.Rows {
 			printRow(out, row, widths)
 		}
