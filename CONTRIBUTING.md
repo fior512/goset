@@ -66,6 +66,16 @@ A PR description must state:
 - what the implementation is
 - the output of `go build ./...` and `go test ./...`, or a real run's telemetry, showing the change works
 
+Each section carries one job:
+- `Current State` states the defect, not how the defect appeared
+- `Why it changes` states the consequence, in one or two sentences
+- `What the implementation is` is one bullet per change, and no bullet restates what the patch already shows
+- `Output` carries verbatim command output, and any limit as a fact
+
+The first line is an issue reference when the change has one, and is absent when it does not. No line is ever written for the missing case.
+
+A commit body wraps at 72 columns. A markdown document does not wrap. They are different artifacts under different rules.
+
 If the author cannot explain any line of their own PR on request, the PR is discarded.
 
 If the benefit of your PR remains unclear, or too specialized for a single use case, we may discard it or leave it waiting.
