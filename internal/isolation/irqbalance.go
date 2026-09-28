@@ -11,27 +11,31 @@ import (
 	"goset/internal/generic"
 )
 
-const irqBalanceUnit = "irqbalance.service"
-
-
 // https://github.com/Irbalance/irqbalance
 func (steer *Steering) holdIRQBalance() error {
-	pid, err := ScanProcComm("/proc", "irqbalance")
+	pid, err := ScanProcComm(generic.ProcRoot, generic.IRQBalanceComm)
 	if err != nil {
 		return err
 	}
-	if pid == 0 {
+	managed := systemdActiveUnit(generic.IRQBalanceUnit)
+	if pid == 0 && !managed {
 		return nil
 	}
-	if systemdActiveUnit(irqBalanceUnit) {
-		if err := exec.Command("systemctl", "stop", irqBalanceUnit).Run(); err == nil {
+	if managed {
+		if err := exec.Command("systemctl", "stop", generic.IRQBalanceUnit).Run(); err == nil {
 			steer.WasRunning = true
 			steer.ViaSystemd = true
+			steer.confirmStopped()
 			return nil
 		}
-		fmt.Fprintf(os.Stderr, "%sirqbalance (pid %d): systemctl stop failed; steering may be overwritten\n", generic.LogPrefix, pid)
+		if pid > 0 {
+			fmt.Fprintf(os.Stderr, "%sirqbalance (pid %d): systemctl stop failed; steering may be overwritten\n", generic.LogPrefix, pid)
+			steer.Note = fmt.Sprintf("stop failed pid %d", pid)
+		} else {
+			fmt.Fprintf(os.Stderr, "%sirqbalance: systemctl stop failed; steering may be overwritten\n", generic.LogPrefix)
+			steer.Note = "stop failed, pid unknown"
+		}
 		steer.WasRunning = true
-		steer.Note = fmt.Sprintf("stop failed pid %d", pid)
 		return nil
 	}
 	fmt.Fprintf(os.Stderr, "%sirqbalance (pid %d) unmanaged; steering may be overwritten\n", generic.LogPrefix, pid)
@@ -40,11 +44,26 @@ func (steer *Steering) holdIRQBalance() error {
 	return nil
 }
 
+// confirmStopped: a zero exit from systemctl is no proof the daemon is gone
+func (steer *Steering) confirmStopped() {
+	alive, err := ScanProcComm(generic.ProcRoot, generic.IRQBalanceComm)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%sirqbalance not re-checkable: %v\n", generic.LogPrefix, err)
+		steer.Note = "unverified"
+		return
+	}
+	if alive == 0 {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "%sirqbalance (pid %d) alive after stop; steering may be overwritten\n", generic.LogPrefix, alive)
+	steer.Note = fmt.Sprintf("still running pid %d", alive)
+}
+
 func (steer *Steering) Release() {
 	if steer == nil || !steer.ViaSystemd {
 		return
 	}
-	if err := exec.Command("systemctl", "start", irqBalanceUnit).Run(); err != nil {
+	if err := exec.Command("systemctl", "start", generic.IRQBalanceUnit).Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "%sirqbalance restart failed: %v\n", generic.LogPrefix, err)
 	}
 }
