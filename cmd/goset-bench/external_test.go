@@ -1,15 +1,23 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"io"
+	"math"
 	"os"
 	"reflect"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	"goset/benchmark/plugin"
+	"goset/internal/generic"
+	"goset/internal/isolation"
+	rpt "goset/internal/report"
+	"goset/internal/telemetry"
 )
 
 func TestParseLineBareFloat(t *testing.T) {
@@ -292,10 +300,10 @@ func TestMetricsCapKeepsBiggestSeries(t *testing.T) {
 
 func TestParseNumFieldStrict(t *testing.T) {
 	cases := []struct {
-		field    string
-		ok       bool
-		value    float64
-		unit     string
+		field string
+		ok    bool
+		value float64
+		unit  string
 	}{
 		{field: "42", ok: true, value: 42},
 		{field: "-3.5", ok: true, value: -3.5},
@@ -382,7 +390,7 @@ func TestTruncLabel(t *testing.T) {
 }
 
 func TestIsTimeLabelExact(t *testing.T) {
-	for _, label := range []string{"run_delay", "jitter iter"} {
+	for _, label := range []string{"sched run_delay", "jitter iter"} {
 		if !isTimeLabel(label) {
 			t.Errorf("isTimeLabel(%q) = false, want true", label)
 		}
@@ -399,7 +407,7 @@ func TestCellFormatterExtractedValuesAreRaw(t *testing.T) {
 	if got := format(1.15); got != "1.15" {
 		t.Errorf("cellFormatter(1.15) = %q, want raw 1.15", got)
 	}
-	if got := cellFormatter("run_delay")(0.0000234); got == "0.00" {
+	if got := cellFormatter(runDelayLabel)(0.0000234); got == "0.00" {
 		t.Errorf("run_delay formatter dropped sub-ms precision: %q", got)
 	}
 }
@@ -483,4 +491,75 @@ func metricNames(metrics []plugin.Metric) []string {
 		names = append(names, m.Name)
 	}
 	return names
+}
+
+func renderedReport(cpus []int, width int) []byte {
+	var booked generic.CPUSet
+	var counters []telemetry.Counter
+	for idx, cpu := range cpus {
+		booked.SetBit(cpu)
+		counters = append(counters,
+			telemetry.Counter{Source: generic.SourceFreq, CPU: cpu, Name: generic.FreqAvg, Value: 4.8e9},
+			telemetry.Counter{Source: generic.SourceIRQ, CPU: cpu, Name: generic.IRQSteerable, Value: float64(idx + 1)},
+			telemetry.Counter{Source: generic.SourceIRQ, CPU: cpu, Name: generic.IRQNonSteerable, Value: 1500},
+		)
+	}
+	counters = append(counters, telemetry.Counter{Source: generic.SourceSched, CPU: -1, Name: generic.SchedRunDelay, Value: 41200})
+	rep := rpt.Report{
+		Cpus:     booked,
+		Counters: counters,
+		Steer:    &isolation.Steering{Applied: 40, Rejected: 26},
+		Rusage:   &syscall.Rusage{Nvcsw: 812, Nivcsw: 9},
+		Wall:     1990 * time.Millisecond,
+		ExitCode: 3,
+		Polls:    19,
+		Interval: 100 * time.Millisecond,
+	}
+	var out bytes.Buffer
+	out.WriteString("Run\ntask wall  9s\n" + gosetReportMarker + "\n")
+	tables := rpt.TelemetryTables(rep, width)
+	tables = append(tables, rpt.RunTable(rep), rpt.NotReportedTable(rep))
+	rpt.Render(&out, tables...)
+	return out.Bytes()
+}
+
+func TestParseReportReadsSplitTelemetryAndRun(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		cpus  []int
+		width int
+	}{
+		{"one cpu", []int{9}, 200},
+		{"two cpus split", []int{3, 7}, 30},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			parsed := parseReport(renderedReport(tc.cpus, tc.width))
+			cpuCount := float64(len(tc.cpus))
+			if parsed.wall != 1.99 {
+				t.Errorf("wall = %v, want 1.99: the task output before the marker must be ignored", parsed.wall)
+			}
+			wantGlobal := map[string]float64{
+				exitLabel: 3,
+				runLabel(generic.ScopeSched, generic.RunCtxswVoluntary):   812,
+				runLabel(generic.ScopeSched, generic.RunCtxswInvoluntary): 9,
+				runDelayLabel: 41.2e-6,
+				runLabel(generic.ScopeSteer, generic.RunIRQSteerApplied):  40,
+				runLabel(generic.ScopeSteer, generic.RunIRQSteerRejected): 26,
+			}
+			for key, want := range wantGlobal {
+				if got := parsed.global[key]; math.Abs(got-want) > 1e-12 {
+					t.Errorf("global[%q] = %v, want %v", key, got, want)
+				}
+			}
+			wantTelemetry := map[string]float64{
+				"irq steerable":     cpuCount * (cpuCount + 1) / 2,
+				"irq non-steerable": cpuCount * 1500,
+			}
+			for key, want := range wantTelemetry {
+				if got := parsed.telemetry[key]; got != want {
+					t.Errorf("telemetry[%q] = %v, want %v", key, got, want)
+				}
+			}
+		})
+	}
 }
