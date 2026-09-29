@@ -72,14 +72,11 @@ func TestTelemetryTablesSingleCPU(t *testing.T) {
 	if len(tables) != 1 {
 		t.Fatalf("TelemetryTables blocks = %d, want 1", len(tables))
 	}
-	wantHeader := []string{
-		generic.TelemetryFreqMin, generic.TelemetryFreqAvg, generic.TelemetryFreqMax,
-		generic.TelemetryIRQSteerable, generic.TelemetryIRQNonSteerable,
-	}
+	wantHeader := []string{"freq min", "freq avg", "freq max", "irq steerable", "irq non-steerable"}
 	if !reflect.DeepEqual(tables[0].Header, wantHeader) {
 		t.Errorf("header = %q, want %q: no cpu column at -n 1", tables[0].Header, wantHeader)
 	}
-	wantRows := [][]string{{"1", "2", "3", "1", "10"}}
+	wantRows := [][]string{{"1GHz", "2GHz", "3GHz", "1", "10"}}
 	if !reflect.DeepEqual(tables[0].Rows, wantRows) {
 		t.Errorf("rows = %q, want %q: no footer at -n 1", tables[0].Rows, wantRows)
 	}
@@ -91,9 +88,9 @@ func TestTelemetryTablesFooterReducesPerColumn(t *testing.T) {
 		t.Fatalf("TelemetryTables blocks = %d, want 1", len(tables))
 	}
 	want := [][]string{
-		{"3", "1", "2", "3", "1", "10"},
-		{"7", "2", "4", "6", "2", "20"},
-		{generic.TelemetryAll, "1", "3", "6", "3", "30"}, // min, avg, max, sum, sum
+		{"3", "1GHz", "2GHz", "3GHz", "1", "10"},
+		{"7", "2GHz", "4GHz", "6GHz", "2", "20"},
+		{generic.TelemetryAll, "1GHz", "3GHz", "6GHz", "3", "30"}, // min, avg, max, sum, sum
 	}
 	if !reflect.DeepEqual(tables[0].Rows, want) {
 		t.Errorf("rows =\n%q\nwant\n%q", tables[0].Rows, want)
@@ -103,8 +100,8 @@ func TestTelemetryTablesFooterReducesPerColumn(t *testing.T) {
 func TestTelemetryTablesSplitKeepsGroupsAndCPUColumn(t *testing.T) {
 	tables := report.TelemetryTables(report.Report{Cpus: cpuSet(3, 7), Counters: perCPUCounters(3, 7)}, 40)
 	want := [][]string{
-		{generic.TelemetryCPU, generic.TelemetryFreqMin, generic.TelemetryFreqAvg, generic.TelemetryFreqMax},
-		{generic.TelemetryCPU, generic.TelemetryIRQSteerable, generic.TelemetryIRQNonSteerable},
+		{generic.TelemetryCPU, "freq min", "freq avg", "freq max"},
+		{generic.TelemetryCPU, "irq steerable", "irq non-steerable"},
 	}
 	if len(tables) != len(want) {
 		t.Fatalf("TelemetryTables blocks = %d, want %d", len(tables), len(want))
@@ -113,9 +110,9 @@ func TestTelemetryTablesSplitKeepsGroupsAndCPUColumn(t *testing.T) {
 		if !reflect.DeepEqual(tables[idx].Header, header) {
 			t.Errorf("block %d header = %q, want %q", idx, tables[idx].Header, header)
 		}
-	}
-	if tables[0].Title != "Telemetry" || tables[1].Title != "" {
-		t.Errorf("titles = %q, %q, want the title on the first block only", tables[0].Title, tables[1].Title)
+		if tables[idx].Title != "Telemetry" {
+			t.Errorf("block %d title = %q, want %q: a split repeats the title", idx, tables[idx].Title, "Telemetry")
+		}
 	}
 }
 
@@ -127,6 +124,10 @@ func TestTelemetryTablesRowPerBookedCPU(t *testing.T) {
 	want := []string{"7", "-", "-", "-", "-", "-"}
 	if rows := tables[0].Rows; len(rows) != 3 || !reflect.DeepEqual(rows[1], want) {
 		t.Errorf("rows = %q, want cpu 7 as %q: a booked cpu without values keeps its row", rows, want)
+	}
+	footer := []string{generic.TelemetryAll, "-", "-", "-", "-", "-"}
+	if rows := tables[0].Rows; !reflect.DeepEqual(rows[2], footer) {
+		t.Errorf("footer = %q, want %q: a column missing a cpu is not reduced", rows[2], footer)
 	}
 }
 

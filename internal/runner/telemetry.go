@@ -24,7 +24,7 @@ func startTelemetry(selected *generic.Selection, cfg *cli.Config, steering *isol
 
 	sources := []telemetry.Source{
 		&telemetry.IRQSource{},
-		&telemetry.ThrottleSource{},
+		&telemetry.ThrottleSource{Root: generic.SysCPU},
 		&telemetry.FreqSource{},
 		&telemetry.MigrationsSource{Root: generic.ProcRoot},
 		&telemetry.RunqueueSource{Root: generic.ProcRoot},
@@ -54,7 +54,7 @@ func startTelemetry(selected *generic.Selection, cfg *cli.Config, steering *isol
 	// lazy print
 	stop := func(wall time.Duration, runErr error, steering *isolation.Steering, rusage *syscall.Rusage) {
 		fmt.Fprintln(os.Stderr, "\n\n----------------- GOSET -----------------")
-		counters := sampler.Stop() // Polls is final only after Stop
+		counters, polls := sampler.Stop()
 		rep := report.Report{
 			Cpus:     selected.Task,
 			Steer:    steering,
@@ -62,7 +62,7 @@ func startTelemetry(selected *generic.Selection, cfg *cli.Config, steering *isol
 			Wall:     wall,
 			Counters: counters,
 			ExitCode: ExitCode(runErr),
-			Polls:    sampler.Polls(),
+			Polls:    polls,
 			Interval: sampler.Interval,
 		}
 		tables := []report.Table{report.SelectionTable(selected)}

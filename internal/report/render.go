@@ -63,12 +63,14 @@ func columnWidths(tab Table) []int {
 	return widths
 }
 
+const gutter = 2
+
 // lineWidth is the printed length of a row whose columns have these widths.
 func lineWidth(widths []int) int {
-	total := 2
+	total := gutter
 	for i, width := range widths {
 		if i > 0 {
-			total += 2
+			total += gutter
 		}
 		total += width
 	}
@@ -78,10 +80,10 @@ func lineWidth(widths []int) int {
 
 func printRow(out io.Writer, cells []string, widths []int, align Align) {
 	var buf strings.Builder
-	buf.WriteString("  ") // margin (lineWidth())
+	buf.WriteString(strings.Repeat(" ", gutter))
 	for i, cell := range cells {
 		if i > 0 {
-			buf.WriteString("  ") // margin (lineWidth())
+			buf.WriteString(strings.Repeat(" ", gutter))
 		}
 		left := align == AlignLeft || (align == AlignLabel && i == 0)
 		if left {

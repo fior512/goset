@@ -70,16 +70,10 @@ const (
 	IRQSteerDrift   = "drift"
 )
 
-// telemetry columns
+// telemetry row labels
 const (
-	TelemetryCPU             = "cpu"
-	TelemetryAll             = "all" // footer row: reduction over the task cpus
-	TelemetryFreqMin         = "GHz min"
-	TelemetryFreqAvg         = "GHz avg"
-	TelemetryFreqMax         = "GHz max"
-	TelemetryThrottle        = "throttle"
-	TelemetryIRQSteerable    = "irq steerable"
-	TelemetryIRQNonSteerable = "irq non-steerable"
+	TelemetryCPU = "cpu"
+	TelemetryAll = "all" // footer row: reduction over the task cpus
 )
 
 // run report scopes
@@ -97,7 +91,6 @@ const (
 	RunCtxswVoluntary    = "ctxsw voluntary"
 	RunCtxswInvoluntary  = "ctxsw involuntary"
 	RunMigrations        = "migrations"
-	RunRunDelay          = "run_delay"
 	RunIRQSteerApplied   = "applied"
 	RunIRQSteerRejected  = "rejected"
 	RunIRQSteerRemaining = "remaining"
