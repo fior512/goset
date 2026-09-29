@@ -96,34 +96,43 @@ sudo goset -rm-cgroup goset-mybench
 
 **Output**:
 
-Real output from the STREAM run above (`sudo goset -n 1 -cgroup -steer -- /tmp/stream 20000000 50`):
-
+Goset output format (with `-steer` and `-cgroup`):
 ```
---- GOSET ---
-
+----------------- GOSET -----------------
 Selection
-  cpu  sel  soft  hard  sibl  isol  node  nohz  rcu
-   11   *      0     8    62           0
-    8   &      0     9    64           0
-   10          0    17    68           0
-    6          0    19    48           0
+  cpu  sel  steerable  non-steerable  sibl  isol  numa  nohz  rcu
+    8   *           0            412   600           0
+    6   *           0            485   500           0
+   10   *           0            492   602           0
+    0   *           0            500   485           0
+    2              94            506   412           0
+    1   &           0            508   701           0
+   11               5            539   822           0
+    5             275            547   544           0
+    4               9            593   492           0
+    9               0            609   747           0
+    7               0            701   508           0
+    3               0            747   609           0
 
 Telemetry
-  counters           cpu11  avg  sd  sum
-  irq steerable          0    0   0    0
-  irq non-steerable    644  644   0  644
-  throttle count         0    0   0    0
+  cpu  freq min  freq avg  freq max  irq steerable  irq non-steerable
+  0     2.99GHz   3.01GHz   3.88GHz              0              1.50k
+  6     2.99GHz   3.00GHz   3.49GHz              0                108
+  8     2.99GHz   3.01GHz   4.83GHz              0                154
+  10    2.99GHz   3.06GHz   5.00GHz              2                330
+  all   2.99GHz   3.02GHz   5.00GHz              2              2.10k
 
-Global
-  key                  value
-  irq steer applied       40
-  irq steer rejected      26
-  irq steer remaining      0
-  ctxsw voluntary          1
-  ctxsw involuntary        9
-  wall                 1.99s
-  exit                     0
+Run
+  task   wall             10.00s  exit               0   samples     100@100ms
+  sched  ctxsw voluntary  2       ctxsw involuntary  0   migrations  0
+         run_delay        0ns
+  steer  applied          40      rejected           26  remaining   0
+         drift            0       irqbalance held    no
+
+  not reported: throttle
 ```
+
+
 
 * `sel`: `*` marks the pinned CPU, `&` marks the housekeeper.
 * `steerable` / `non-steerable`: interrupts counted on that CPU while ranking: device IRQs goset can steer away, and kernel-owned rows (NMI, LOC, RES) it cannot.
