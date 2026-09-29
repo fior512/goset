@@ -13,6 +13,14 @@ type CPUScore struct {
 }
 
 
+type SelectionRequest struct {
+	N       int
+	Include CPUSet
+	Exclude CPUSet
+	Numa    int
+	Fence   bool
+}
+
 type Selection struct {
 	Scores      []CPUScore // SelectCPUs -> Report
 	Numa        int

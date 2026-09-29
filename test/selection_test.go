@@ -340,8 +340,7 @@ func TestSelectionFenceBooksTaskSiblings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cpu.GetTopology: %v", err)
 	}
-	var none generic.CPUSet
-	selected, err := cpu.SelectCPUs(topo, 1, none, none, -2, true)
+	selected, err := cpu.SelectCPUs(topo, generic.SelectionRequest{N: 1, Numa: -2, Fence: true})
 	if err != nil {
 		t.Fatalf("SelectCPUs: %v", err)
 	}
@@ -361,7 +360,7 @@ func TestSelectionFenceBooksTaskSiblings(t *testing.T) {
 		}
 	}
 
-	unfenced, err := cpu.SelectCPUs(topo, 1, none, none, -2, false)
+	unfenced, err := cpu.SelectCPUs(topo, generic.SelectionRequest{N: 1, Numa: -2})
 	if err != nil {
 		t.Fatalf("SelectCPUs: %v", err)
 	}
@@ -369,7 +368,6 @@ func TestSelectionFenceBooksTaskSiblings(t *testing.T) {
 		t.Errorf("fence disabled, got fence %s", unfenced.Fence.String())
 	}
 }
-
 
 func fakeSMTTopology(threads int) *cpu.Topology {
 	topo := &cpu.Topology{Core: make([]int, threads)}
@@ -388,29 +386,29 @@ func fakeScores(threads int, nonSteerable func(id int) uint64) []generic.CPUScor
 	return scores
 }
 
-func pickedIDs(picked []generic.CPUScore) []int {
-	ids := make([]int, len(picked))
-	for i, score := range picked {
-		ids[i] = score.CPU
-	}
-	slices.Sort(ids)
-	return ids
+func selectedTask(topo *cpu.Topology, scores []generic.CPUScore, n int, fence bool) []int {
+	task := cpu.SelectTask(topo, scores, generic.SelectionRequest{N: n, Fence: fence})
+	return slices.Collect(task.All())
 }
 
-func TestPickCPUsPacksSiblingsOfPickedCores(t *testing.T) {
-	topo := fakeSMTTopology(12)
-	scores := fakeScores(12, func(int) uint64 { return 50 })
-	got := pickedIDs(cpu.PickCPUs(topo, scores, 6, 9))
+func coresOf(topo *cpu.Topology, ids []int) map[int]bool {
 	cores := map[int]bool{}
-	for _, id := range got {
+	for _, id := range ids {
 		cores[topo.Core[id]] = true
 	}
-	if len(cores) != 3 {
-		t.Errorf("6 picks on uniform noise span %d cores %v, want 3 whole cores", len(cores), got)
+	return cores
+}
+
+func TestSelectTaskPacksSiblingsOfBookedCores(t *testing.T) {
+	topo := fakeSMTTopology(12)
+	scores := fakeScores(12, func(int) uint64 { return 50 })
+	got := selectedTask(topo, scores, 6, true)
+	if cores := coresOf(topo, got); len(cores) != 3 {
+		t.Errorf("6 cpus on uniform noise span %d cores %v, want 3 whole cores", len(cores), got)
 	}
 }
 
-func TestPickCPUsSiblingPreferenceIsSoft(t *testing.T) {
+func TestSelectTaskSiblingPreferenceIsSoft(t *testing.T) {
 	topo := fakeSMTTopology(12)
 	scores := fakeScores(12, func(id int) uint64 {
 		switch id {
@@ -421,16 +419,25 @@ func TestPickCPUsSiblingPreferenceIsSoft(t *testing.T) {
 		}
 		return 50
 	})
-	got := pickedIDs(cpu.PickCPUs(topo, scores, 2, 9))
+	got := selectedTask(topo, scores, 2, true)
 	if slices.Contains(got, 0) || slices.Contains(got, 6) {
-		t.Errorf("picked %v: core 0 has a 1000 non-steerable sibling and must lose to a quiet core", got)
+		t.Errorf("selected %v: core 0 has a 1000 non-steerable sibling and must lose to a quiet core", got)
 	}
-	if topo.Core[got[0]] != topo.Core[got[1]] {
-		t.Errorf("picked %v: two quiet siblings on one core must be preferred to two cores", got)
+	if len(coresOf(topo, got)) != 1 {
+		t.Errorf("selected %v: two quiet siblings on one core must be preferred to two cores", got)
 	}
 }
 
-func TestPickCPUsStaysInsideBudget(t *testing.T) {
+func TestSelectTaskPacksWithoutFence(t *testing.T) {
+	topo := fakeSMTTopology(12)
+	scores := fakeScores(12, func(int) uint64 { return 50 })
+	got := selectedTask(topo, scores, 2, false)
+	if len(coresOf(topo, got)) != 1 {
+		t.Errorf("selected %v: siblings of a booked core are preferred with the fence off too", got)
+	}
+}
+
+func TestSelectTaskStaysInsideBudget(t *testing.T) {
 	topo := fakeSMTTopology(12)
 	scores := fakeScores(12, func(id int) uint64 {
 		if id >= 6 {
@@ -438,23 +445,34 @@ func TestPickCPUsStaysInsideBudget(t *testing.T) {
 		}
 		return 0
 	})
-	const budget = 9
-	got := pickedIDs(cpu.PickCPUs(topo, scores, 6, budget))
-	cores := map[int]bool{}
-	for _, id := range got {
-		cores[topo.Core[id]] = true
-	}
-	if len(cores)*2 > budget {
-		t.Errorf("picked %v books %d cpus, budget is %d", got, len(cores)*2, budget)
+	got := selectedTask(topo, scores, 6, true)
+	if booked := len(coresOf(topo, got)) * 2; booked > 9 {
+		t.Errorf("selected %v books %d cpus, budget is 9", got, booked)
 	}
 }
 
-func TestPickCPUsForcesInclude(t *testing.T) {
+func TestSelectTaskForcesInclude(t *testing.T) {
 	topo := fakeSMTTopology(12)
 	scores := fakeScores(12, func(id int) uint64 { return uint64(id) })
 	scores[9].Included = 1
-	got := pickedIDs(cpu.PickCPUs(topo, scores, 1, 9))
-	if !slices.Equal(got, []int{9}) {
-		t.Errorf("picked %v, want the included cpu 9", got)
+	if got := selectedTask(topo, scores, 1, true); !slices.Equal(got, []int{9}) {
+		t.Errorf("selected %v, want the included cpu 9", got)
+	}
+}
+
+func TestSelectFenceSkipsHousekeeper(t *testing.T) {
+	topo := fakeSMTTopology(12)
+	scores := fakeScores(12, func(int) uint64 { return 50 })
+	var task generic.CPUSet
+	task.SetBit(0)
+	request := generic.SelectionRequest{N: 1, Fence: true}
+
+	fence := cpu.SelectFence(topo, scores, task, 3, request)
+	if got := slices.Collect(fence.All()); !slices.Equal(got, []int{6}) {
+		t.Errorf("fence %v, want the sibling 6", got)
+	}
+	fence = cpu.SelectFence(topo, scores, task, 6, request)
+	if fence.Any() {
+		t.Errorf("fence %s, want none: the only sibling is the housekeeper", fence.String())
 	}
 }
