@@ -26,7 +26,13 @@ func Run(cfg *cli.Config) (err error) {
 	}
 
 	// Select threads
-	selected, err := cpu.SelectCPUs(topo, cfg.NThreads, cfg.Include, cfg.Exclude, cfg.Numa, cfg.Cgroup && cfg.Fence)
+	selected, err := cpu.SelectCPUs(topo, generic.SelectionRequest{
+		N:       cfg.NThreads,
+		Include: cfg.Include,
+		Exclude: cfg.Exclude,
+		Numa:    cfg.Numa,
+		Fence:   cfg.Cgroup && cfg.Fence,
+	})
 	if err != nil {
 		return err
 	}

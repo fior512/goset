@@ -481,9 +481,13 @@ func tasksetCandidates(cpu int, enabled bool) ([]int, error) {
 	if !enabled {
 		return nil, nil
 	}
+
+	/* binary */
 	if _, err := exec.LookPath(generic.TasksetBin); err != nil {
 		return nil, fmt.Errorf("-taskset: %w", err)
 	}
+
+	/* cpus */
 	if cpu >= 0 {
 		return []int{cpu}, nil
 	}
