@@ -88,8 +88,8 @@ func TestSigtermRunsTeardown(t *testing.T) {
 	if code := run.wait(t); code != 130 {
 		t.Fatalf("exit code = %d, want 130 from the forwarded SIGINT, stderr: %s", code, run.stderr.String())
 	}
-	if !strings.Contains(run.stderr.String(), generic.GlobalExit) {
-		t.Errorf("stderr = %q, want the goset report with %q", run.stderr.String(), generic.GlobalExit)
+	if !strings.Contains(run.stderr.String(), generic.RunExit) {
+		t.Errorf("stderr = %q, want the goset report with %q", run.stderr.String(), generic.RunExit)
 	}
 }
 
@@ -103,8 +103,8 @@ func TestSigintRunsTeardown(t *testing.T) {
 	if code := run.wait(t); code != 130 {
 		t.Fatalf("exit code = %d, want 130 from the forwarded SIGINT, stderr: %s", code, run.stderr.String())
 	}
-	if !strings.Contains(run.stderr.String(), generic.GlobalExit) {
-		t.Errorf("stderr = %q, want the goset report with %q", run.stderr.String(), generic.GlobalExit)
+	if !strings.Contains(run.stderr.String(), generic.RunExit) {
+		t.Errorf("stderr = %q, want the goset report with %q", run.stderr.String(), generic.RunExit)
 	}
 }
 

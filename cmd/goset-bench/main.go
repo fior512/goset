@@ -22,6 +22,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -396,8 +397,8 @@ func run(gosetBin string, bench plugin.Benchmark, label string, i int, gosetArgs
 		return sample{}, false
 	}
 	s := parseReport(stderr.Bytes())
-	if s.global[generic.GlobalExit] != 0 {
-		fmt.Fprintf(os.Stderr, "%s run %d: task exited %v, run discarded\n%s%s", label, i, s.global[generic.GlobalExit], stdout.Bytes(), stderr.Bytes())
+	if s.global[exitLabel] != 0 {
+		fmt.Fprintf(os.Stderr, "%s run %d: task exited %v, run discarded\n%s%s", label, i, s.global[exitLabel], stdout.Bytes(), stderr.Bytes())
 		return sample{}, false
 	}
 	s.metrics, s.structure = collectMetrics(bench, taskOutput(stdout.Bytes(), stderr.Bytes()))
@@ -451,60 +452,74 @@ func runBaseline(bench plugin.Benchmark, argv []string) (sample, bool) {
 	s.wall = time.Since(start).Seconds()
 	s.metrics, s.structure = collectMetrics(bench, buf.Bytes())
 	if ru, ok := cmd.ProcessState.SysUsage().(*syscall.Rusage); ok {
-		s.global[generic.GlobalCtxswVoluntary] = float64(ru.Nvcsw)
-		s.global[generic.GlobalCtxswInvoluntary] = float64(ru.Nivcsw)
+		s.global[runLabel(generic.ScopeSched, generic.RunCtxswVoluntary)] = float64(ru.Nvcsw)
+		s.global[runLabel(generic.ScopeSched, generic.RunCtxswInvoluntary)] = float64(ru.Nivcsw)
 	}
 	return s, true
 }
 
-// parseReport scrapes goset's Global and Telemetry tables (see
-// internal/report/render.go) since goset has no --export json yet.
+// parseReport scrapes goset's Telemetry and Run blocks (see
+// internal/report/table.go) since goset has no --export json yet.
+// Telemetry values come from its "all" row, or its only row at -n 1.
 func parseReport(out []byte) sample {
-	s := sample{global: map[string]float64{}, telemetry: map[string]float64{}}
+	parsed := sample{global: map[string]float64{}, telemetry: map[string]float64{}}
+	if i := bytes.Index(out, []byte(gosetReportMarker)); i >= 0 {
+		out = out[i:]
+	}
 	scanner := bufio.NewScanner(bytes.NewReader(out))
-	var section string
+	var section, scope string
 	var header []string
 	for scanner.Scan() {
-		line := scanner.Text()
-		trimmed := strings.TrimSpace(line)
+		trimmed := strings.TrimSpace(scanner.Text())
 		if trimmed == "" {
-			section, header = "", nil
+			header = nil // Telemetry continues in a further block when split
 			continue
 		}
-		if trimmed == "Global" || trimmed == "Telemetry" || trimmed == "Selection" {
+		if trimmed == "Run" || trimmed == "Telemetry" || trimmed == "Selection" {
 			section, header = trimmed, nil
 			continue
 		}
-		if section == "" {
-			continue
-		}
 		fields := splitCols.Split(trimmed, -1)
-		if header == nil {
-			header = fields
-			continue
-		}
 		switch section {
-		case "Global":
-			if len(fields) == 2 {
-				if fields[0] == generic.GlobalWall {
-					s.wall = parseDuration(fields[1])
-				} else if fields[0] == generic.GlobalRunDelay {
-					s.global[fields[0]] = parseDuration(fields[1])
-				} else {
-					s.global[fields[0]] = parseCount(fields[1])
+		case "Run":
+			if slices.Contains(runScopes, fields[0]) { // a scope opens, continuation lines have none
+				scope, fields = fields[0], fields[1:]
+			}
+			for i := 0; i+1 < len(fields); i += 2 {
+				key := runLabel(scope, fields[i])
+				switch key {
+				case wallLabel:
+					parsed.wall = parseDuration(fields[i+1])
+				case runDelayLabel:
+					parsed.global[key] = parseDuration(fields[i+1])
+				default:
+					parsed.global[key] = parseCount(fields[i+1])
 				}
 			}
 		case "Telemetry":
-			if idx := indexOf(header, "sum"); idx >= 0 && idx < len(fields) {
-				s.telemetry[fields[0]] = parseCount(fields[idx])
+			if header == nil {
+				header = fields
+				continue
+			}
+			if header[0] == generic.TelemetryCPU && fields[0] != generic.TelemetryAll {
+				continue
+			}
+			for i, name := range header {
+				if name != generic.TelemetryCPU && i < len(fields) {
+					parsed.telemetry[name] = parseCount(fields[i])
+				}
 			}
 		case "Selection":
+			if header == nil {
+				header = fields
+				continue
+			}
 			if idx := indexOf(header, "sel"); idx >= 0 && idx < len(fields) && strings.TrimSpace(fields[idx]) == "*" {
-				s.cpu = fields[0]
+				parsed.cpu = fields[0]
 			}
 		}
 	}
-	return s
+	return parsed
 }
 
 func indexOf(fields []string, want string) int {
@@ -554,9 +569,28 @@ var counterKeys = []string{
 	telemetry.Counter{Source: generic.SourceThrottle, Name: generic.ThrottleCount}.Label(),
 }
 var globalKeys = []string{
-	generic.GlobalCtxswVoluntary, generic.GlobalCtxswInvoluntary, generic.GlobalMigrations, generic.GlobalRunDelay,
-	generic.GlobalIRQSteerApplied, generic.GlobalIRQSteerRejected, generic.GlobalIRQSteerRemaining,
+	runLabel(generic.ScopeSched, generic.RunCtxswVoluntary),
+	runLabel(generic.ScopeSched, generic.RunCtxswInvoluntary),
+	runLabel(generic.ScopeSched, generic.RunMigrations),
+	runDelayLabel,
+	runLabel(generic.ScopeSteer, generic.RunIRQSteerApplied),
+	runLabel(generic.ScopeSteer, generic.RunIRQSteerRejected),
+	runLabel(generic.ScopeSteer, generic.RunIRQSteerRemaining),
 }
+
+var (
+	wallLabel     = runLabel(generic.ScopeTask, generic.RunWall)
+	exitLabel     = runLabel(generic.ScopeTask, generic.RunExit)
+	runDelayLabel = runLabel(generic.ScopeSched, generic.SchedRunDelay)
+)
+
+// runLabel names a Run block value by its scope, e.g. "sched migrations".
+func runLabel(scope, key string) string {
+	return scope + " " + key
+}
+
+// runScopes are the Run block labels the parser recognises.
+var runScopes = []string{generic.ScopeTask, generic.ScopeSched, generic.ScopeSteer}
 
 func report(label string, samples []sample, hasGoset bool, metricNames []string) {
 	fmt.Printf("\n%s (n=%d)\n", label, len(samples))
@@ -800,11 +834,11 @@ func printStat(label string, width int, values []float64) {
 // extracted benchmarks can print any row name, so only a namespaced
 // built-in label and goset's own key may trigger time formatting.
 func isTimeLabel(label string) bool {
-	return label == generic.GlobalRunDelay || label == "jitter iter"
+	return label == runDelayLabel || label == "jitter iter"
 }
 
 func fmtVal(label string, v float64) string {
-	if label == generic.GlobalRunDelay {
+	if label == runDelayLabel {
 		return rpt.FormatTime(time.Duration(v * float64(time.Second)))
 	}
 	return rpt.FormatTime(time.Duration(v))

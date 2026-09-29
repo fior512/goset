@@ -13,7 +13,17 @@ type Table struct {
 	Title  string
 	Header []string
 	Rows   [][]string
+	Align  Align
 }
+
+// Align picks the left-aligned columns; every other column is right-aligned.
+type Align int
+
+const (
+	AlignLabel Align = iota // column 0 only
+	AlignLeft               // every column
+	AlignRight              // none
+)
 
 
 func Render(out io.Writer, tables ...Table) {
@@ -24,42 +34,65 @@ func Render(out io.Writer, tables ...Table) {
 		if tab.Title != "" {
 			fmt.Fprintln(out, tab.Title)
 		}
-		widths := make([]int, 0, len(tab.Header))
-		widest := func(row []string) {
-			for len(widths) < len(row) {
-				widths = append(widths, 0)
-			}
-			for i, cell := range row {
-				widths[i] = max(widths[i], len(cell))
-			}
-		}
-		widest(tab.Header)
-		for _, row := range tab.Rows {
-			widest(row)
-		}
-
+		widths := columnWidths(tab)
 		if len(tab.Header) > 0 {
-			printRow(out, tab.Header, widths)
+			printRow(out, tab.Header, widths, tab.Align)
 		}
 		for _, row := range tab.Rows {
-			printRow(out, row, widths)
+			printRow(out, row, widths, tab.Align)
 		}
 		fmt.Fprintln(out)
 	}
 }
 
 
-func printRow(out io.Writer, cells []string, widths []int) {
-	var buf strings.Builder
-	buf.WriteString("  ") // indent under title
-	for i, cell := range cells {
-		if i == 0 {
-			fmt.Fprintf(&buf, "%-*s", widths[i], cell)
-		} else {
-			fmt.Fprintf(&buf, "  %*s", widths[i], cell)
+func columnWidths(tab Table) []int {
+	widths := make([]int, 0, len(tab.Header))
+	widest := func(row []string) {
+		for len(widths) < len(row) {
+			widths = append(widths, 0)
+		}
+		for i, cell := range row {
+			widths[i] = max(widths[i], len(cell))
 		}
 	}
-	fmt.Fprintln(out, buf.String())
+	widest(tab.Header)
+	for _, row := range tab.Rows {
+		widest(row)
+	}
+	return widths
+}
+
+const gutter = 2
+
+// lineWidth is the printed length of a row whose columns have these widths.
+func lineWidth(widths []int) int {
+	total := gutter
+	for i, width := range widths {
+		if i > 0 {
+			total += gutter
+		}
+		total += width
+	}
+	return total
+}
+
+
+func printRow(out io.Writer, cells []string, widths []int, align Align) {
+	var buf strings.Builder
+	buf.WriteString(strings.Repeat(" ", gutter))
+	for i, cell := range cells {
+		if i > 0 {
+			buf.WriteString(strings.Repeat(" ", gutter))
+		}
+		left := align == AlignLeft || (align == AlignLabel && i == 0)
+		if left {
+			fmt.Fprintf(&buf, "%-*s", widths[i], cell)
+		} else {
+			fmt.Fprintf(&buf, "%*s", widths[i], cell)
+		}
+	}
+	fmt.Fprintln(out, strings.TrimRight(buf.String(), " "))
 }
 
 

@@ -39,7 +39,7 @@ func (src *FreqSource) Baseline(cpus generic.CPUSet) error {
 		src.files[cpu] = file
 		src.min[cpu] = -1
 	}
-	return src.sample()
+	return nil // task not started: a sample here reads the pre-task clock
 }
 
 func (src *FreqSource) Poll() error { return src.sample() }
@@ -85,6 +85,7 @@ func (src *FreqSource) Stop() error {
 	return nil
 }
 
+// Summary values are Hz, from Poll samples only.
 func (src *FreqSource) Summary() []Counter {
 	out := make([]Counter, 0, src.cpus.Count()*3)
 	for cpu := range src.cpus.All() {
@@ -92,9 +93,9 @@ func (src *FreqSource) Summary() []Counter {
 			continue
 		}
 		out = append(out,
-			Counter{Source: generic.SourceFreq, CPU: cpu, Name: generic.FreqMin, Value: src.min[cpu] / 1e6},
-			Counter{Source: generic.SourceFreq, CPU: cpu, Name: generic.FreqMax, Value: src.max[cpu] / 1e6},
-			Counter{Source: generic.SourceFreq, CPU: cpu, Name: generic.FreqAvg, Value: src.sum[cpu] / float64(src.n[cpu]) / 1e6},
+			Counter{Source: generic.SourceFreq, CPU: cpu, Name: generic.FreqMin, Value: src.min[cpu]},
+			Counter{Source: generic.SourceFreq, CPU: cpu, Name: generic.FreqMax, Value: src.max[cpu]},
+			Counter{Source: generic.SourceFreq, CPU: cpu, Name: generic.FreqAvg, Value: src.sum[cpu] / float64(src.n[cpu])},
 		)
 	}
 	return out

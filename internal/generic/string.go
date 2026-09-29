@@ -62,25 +62,38 @@ const (
 	IRQSteerable    = "steerable"
 	IRQNonSteerable = "non-steerable"
 	ThrottleCount   = "count"
-	FreqMin         = "min MHz"
-	FreqMax         = "max MHz"
-	FreqAvg         = "avg MHz"
+	FreqMin         = "min"
+	FreqMax         = "max"
+	FreqAvg         = "avg"
 	SchedRunDelay   = "run_delay"
 	SchedMigrations = "nr_migrations"
 	IRQSteerDrift   = "drift"
 )
 
-// global report keys
+// telemetry row labels
 const (
-	GlobalIRQBalanceHeld    = "irqbalance held"
-	GlobalIRQSteerApplied   = "irq steer applied"
-	GlobalIRQSteerRejected  = "irq steer rejected"
-	GlobalIRQSteerRemaining = "irq steer remaining"
-	GlobalIRQSteerDrift     = "irq steer drift"
-	GlobalCtxswVoluntary    = "ctxsw voluntary"
-	GlobalCtxswInvoluntary  = "ctxsw involuntary"
-	GlobalMigrations        = "migrations"
-	GlobalRunDelay          = "run_delay"
-	GlobalWall              = "wall"
-	GlobalExit              = "exit"
+	TelemetryCPU = "cpu"
+	TelemetryAll = "all" // footer row: reduction over the task cpus
+)
+
+// run report scopes
+const (
+	ScopeTask  = "task"
+	ScopeSched = "sched"
+	ScopeSteer = "steer"
+)
+
+// run report keys
+const (
+	RunWall              = "wall"
+	RunExit              = "exit"
+	RunSamples           = "samples"
+	RunCtxswVoluntary    = "ctxsw voluntary"
+	RunCtxswInvoluntary  = "ctxsw involuntary"
+	RunMigrations        = "migrations"
+	RunIRQSteerApplied   = "applied"
+	RunIRQSteerRejected  = "rejected"
+	RunIRQSteerRemaining = "remaining"
+	RunIRQSteerDrift     = "drift"
+	RunIRQBalanceHeld    = "irqbalance held"
 )
