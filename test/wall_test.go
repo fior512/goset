@@ -2,6 +2,7 @@ package integration
 
 import (
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -9,6 +10,9 @@ import (
 
 	"goset/internal/generic"
 )
+
+// splitCells splits a rendered row on its 2-space gutters.
+var splitCells = regexp.MustCompile(`\s{2,}`)
 
 func reportWall(t *testing.T, stderr string) time.Duration {
 	t.Helper()
@@ -21,37 +25,34 @@ func reportWall(t *testing.T, stderr string) time.Duration {
 		{"ms", time.Millisecond},
 		{"s", time.Second},
 	}
-	inGlobal := false
+	inRun := false
 	for _, line := range strings.Split(stderr, "\n") {
 		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
-			inGlobal = false
+		if trimmed == "Run" {
+			inRun = true
 			continue
 		}
-		if trimmed == "Global" {
-			inGlobal = true
+		if !inRun || trimmed == "" {
+			inRun = false
 			continue
 		}
-		if !inGlobal {
-			continue
-		}
-		fields := strings.Fields(trimmed)
-		if len(fields) != 2 || fields[0] != generic.GlobalWall {
+		fields := splitCells.Split(trimmed, -1)
+		if len(fields) < 3 || fields[0] != generic.ScopeTask || fields[1] != generic.RunWall {
 			continue
 		}
 		for _, unit := range units {
-			if !strings.HasSuffix(fields[1], unit.suffix) {
+			if !strings.HasSuffix(fields[2], unit.suffix) {
 				continue
 			}
-			value, err := strconv.ParseFloat(strings.TrimSuffix(fields[1], unit.suffix), 64)
+			value, err := strconv.ParseFloat(strings.TrimSuffix(fields[2], unit.suffix), 64)
 			if err != nil {
-				t.Fatalf("parse %s value %q: %v", generic.GlobalWall, fields[1], err)
+				t.Fatalf("parse %s value %q: %v", generic.RunWall, fields[2], err)
 			}
 			return time.Duration(value * float64(unit.scale))
 		}
-		t.Fatalf("%s value %q has no known unit", generic.GlobalWall, fields[1])
+		t.Fatalf("%s value %q has no known unit", generic.RunWall, fields[2])
 	}
-	t.Fatalf("no %s row in the report:\n%s", generic.GlobalWall, stderr)
+	t.Fatalf("no %s row in the report:\n%s", generic.RunWall, stderr)
 	return 0
 }
 
@@ -78,10 +79,10 @@ func TestIsolatedWallMatchesExternalClock(t *testing.T) {
 
 	wall := reportWall(t, res.stderr)
 	if wall < 300*time.Millisecond {
-		t.Errorf("report %s = %v, want at least the 300ms task", generic.GlobalWall, wall)
+		t.Errorf("report %s = %v, want at least the 300ms task", generic.RunWall, wall)
 	}
 	if delta := wall - external; delta < -tolerance || delta > tolerance {
 		t.Errorf("report %s = %v, external clock = %v, delta = %v, want within %v",
-			generic.GlobalWall, wall, external, delta, tolerance)
+			generic.RunWall, wall, external, delta, tolerance)
 	}
 }

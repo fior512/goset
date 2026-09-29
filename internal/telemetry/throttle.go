@@ -8,52 +8,54 @@ import (
 	"strings"
 )
 
-func ReadThrottleCounts(cpus generic.CPUSet) ([]uint64, error) {
-	size := cpus.Max()+1
-	
-	out := make([]uint64, size)
+// ReadThrottleCounts indexes counts by cpu id; readable holds the cpus whose counter parsed.
+func ReadThrottleCounts(cpus generic.CPUSet) (counts []uint64, readable generic.CPUSet) {
+	counts = make([]uint64, cpus.Max()+1)
 	for cpu := range cpus.All() {
 		path := fmt.Sprintf(
 			generic.SysCPU+
 				"/cpu%d/thermal_throttle/core_throttle_count", cpu)
 		text, err := os.ReadFile(path)
 		if err != nil {
-			continue // absent on some cpus/VMs, leave 0
+			continue // absent on some cpus/VMs: not reported
 		}
-		out[cpu], _ = strconv.ParseUint(strings.TrimSpace(string(text)), 10, 64)
+		count, err := strconv.ParseUint(strings.TrimSpace(string(text)), 10, 64)
+		if err != nil {
+			continue
+		}
+		counts[cpu] = count
+		readable.SetBit(cpu)
 	}
-	return out, nil
+	return counts, readable
 }
 
 
 type ThrottleSource struct {
-	cpus  generic.CPUSet
-	start []uint64
-	end   []uint64
+	cpus     generic.CPUSet
+	start    []uint64
+	end      []uint64
+	readable generic.CPUSet // read at Baseline and at Stop
 }
 
 func (src *ThrottleSource) Baseline(cpus generic.CPUSet) error {
 	src.cpus = cpus
-	var err error
-	src.start, err = ReadThrottleCounts(src.cpus)
-	return err
+	src.start, src.readable = ReadThrottleCounts(src.cpus)
+	return nil
 }
 
 func (src *ThrottleSource) Poll() error { return nil }
 
 func (src *ThrottleSource) Stop() error {
-	var err error
-	src.end, err = ReadThrottleCounts(src.cpus)
-	return err
+	var readable generic.CPUSet
+	src.end, readable = ReadThrottleCounts(src.cpus)
+	src.readable.And(readable)
+	return nil
 }
 
 
 func (src *ThrottleSource) Summary() []Counter {
-	out := make([]Counter, 0, src.cpus.Count())
-	for cpu := range src.cpus.All() {
-		if cpu >= len(src.start) || cpu >= len(src.end) {
-			continue
-		}
+	out := make([]Counter, 0, src.readable.Count())
+	for cpu := range src.readable.All() {
 		out = append(out, Counter{
 			Source: generic.SourceThrottle, CPU: cpu, Name: generic.ThrottleCount,
 			Value: float64(src.end[cpu] - src.start[cpu]),

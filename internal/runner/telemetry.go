@@ -5,6 +5,7 @@ import (
 	"os"
 	"syscall"
 	"time"
+	"unsafe"
 
 	"goset/internal/cli"
 	"goset/internal/cpu"
@@ -53,17 +54,32 @@ func startTelemetry(selected *generic.Selection, cfg *cli.Config, steering *isol
 	// lazy print
 	stop := func(wall time.Duration, runErr error, steering *isolation.Steering, rusage *syscall.Rusage) {
 		fmt.Fprintln(os.Stderr, "\n\n----------------- GOSET -----------------")
+		counters := sampler.Stop() // Polls is final only after Stop
 		rep := report.Report{
+			Cpus:     selected.Task,
 			Steer:    steering,
 			Rusage:   rusage,
 			Wall:     wall,
-			Counters: sampler.Stop(),
+			Counters: counters,
 			ExitCode: ExitCode(runErr),
+			Polls:    sampler.Polls(),
+			Interval: sampler.Interval,
 		}
-		report.Render(os.Stderr,
-			report.SelectionTable(selected),
-			report.TelemetryTable(rep),
-			report.GlobalTable(rep))
+		tables := []report.Table{report.SelectionTable(selected)}
+		tables = append(tables, report.TelemetryTables(rep, reportWidth(os.Stderr))...)
+		tables = append(tables, report.RunTable(rep), report.NotReportedTable(rep))
+		report.Render(os.Stderr, tables...)
 	}
 	return stop, nil
+}
+
+
+// reportWidth is the terminal width of file, or 80 columns when file is not a terminal.
+func reportWidth(file *os.File) int {
+	var size struct{ rows, cols, xpixel, ypixel uint16 }
+	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, file.Fd(), syscall.TIOCGWINSZ, uintptr(unsafe.Pointer(&size)))
+	if errno != 0 || size.cols == 0 {
+		return 80 // pipe or log file
+	}
+	return int(size.cols)
 }
