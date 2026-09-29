@@ -22,6 +22,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -32,6 +33,7 @@ import (
 	"goset/benchmark/plugin"
 	"goset/internal/generic"
 	rpt "goset/internal/report"
+	"goset/internal/telemetry"
 )
 
 type sample struct {
@@ -480,7 +482,7 @@ func parseReport(out []byte) sample {
 		fields := splitCols.Split(trimmed, -1)
 		switch section {
 		case "Run":
-			if len(fields)%2 == 1 { // scope label leads, continuation lines have none
+			if slices.Contains(runScopes, fields[0]) { // a scope opens, continuation lines have none
 				scope, fields = fields[0], fields[1:]
 			}
 			for i := 0; i+1 < len(fields); i += 2 {
@@ -562,9 +564,9 @@ func parseCount(s string) float64 {
 // short and per-run visible: an HPC engineer needs to see which run was
 // the outlier, not just a folded average.
 var counterKeys = []string{
-	generic.TelemetryIRQSteerable,
-	generic.TelemetryIRQNonSteerable,
-	generic.TelemetryThrottle,
+	telemetry.Counter{Source: generic.SourceIRQ, Name: generic.IRQSteerable}.Label(),
+	telemetry.Counter{Source: generic.SourceIRQ, Name: generic.IRQNonSteerable}.Label(),
+	telemetry.Counter{Source: generic.SourceThrottle, Name: generic.ThrottleCount}.Label(),
 }
 var globalKeys = []string{
 	runLabel(generic.ScopeSched, generic.RunCtxswVoluntary),
@@ -579,13 +581,16 @@ var globalKeys = []string{
 var (
 	wallLabel     = runLabel(generic.ScopeTask, generic.RunWall)
 	exitLabel     = runLabel(generic.ScopeTask, generic.RunExit)
-	runDelayLabel = runLabel(generic.ScopeSched, generic.RunRunDelay)
+	runDelayLabel = runLabel(generic.ScopeSched, generic.SchedRunDelay)
 )
 
 // runLabel names a Run block value by its scope, e.g. "sched migrations".
 func runLabel(scope, key string) string {
 	return scope + " " + key
 }
+
+// runScopes are the Run block labels the parser recognises.
+var runScopes = []string{generic.ScopeTask, generic.ScopeSched, generic.ScopeSteer}
 
 func report(label string, samples []sample, hasGoset bool, metricNames []string) {
 	fmt.Printf("\n%s (n=%d)\n", label, len(samples))

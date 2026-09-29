@@ -2,7 +2,6 @@ package report
 
 import (
 	"fmt"
-	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -59,27 +58,31 @@ type Report struct {
 }
 
 type telemetryColumn struct {
-	header string
 	source string // column group
 	name   string
 	format func(float64) string
 	reduce func([]float64) float64 // footer over the task cpus
 }
 
+// label composes the counter identity, Counter.Label is its only owner.
+func (column telemetryColumn) label() string {
+	return telemetry.Counter{Source: column.source, Name: column.name}.Label()
+}
+
 var telemetryColumns = []telemetryColumn{
-	{generic.TelemetryFreqMin, generic.SourceFreq, generic.FreqMin, formatGHz, slices.Min[[]float64]},
-	{generic.TelemetryFreqAvg, generic.SourceFreq, generic.FreqAvg, formatGHz, avg},
-	{generic.TelemetryFreqMax, generic.SourceFreq, generic.FreqMax, formatGHz, slices.Max[[]float64]},
-	{generic.TelemetryThrottle, generic.SourceThrottle, generic.ThrottleCount, FormatValue, sum},
-	{generic.TelemetryIRQSteerable, generic.SourceIRQ, generic.IRQSteerable, FormatValue, sum},
-	{generic.TelemetryIRQNonSteerable, generic.SourceIRQ, generic.IRQNonSteerable, FormatValue, sum},
+	{generic.SourceFreq, generic.FreqMin, FormatFreq, slices.Min[[]float64]},
+	{generic.SourceFreq, generic.FreqAvg, FormatFreq, avg},
+	{generic.SourceFreq, generic.FreqMax, FormatFreq, slices.Max[[]float64]},
+	{generic.SourceThrottle, generic.ThrottleCount, FormatValue, sum},
+	{generic.SourceIRQ, generic.IRQSteerable, FormatValue, sum},
+	{generic.SourceIRQ, generic.IRQNonSteerable, FormatValue, sum},
 }
 
 func TelemetryTables(rep Report, width int) []Table {
 	values := perCPUValues(rep.Counters)
 	var columns []telemetryColumn
 	for _, column := range telemetryColumns {
-		if len(values[column.source+" "+column.name]) > 0 {
+		if len(values[column.label()]) > 0 {
 			columns = append(columns, column)
 		}
 	}
@@ -98,7 +101,7 @@ func TelemetryTables(rep Report, width int) []Table {
 		groups = append(groups, "")
 	}
 	for _, column := range columns {
-		tab.Header = append(tab.Header, column.header)
+		tab.Header = append(tab.Header, column.label())
 		groups = append(groups, column.source)
 	}
 
@@ -109,7 +112,7 @@ func TelemetryTables(rep Report, width int) []Table {
 			row = append(row, strconv.Itoa(cpu))
 		}
 		for _, column := range columns {
-			value, ok := values[column.source+" "+column.name][cpu]
+			value, ok := values[column.label()][cpu]
 			if !ok {
 				row = append(row, "-")
 				continue
@@ -121,12 +124,29 @@ func TelemetryTables(rep Report, width int) []Table {
 	if keys > 0 {
 		footer := []string{generic.TelemetryAll}
 		for _, column := range columns {
-			series := slices.Collect(maps.Values(values[column.source+" "+column.name]))
-			footer = append(footer, column.format(column.reduce(series)))
+			cell, ok := column.reduceAll(values[column.label()], rep.Cpus)
+			if !ok {
+				cell = "-"
+			}
+			footer = append(footer, cell)
 		}
 		tab.Rows = append(tab.Rows, footer)
 	}
 	return splitColumns(tab, groups, keys, width)
+}
+
+// reduceAll folds the column over every task cpu, and reports false when one
+// of them carries no value, so the footer never stands for a subset.
+func (column telemetryColumn) reduceAll(values map[int]float64, cpus generic.CPUSet) (string, bool) {
+	series := make([]float64, 0, cpus.Count())
+	for cpu := range cpus.All() {
+		value, ok := values[cpu]
+		if !ok {
+			return "", false
+		}
+		series = append(series, value)
+	}
+	return column.format(column.reduce(series)), true
 }
 
 func perCPUValues(counters []telemetry.Counter) map[string]map[int]float64 {
@@ -164,11 +184,8 @@ func splitColumns(tab Table, groups []string, keys int, width int) []Table {
 	blocks = append(blocks, block)
 
 	tables := make([]Table, 0, len(blocks))
-	for num, columns := range blocks {
-		part := Table{Header: pick(tab.Header, columns), Align: tab.Align}
-		if num == 0 {
-			part.Title = tab.Title
-		}
+	for _, columns := range blocks {
+		part := Table{Title: tab.Title, Header: pick(tab.Header, columns), Align: tab.Align}
 		for _, row := range tab.Rows {
 			part.Rows = append(part.Rows, pick(row, columns))
 		}
@@ -197,14 +214,14 @@ func NotReportedTable(rep Report) Table {
 	values := perCPUValues(rep.Counters)
 	var missing []string
 	for _, column := range telemetryColumns {
-		if len(values[column.source+" "+column.name]) == 0 && !slices.Contains(missing, column.source) {
+		if len(values[column.label()]) == 0 && !slices.Contains(missing, column.source) {
 			missing = append(missing, column.source)
 		}
 	}
 	if len(missing) == 0 {
 		return Table{}
 	}
-	return Table{Rows: [][]string{{"Drivers doesn't support: " + strings.Join(missing, ", ")}}}
+	return Table{Rows: [][]string{{"not reported: " + strings.Join(missing, ", ")}}}
 }
 
 const runPairsPerLine = 3
@@ -260,7 +277,7 @@ func schedPairs(rep Report) []runPair {
 		pairs = append(pairs, runPair{generic.RunMigrations, strconv.Itoa(migrations)})
 	}
 	if runDelay, ok := telemetry.CountRunqueue(rep.Counters); ok {
-		pairs = append(pairs, runPair{generic.RunRunDelay, FormatTime(time.Duration(runDelay))})
+		pairs = append(pairs, runPair{generic.SchedRunDelay, FormatTime(time.Duration(runDelay))})
 	}
 	return pairs
 }
@@ -344,9 +361,6 @@ func CgroupTable(infos []isolation.CgroupInfo) Table {
 	return Table{Title: "Cgroups", Header: header, Rows: rows}
 }
 
-func formatGHz(hz float64) string {
-	return compress(hz / 1e9)
-}
 
 func avg(values []float64) float64 {
 	if len(values) == 0 {

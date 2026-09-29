@@ -300,10 +300,10 @@ func TestMetricsCapKeepsBiggestSeries(t *testing.T) {
 
 func TestParseNumFieldStrict(t *testing.T) {
 	cases := []struct {
-		field    string
-		ok       bool
-		value    float64
-		unit     string
+		field string
+		ok    bool
+		value float64
+		unit  string
 	}{
 		{field: "42", ok: true, value: 42},
 		{field: "-3.5", ok: true, value: -3.5},
@@ -552,8 +552,8 @@ func TestParseReportReadsSplitTelemetryAndRun(t *testing.T) {
 				}
 			}
 			wantTelemetry := map[string]float64{
-				generic.TelemetryIRQSteerable:    cpuCount * (cpuCount + 1) / 2,
-				generic.TelemetryIRQNonSteerable: cpuCount * 1500,
+				"irq steerable":     cpuCount * (cpuCount + 1) / 2,
+				"irq non-steerable": cpuCount * 1500,
 			}
 			for key, want := range wantTelemetry {
 				if got := parsed.telemetry[key]; got != want {

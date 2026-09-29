@@ -15,14 +15,20 @@ type Sampler struct {
 	Sources  []Source
 
 	exit     chan struct{}
-	counters chan []Counter
+	counters chan sampled
 	once     sync.Once
-	polls    int // written by the housekeeper, read after Stop
+	polls    int
+}
+
+// sampled is what the housekeeper hands back when the run ends.
+type sampled struct {
+	counters []Counter
+	polls    int
 }
 
 func (sam *Sampler) Start(pin func() error) error {
 	sam.exit = make(chan struct{})
-	sam.counters = make(chan []Counter, 1)
+	sam.counters = make(chan sampled, 1)
 
 	ready := make(chan error, 1)
 	go func() {
@@ -74,19 +80,18 @@ func (sam *Sampler) poll() {
 	}
 }
 
-func (sam *Sampler) summary() []Counter {
-	var counters []Counter
+func (sam *Sampler) summary() sampled {
+	out := sampled{polls: sam.polls}
 	for _, src := range sam.Sources {
 		_ = src.Stop()
-		counters = append(counters, src.Summary()...)
+		out.counters = append(out.counters, src.Summary()...)
 	}
-	return counters
+	return out
 }
 
-func (sam *Sampler) Stop() []Counter {
+// Stop ends the run and returns the counters with the poll ticks taken.
+func (sam *Sampler) Stop() ([]Counter, int) {
 	sam.once.Do(func() { close(sam.exit) })
-	return <-sam.counters
+	final := <-sam.counters
+	return final.counters, final.polls
 }
-
-// Polls counts the mid-run poll ticks; valid after Stop.
-func (sam *Sampler) Polls() int { return sam.polls }
