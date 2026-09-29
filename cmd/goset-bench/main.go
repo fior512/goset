@@ -1,8 +1,9 @@
 // goset-bench evaluates whether goset's isolation helps a workload:
 // it interleaves the benchmark dangling (baseline) against the
-// benchmark through goset (-cgroup -steer) and reports the benchmark's
-// headline metric for both modes side by side, plus goset's IRQ/ctxsw/
-// throttle counters for the isolated mode.
+// benchmark behind raw taskset -c (rotating CPU) and through goset
+// (-cgroup -steer), and reports the benchmark's headline metric for the
+// three modes, plus goset's IRQ/ctxsw/throttle counters for the isolated
+// mode.
 //
 // Usage:
 //
@@ -31,6 +32,7 @@ import (
 
 	"goset/benchmark"
 	"goset/benchmark/plugin"
+	cpucore "goset/internal/cpu"
 	"goset/internal/generic"
 	rpt "goset/internal/report"
 	"goset/internal/telemetry"
@@ -70,8 +72,9 @@ func main() {
 	name := fs.String("bench", "", "alias for a built-in after --: "+benchNames())
 	runs := fs.Int("runs", 10, "interleaved runs per mode")
 	threads := fs.Int("n", 1, "threads to book for the isolated run (goset -n)")
-	settle := fs.Duration("settle", time.Second, "idle delay before each run, both modes start from the same post-idle state")
-	cpu := fs.Int("cpu", -1, "pin isolated task to this CPU across runs (default: fresh quietest)")
+	settle := fs.Duration("settle", 5*time.Second, "idle delay before each run, both modes start from the same post-idle state")
+	cpu := fs.Int("cpu", -1, "pin isolated and taskset runs to this CPU across runs (default: isolated takes the fresh quietest, taskset rotates through every allowed CPU)")
+	withTaskset := fs.Bool("taskset", false, "add a third mode: raw taskset -c on a rotating CPU, no cgroup, no steering")
 	gosetBin := fs.String("goset-bin", defaultGosetBin, "path to the goset binary (default: PATH, then next to goset-bench)")
 	match := fs.String("match", "", "regex selecting reported metric keys (overrides auto top-K)")
 	topk := fs.Int("topk", 8, "max extracted metric keys reported per mode")
@@ -123,11 +126,23 @@ func main() {
 	isoArgs = append(isoArgs, "--")
 	isoArgs = append(isoArgs, argv...)
 
-	var baseline, isolated []sample
+	tasksetCPUs, err := tasksetCandidates(*cpu, *withTaskset)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "goset-bench:", err)
+		os.Exit(1)
+	}
+
+	var baseline, pinned, isolated []sample
 	for i := 0; i < *runs; i++ {
 		time.Sleep(*settle)
 		if s, ok := runBaseline(bench, argv); ok {
 			baseline = append(baseline, s)
+		}
+		if len(tasksetCPUs) > 0 {
+			time.Sleep(*settle)
+			if s, ok := runTaskset(bench, argv, tasksetCPUs[i%len(tasksetCPUs)]); ok {
+				pinned = append(pinned, s)
+			}
 		}
 		time.Sleep(*settle)
 		if s, ok := run(gosetPath, bench, "isolated", i, isoArgs); ok {
@@ -137,17 +152,22 @@ func main() {
 
 	if *dump {
 		dumpKeys("baseline", baseline)
+		dumpKeys("taskset", pinned)
 		dumpKeys("isolated", isolated)
 	}
-	keys, err := selectMetrics(baseline, isolated, *match, *topk)
+	keys, err := selectMetrics(slices.Concat(baseline, pinned, isolated), *match, *topk)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "goset-bench:", err)
 		os.Exit(1)
 	}
 	driftWarn("baseline", baseline)
+	driftWarn("taskset", pinned)
 	driftWarn("isolated", isolated)
 	structureWarn(baseline, isolated)
 	report("baseline (dangling)", baseline, false, keys)
+	if len(pinned) > 0 {
+		report("taskset (-c one CPU)", pinned, false, keys)
+	}
 	report("isolated (-cgroup -steer)", isolated, true, keys)
 }
 
@@ -161,15 +181,14 @@ func collectMetrics(bench plugin.Benchmark, out []byte) ([]plugin.Metric, map[st
 	return metrics, nil
 }
 
-// selectMetrics picks the reported metric keys, joint over both modes so
+// selectMetrics picks the reported metric keys, joint over every mode so
 // the side-by-side tables stay aligned. -match overrides everything. Auto
 // mode drops config values (single sample per run, identical across every
 // run of both modes) and ranks the rest deterministically: varying keys
 // first (stability signal lives there), then present-in-all-runs,
 // per-run distribution, sample count, name. cv is a result of this tool,
 // never a selector.
-func selectMetrics(baseline, isolated []sample, match string, topk int) ([]string, error) {
-	all := append(append([]sample{}, baseline...), isolated...)
+func selectMetrics(all []sample, match string, topk int) ([]string, error) {
 	names := unionNames(all)
 	// Build display map for -match (match against display label when available)
 	displays := map[string]string{}
@@ -456,6 +475,34 @@ func runBaseline(bench plugin.Benchmark, argv []string) (sample, bool) {
 		s.global[runLabel(generic.ScopeSched, generic.RunCtxswInvoluntary)] = float64(ru.Nivcsw)
 	}
 	return s, true
+}
+
+// tasksetCandidates lists the CPUs the taskset mode rotates through: the
+// -cpu one when set, else every CPU this process may run on.
+func tasksetCandidates(cpu int, enabled bool) ([]int, error) {
+	if !enabled {
+		return nil, nil
+	}
+	if _, err := exec.LookPath("taskset"); err != nil {
+		return nil, fmt.Errorf("-taskset: %w", err)
+	}
+	if cpu >= 0 {
+		return []int{cpu}, nil
+	}
+	allowed, err := cpucore.GetAffinity(0)
+	if err != nil {
+		return nil, fmt.Errorf("-taskset: read allowed CPUs: %w", err)
+	}
+	return slices.Collect(allowed.All()), nil
+}
+
+// runTaskset is runBaseline behind taskset -c: same process, no cgroup,
+// no IRQ steering, no goset. taskset execs the task, so rusage is the task's.
+func runTaskset(bench plugin.Benchmark, argv []string, cpu int) (sample, bool) {
+	pinned := append([]string{"taskset", "-c", strconv.Itoa(cpu)}, argv...)
+	s, ok := runBaseline(bench, pinned)
+	s.cpu = strconv.Itoa(cpu)
+	return s, ok
 }
 
 // parseReport scrapes goset's Telemetry and Run blocks (see
