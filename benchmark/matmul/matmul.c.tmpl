@@ -1,0 +1,47 @@
+/* L1-resident double matmul. SAMPLE matmul <iter> <MFLOP/s>. Usage: matmul [reps] [ntimes] */
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+#define DIM 32
+
+static double a[DIM][DIM], b[DIM][DIM], c[DIM][DIM];
+
+static long long now_ns(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (long long)ts.tv_sec * 1000000000LL + ts.tv_nsec;
+}
+
+static void multiply(void) {
+    for (int i = 0; i < DIM; i++)
+        for (int k = 0; k < DIM; k++)
+            for (int j = 0; j < DIM; j++)
+                c[i][j] += a[i][k] * b[k][j];
+}
+
+int main(int argc, char **argv) {
+    int reps = argc > 1 ? atoi(argv[1]) : 2000;
+    int ntimes = argc > 2 ? atoi(argv[2]) : 300;
+    double flops = 2.0 * DIM * DIM * DIM * reps;
+    double sink = 0;
+
+    for (int i = 0; i < DIM; i++)
+        for (int j = 0; j < DIM; j++) {
+            a[i][j] = 1.0 + i * 0.001 + j * 0.002;
+            b[i][j] = 1.0 - i * 0.002 + j * 0.001;
+        }
+
+    for (int t = 0; t < ntimes; t++) {
+        long long t0 = now_ns();
+        for (int r = 0; r < reps; r++) {
+            multiply();
+            c[0][0] *= 1e-9;
+        }
+        long long t1 = now_ns();
+        sink += c[DIM - 1][DIM - 1];
+        printf("SAMPLE matmul %d %.2f\n", t, flops / (double)(t1 - t0) * 1000.0);
+    }
+    printf("checksum: %g\n", sink);
+    return 0;
+}
