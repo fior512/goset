@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"goset/internal/cpu"
+	"goset/internal/generic"
 )
 
 func onlineIDs(t *testing.T) []int {
@@ -330,5 +331,130 @@ func TestNumaOffReportsAnyNode(t *testing.T) {
 	}
 	if !strings.Contains(res.stderr, "remain on any numa node") {
 		t.Errorf("stderr should report the unconstrained pool, got: %s", res.stderr)
+	}
+}
+
+
+func TestSelectionFenceBooksTaskSiblings(t *testing.T) {
+	topo, err := cpu.GetTopology()
+	if err != nil {
+		t.Fatalf("cpu.GetTopology: %v", err)
+	}
+	var none generic.CPUSet
+	selected, err := cpu.SelectCPUs(topo, 1, none, none, -2, true)
+	if err != nil {
+		t.Fatalf("SelectCPUs: %v", err)
+	}
+	task := selected.Task.NextSet(0)
+	for sibling := range selected.Fence.All() {
+		if topo.Core[sibling] != topo.Core[task] {
+			t.Errorf("fenced cpu %d is on core %d, task cpu %d is on core %d", sibling, topo.Core[sibling], task, topo.Core[task])
+		}
+		if sibling == task || sibling == selected.HouseKeeper {
+			t.Errorf("fence holds cpu %d, the task or housekeeper cpu", sibling)
+		}
+	}
+	for cpuID := range topo.Online.All() {
+		onCore := topo.Core[cpuID] == topo.Core[task] && cpuID != task && cpuID != selected.HouseKeeper
+		if onCore != selected.Fence.GetBit(cpuID) {
+			t.Errorf("cpu %d: on task core (not housekeeper) = %v, in fence = %v", cpuID, onCore, selected.Fence.GetBit(cpuID))
+		}
+	}
+
+	unfenced, err := cpu.SelectCPUs(topo, 1, none, none, -2, false)
+	if err != nil {
+		t.Fatalf("SelectCPUs: %v", err)
+	}
+	if unfenced.Fence.Any() {
+		t.Errorf("fence disabled, got fence %s", unfenced.Fence.String())
+	}
+}
+
+
+func fakeSMTTopology(threads int) *cpu.Topology {
+	topo := &cpu.Topology{Core: make([]int, threads)}
+	topo.Online.SetRange(0, threads-1)
+	for id := range topo.Core {
+		topo.Core[id] = id % (threads / 2)
+	}
+	return topo
+}
+
+func fakeScores(threads int, nonSteerable func(id int) uint64) []generic.CPUScore {
+	scores := make([]generic.CPUScore, threads)
+	for id := range scores {
+		scores[id] = generic.CPUScore{CPU: id, NonSteerable: nonSteerable(id)}
+	}
+	return scores
+}
+
+func pickedIDs(picked []generic.CPUScore) []int {
+	ids := make([]int, len(picked))
+	for i, score := range picked {
+		ids[i] = score.CPU
+	}
+	slices.Sort(ids)
+	return ids
+}
+
+func TestPickCPUsPacksSiblingsOfPickedCores(t *testing.T) {
+	topo := fakeSMTTopology(12)
+	scores := fakeScores(12, func(int) uint64 { return 50 })
+	got := pickedIDs(cpu.PickCPUs(topo, scores, 6, 9))
+	cores := map[int]bool{}
+	for _, id := range got {
+		cores[topo.Core[id]] = true
+	}
+	if len(cores) != 3 {
+		t.Errorf("6 picks on uniform noise span %d cores %v, want 3 whole cores", len(cores), got)
+	}
+}
+
+func TestPickCPUsSiblingPreferenceIsSoft(t *testing.T) {
+	topo := fakeSMTTopology(12)
+	scores := fakeScores(12, func(id int) uint64 {
+		switch id {
+		case 0:
+			return 1
+		case 6:
+			return 1000
+		}
+		return 50
+	})
+	got := pickedIDs(cpu.PickCPUs(topo, scores, 2, 9))
+	if slices.Contains(got, 0) || slices.Contains(got, 6) {
+		t.Errorf("picked %v: core 0 has a 1000 non-steerable sibling and must lose to a quiet core", got)
+	}
+	if topo.Core[got[0]] != topo.Core[got[1]] {
+		t.Errorf("picked %v: two quiet siblings on one core must be preferred to two cores", got)
+	}
+}
+
+func TestPickCPUsStaysInsideBudget(t *testing.T) {
+	topo := fakeSMTTopology(12)
+	scores := fakeScores(12, func(id int) uint64 {
+		if id >= 6 {
+			return 20
+		}
+		return 0
+	})
+	const budget = 9
+	got := pickedIDs(cpu.PickCPUs(topo, scores, 6, budget))
+	cores := map[int]bool{}
+	for _, id := range got {
+		cores[topo.Core[id]] = true
+	}
+	if len(cores)*2 > budget {
+		t.Errorf("picked %v books %d cpus, budget is %d", got, len(cores)*2, budget)
+	}
+}
+
+func TestPickCPUsForcesInclude(t *testing.T) {
+	topo := fakeSMTTopology(12)
+	scores := fakeScores(12, func(id int) uint64 { return uint64(id) })
+	scores[9].Included = 1
+	got := pickedIDs(cpu.PickCPUs(topo, scores, 1, 9))
+	if !slices.Equal(got, []int{9}) {
+		t.Errorf("picked %v, want the included cpu 9", got)
 	}
 }

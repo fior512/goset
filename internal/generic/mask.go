@@ -105,6 +105,12 @@ func (set *CPUSet) And(other CPUSet) {
 }
 
 
+func (set *CPUSet) Or(other CPUSet) {
+	for word := range set {
+		set[word] |= other[word]
+	}
+}
+
 func (set *CPUSet) AndNot(other CPUSet) {
 	for i := range set {
 		set[i] &^= other[i]
