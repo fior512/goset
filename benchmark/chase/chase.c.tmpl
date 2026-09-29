@@ -1,0 +1,44 @@
+/* Dependent pointer chase over a cache-resident ring. SAMPLE chase <iter> <ns per load>. Usage: chase [kib] [loads] [ntimes] */
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+static long long now_ns(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (long long)ts.tv_sec * 1000000000LL + ts.tv_nsec;
+}
+
+int main(int argc, char **argv) {
+    size_t kib = argc > 1 ? (size_t)atol(argv[1]) : 192;
+    long long loads = argc > 2 ? atoll(argv[2]) : 2000000;
+    int ntimes = argc > 3 ? atoi(argv[3]) : 300;
+    size_t count = kib * 1024 / sizeof(size_t);
+    size_t *ring = malloc(count * sizeof(size_t));
+    size_t *order = malloc(count * sizeof(size_t));
+    if (!ring || !order) {
+        perror("malloc");
+        return 1;
+    }
+
+    for (size_t i = 0; i < count; i++) order[i] = i;
+    srand(12345);
+    for (size_t i = count - 1; i > 0; i--) {
+        size_t j = (size_t)rand() % (i + 1);
+        size_t tmp = order[i];
+        order[i] = order[j];
+        order[j] = tmp;
+    }
+    for (size_t i = 0; i < count; i++) ring[order[i]] = order[(i + 1) % count];
+
+    size_t pos = order[0];
+    for (int t = 0; t < ntimes; t++) {
+        long long t0 = now_ns();
+        for (long long i = 0; i < loads; i++) pos = ring[pos];
+        long long t1 = now_ns();
+        printf("SAMPLE chase %d %.4f\n", t, (double)(t1 - t0) / (double)loads);
+    }
+    printf("checksum: %zu\n", pos);
+    return 0;
+}
