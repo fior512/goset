@@ -24,6 +24,8 @@ func SelectionTable(selected *generic.Selection) Table {
 			mark = "& "
 		case selected.Task.GetBit(candidate.CPU):
 			mark = "* "
+		case selected.Fence.GetBit(candidate.CPU):
+			mark = "+ "
 		}
 		flag := func(on bool) string {
 			if on {

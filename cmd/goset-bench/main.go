@@ -119,7 +119,7 @@ func main() {
 		os.Exit(1)
 	}
 	argv := bench.Argv(bin)
-	isoArgs := []string{"-n", strconv.Itoa(*threads), "-cgroup", "-steer"}
+	isoArgs := []string{"-n", strconv.Itoa(*threads), "-cgroup", "-steer", "-fence"}
 	if *cpu >= 0 {
 		isoArgs = append(isoArgs, "-include", strconv.Itoa(*cpu))
 	}
@@ -168,7 +168,7 @@ func main() {
 	if len(pinned) > 0 {
 		report("taskset (-c one CPU)", pinned, false, keys)
 	}
-	report("isolated (-cgroup -steer)", isolated, true, keys)
+	report("isolated (-cgroup -steer -fence)", isolated, true, keys)
 }
 
 // collectMetrics extracts metrics plus the output-structure fingerprint
@@ -477,13 +477,11 @@ func runBaseline(bench plugin.Benchmark, argv []string) (sample, bool) {
 	return s, true
 }
 
-// tasksetCandidates lists the CPUs the taskset mode rotates through: the
-// -cpu one when set, else every CPU this process may run on.
 func tasksetCandidates(cpu int, enabled bool) ([]int, error) {
 	if !enabled {
 		return nil, nil
 	}
-	if _, err := exec.LookPath("taskset"); err != nil {
+	if _, err := exec.LookPath(generic.TasksetBin); err != nil {
 		return nil, fmt.Errorf("-taskset: %w", err)
 	}
 	if cpu >= 0 {
@@ -496,10 +494,8 @@ func tasksetCandidates(cpu int, enabled bool) ([]int, error) {
 	return slices.Collect(allowed.All()), nil
 }
 
-// runTaskset is runBaseline behind taskset -c: same process, no cgroup,
-// no IRQ steering, no goset. taskset execs the task, so rusage is the task's.
 func runTaskset(bench plugin.Benchmark, argv []string, cpu int) (sample, bool) {
-	pinned := append([]string{"taskset", "-c", strconv.Itoa(cpu)}, argv...)
+	pinned := append([]string{generic.TasksetBin, "-c", strconv.Itoa(cpu)}, argv...)
 	s, ok := runBaseline(bench, pinned)
 	s.cpu = strconv.Itoa(cpu)
 	return s, ok

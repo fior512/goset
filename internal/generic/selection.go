@@ -17,5 +17,12 @@ type Selection struct {
 	Scores      []CPUScore // SelectCPUs -> Report
 	Numa        int
 	Task        CPUSet
+	Fence       CPUSet // SMT siblings of Task, booked idle in the cgroup
 	HouseKeeper int
+}
+
+func (selected *Selection) Booked() CPUSet {
+	booked := selected.Task
+	booked.Or(selected.Fence)
+	return booked
 }
