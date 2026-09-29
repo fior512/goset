@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"reflect"
 	"syscall"
 	"testing"
 	"time"
@@ -11,7 +12,30 @@ import (
 	"goset/internal/telemetry"
 )
 
-func TestGlobalTableKeys(t *testing.T) {
+func cpuSet(cpus ...int) generic.CPUSet {
+	var set generic.CPUSet
+	for _, cpu := range cpus {
+		set.SetBit(cpu)
+	}
+	return set
+}
+
+func perCPUCounters(cpus ...int) []telemetry.Counter {
+	var counters []telemetry.Counter
+	for idx, cpu := range cpus {
+		base := float64(idx + 1)
+		counters = append(counters,
+			telemetry.Counter{Source: generic.SourceFreq, CPU: cpu, Name: generic.FreqMin, Value: base * 1e9},
+			telemetry.Counter{Source: generic.SourceFreq, CPU: cpu, Name: generic.FreqAvg, Value: base * 2e9},
+			telemetry.Counter{Source: generic.SourceFreq, CPU: cpu, Name: generic.FreqMax, Value: base * 3e9},
+			telemetry.Counter{Source: generic.SourceIRQ, CPU: cpu, Name: generic.IRQSteerable, Value: base},
+			telemetry.Counter{Source: generic.SourceIRQ, CPU: cpu, Name: generic.IRQNonSteerable, Value: base * 10},
+		)
+	}
+	return counters
+}
+
+func TestRunTableRows(t *testing.T) {
 	rep := report.Report{
 		Counters: []telemetry.Counter{
 			{Source: generic.SourceIRQSteer, CPU: -1, Name: generic.IRQSteerDrift, Value: 2},
@@ -21,64 +45,96 @@ func TestGlobalTableKeys(t *testing.T) {
 		Steer:    &isolation.Steering{Applied: 1, Rejected: 2, Remaining: []string{"NMI"}},
 		Rusage:   &syscall.Rusage{Nvcsw: 5, Nivcsw: 6},
 		Wall:     time.Second,
-		ExitCode: 0,
+		Polls:    19,
+		Interval: 100 * time.Millisecond,
 	}
-	want := []string{
-		"irqbalance held",
-		"irq steer applied",
-		"irq steer rejected",
-		"irq steer remaining",
-		"irq steer drift",
-		"ctxsw voluntary",
-		"ctxsw involuntary",
-		"migrations",
-		"run_delay",
-		"wall",
-		"exit",
+	want := [][]string{
+		{"task", "wall", "1.00s", "exit", "0", "samples", "19@100ms"},
+		{"sched", "ctxsw voluntary", "5", "ctxsw involuntary", "6", "migrations", "3"},
+		{"", "run_delay", "4ns"},
+		{"steer", "applied", "1", "rejected", "2", "remaining", "1"},
+		{"", "drift", "2", "irqbalance held", "no"},
 	}
-	rows := report.GlobalTable(rep).Rows
-	if len(rows) != len(want) {
-		t.Fatalf("GlobalTable rows = %d, want %d: %v", len(rows), len(want), rows)
-	}
-	for idx, key := range want {
-		if got := rows[idx][0]; got != key {
-			t.Errorf("GlobalTable row %d key = %q, want %q", idx, got, key)
-		}
+	if got := report.RunTable(rep).Rows; !reflect.DeepEqual(got, want) {
+		t.Errorf("RunTable rows =\n%q\nwant\n%q", got, want)
 	}
 }
 
-func TestGlobalTableOptionalRows(t *testing.T) {
-	want := []string{generic.GlobalWall, generic.GlobalExit}
-	rows := report.GlobalTable(report.Report{Wall: time.Second}).Rows
-	if len(rows) != len(want) {
-		t.Fatalf("GlobalTable(no steer, no rusage) rows = %d, want %d: %v", len(rows), len(want), rows)
-	}
-	for idx, key := range want {
-		if got := rows[idx][0]; got != key {
-			t.Errorf("GlobalTable row %d key = %q, want %q", idx, got, key)
-		}
+func TestRunTableOptionalScopes(t *testing.T) {
+	want := [][]string{{"task", "wall", "1.00s", "exit", "0", "samples", "0@0s"}}
+	if got := report.RunTable(report.Report{Wall: time.Second}).Rows; !reflect.DeepEqual(got, want) {
+		t.Errorf("RunTable(no steer, no rusage) rows = %q, want %q", got, want)
 	}
 }
 
-func TestTelemetryTableLabels(t *testing.T) {
-	rep := report.Report{Counters: []telemetry.Counter{
-		{Source: generic.SourceIRQ, CPU: 0, Name: generic.IRQSteerable, Value: 1},
-		{Source: generic.SourceIRQ, CPU: 0, Name: generic.IRQNonSteerable, Value: 2},
-		{Source: generic.SourceThrottle, CPU: 0, Name: generic.ThrottleCount, Value: 3},
-		{Source: generic.SourceFreq, CPU: 0, Name: generic.FreqMin, Value: 4},
-		{Source: generic.SourceFreq, CPU: 0, Name: generic.FreqMax, Value: 5},
-		{Source: generic.SourceFreq, CPU: 0, Name: generic.FreqAvg, Value: 6},
-		{Source: generic.SourceIRQSteer, CPU: -1, Name: generic.IRQSteerDrift, Value: 7},
-	}}
-	want := []string{"irq steerable", "irq non-steerable", "throttle count", "freq min MHz", "freq max MHz", "freq avg MHz"}
-	rows := report.TelemetryTable(rep).Rows
-	if len(rows) != len(want) {
-		t.Fatalf("TelemetryTable rows = %d, want %d: %v", len(rows), len(want), rows)
+func TestTelemetryTablesSingleCPU(t *testing.T) {
+	tables := report.TelemetryTables(report.Report{Cpus: cpuSet(9), Counters: perCPUCounters(9)}, 80)
+	if len(tables) != 1 {
+		t.Fatalf("TelemetryTables blocks = %d, want 1", len(tables))
 	}
-	for idx, label := range want {
-		if got := rows[idx][0]; got != label {
-			t.Errorf("TelemetryTable row %d label = %q, want %q", idx, got, label)
+	wantHeader := []string{
+		generic.TelemetryFreqMin, generic.TelemetryFreqAvg, generic.TelemetryFreqMax,
+		generic.TelemetryIRQSteerable, generic.TelemetryIRQNonSteerable,
+	}
+	if !reflect.DeepEqual(tables[0].Header, wantHeader) {
+		t.Errorf("header = %q, want %q: no cpu column at -n 1", tables[0].Header, wantHeader)
+	}
+	wantRows := [][]string{{"1", "2", "3", "1", "10"}}
+	if !reflect.DeepEqual(tables[0].Rows, wantRows) {
+		t.Errorf("rows = %q, want %q: no footer at -n 1", tables[0].Rows, wantRows)
+	}
+}
+
+func TestTelemetryTablesFooterReducesPerColumn(t *testing.T) {
+	tables := report.TelemetryTables(report.Report{Cpus: cpuSet(3, 7), Counters: perCPUCounters(3, 7)}, 200)
+	if len(tables) != 1 {
+		t.Fatalf("TelemetryTables blocks = %d, want 1", len(tables))
+	}
+	want := [][]string{
+		{"3", "1", "2", "3", "1", "10"},
+		{"7", "2", "4", "6", "2", "20"},
+		{generic.TelemetryAll, "1", "3", "6", "3", "30"}, // min, avg, max, sum, sum
+	}
+	if !reflect.DeepEqual(tables[0].Rows, want) {
+		t.Errorf("rows =\n%q\nwant\n%q", tables[0].Rows, want)
+	}
+}
+
+func TestTelemetryTablesSplitKeepsGroupsAndCPUColumn(t *testing.T) {
+	tables := report.TelemetryTables(report.Report{Cpus: cpuSet(3, 7), Counters: perCPUCounters(3, 7)}, 40)
+	want := [][]string{
+		{generic.TelemetryCPU, generic.TelemetryFreqMin, generic.TelemetryFreqAvg, generic.TelemetryFreqMax},
+		{generic.TelemetryCPU, generic.TelemetryIRQSteerable, generic.TelemetryIRQNonSteerable},
+	}
+	if len(tables) != len(want) {
+		t.Fatalf("TelemetryTables blocks = %d, want %d", len(tables), len(want))
+	}
+	for idx, header := range want {
+		if !reflect.DeepEqual(tables[idx].Header, header) {
+			t.Errorf("block %d header = %q, want %q", idx, tables[idx].Header, header)
 		}
+	}
+	if tables[0].Title != "Telemetry" || tables[1].Title != "" {
+		t.Errorf("titles = %q, %q, want the title on the first block only", tables[0].Title, tables[1].Title)
+	}
+}
+
+func TestTelemetryTablesRowPerBookedCPU(t *testing.T) {
+	tables := report.TelemetryTables(report.Report{Cpus: cpuSet(3, 7), Counters: perCPUCounters(3)}, 200)
+	if len(tables) != 1 {
+		t.Fatalf("TelemetryTables blocks = %d, want 1", len(tables))
+	}
+	want := []string{"7", "-", "-", "-", "-", "-"}
+	if rows := tables[0].Rows; len(rows) != 3 || !reflect.DeepEqual(rows[1], want) {
+		t.Errorf("rows = %q, want cpu 7 as %q: a booked cpu without values keeps its row", rows, want)
+	}
+}
+
+func TestNotReportedTableNamesMissingSources(t *testing.T) {
+	rows := report.NotReportedTable(report.Report{Cpus: cpuSet(3), Counters: perCPUCounters(3)}).Rows
+	want := [][]string{{"not reported: " + generic.SourceThrottle}}
+	if !reflect.DeepEqual(rows, want) {
+		t.Errorf("NotReportedTable rows = %q, want %q", rows, want)
 	}
 }
 

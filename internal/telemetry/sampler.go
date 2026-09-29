@@ -17,6 +17,7 @@ type Sampler struct {
 	exit     chan struct{}
 	counters chan []Counter
 	once     sync.Once
+	polls    int // written by the housekeeper, read after Stop
 }
 
 func (sam *Sampler) Start(pin func() error) error {
@@ -68,6 +69,7 @@ func (sam *Sampler) poll() {
 			for _, src := range sam.Sources {
 				_ = src.Poll()
 			}
+			sam.polls++
 		}
 	}
 }
@@ -85,3 +87,6 @@ func (sam *Sampler) Stop() []Counter {
 	sam.once.Do(func() { close(sam.exit) })
 	return <-sam.counters
 }
+
+// Polls counts the mid-run poll ticks; valid after Stop.
+func (sam *Sampler) Polls() int { return sam.polls }
