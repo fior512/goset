@@ -1,0 +1,56 @@
+/* Two threads hand a token over two pipes. SAMPLE pingpong <iter> <ns per round trip>. Usage: pingpong [roundtrips] [ntimes] */
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <unistd.h>
+
+static int ping[2], pong[2];
+static long long roundtrips;
+static int ntimes;
+
+static long long now_ns(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (long long)ts.tv_sec * 1000000000LL + ts.tv_nsec;
+}
+
+static void *echo(void *arg) {
+    char token;
+    (void)arg;
+    for (long long i = 0; i < roundtrips * ntimes; i++) {
+        if (read(ping[0], &token, 1) != 1 || write(pong[1], &token, 1) != 1) return NULL;
+    }
+    return NULL;
+}
+
+int main(int argc, char **argv) {
+    roundtrips = argc > 1 ? atoll(argv[1]) : 20000;
+    ntimes = argc > 2 ? atoi(argv[2]) : 300;
+    pthread_t thread;
+    char token = 'x';
+
+    if (pipe(ping) || pipe(pong)) {
+        perror("pipe");
+        return 1;
+    }
+    if (pthread_create(&thread, NULL, echo, NULL)) {
+        perror("pthread_create");
+        return 1;
+    }
+
+    for (int t = 0; t < ntimes; t++) {
+        long long t0 = now_ns();
+        for (long long i = 0; i < roundtrips; i++) {
+            if (write(ping[1], &token, 1) != 1 || read(pong[0], &token, 1) != 1) {
+                perror("pipe io");
+                return 1;
+            }
+        }
+        long long t1 = now_ns();
+        printf("SAMPLE pingpong %d %.2f\n", t, (double)(t1 - t0) / (double)roundtrips);
+    }
+    pthread_join(thread, NULL);
+    printf("checksum: %c\n", token);
+    return 0;
+}
