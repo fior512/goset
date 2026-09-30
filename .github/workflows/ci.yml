@@ -26,7 +26,7 @@ jobs:
           fi
       - name: goset-lint rules
         run: go test ./.github/lint && go run ./.github/lint -diff "$BASE"
-      - uses: golangci/golangci-lint-action@v6
+      - uses: golangci/golangci-lint-action@v7
         with:
           version: v2.13
           args: --new-from-rev="$BASE" --whole-files
