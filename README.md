@@ -37,7 +37,7 @@ Goset needs sudo only for `-cgroup` and `-steer`.
 | ` -- ` |string| | Separating Goset flags and task | |
 | `-n` |int| 1 | How many threads to book | n>=1 |
 | `-cgroup` |bool| false | Containerize task inside Cgroupv2. Required for N>1 | **sudo** |
-| `-fence` |bool| false | With `-cgroup`, book the SMT siblings of the selected CPUs in the cgroup, idle. No other task runs on the core | **sudo** |
+| `-fence` |bool| false | Books the SMT siblings of the selected CPUs in the cgroup, idle. | **sudo**, `-cgroup` |
 | `-steer` |bool| false | Push away steerable IRQs, automatically handle IRQBalance | **sudo** |
 | `-interval` |int| 100 | Poll interval in milliseconds for telemetry collection | |
 | `-include` |string| | List of threads to select first, handles ranges (e.g.: `1,3-5` -> 1,3,4,5)| |
@@ -135,9 +135,9 @@ Run
 
 
 
-* `sel`: `*` marks the pinned CPU, `&` marks the housekeeper, `+` marks a fenced SMT sibling (`-cgroup`).
+* `sel`: `*` marks the pinned CPU, `&` marks the housekeeper, `!` marks a fenced SMT sibling (`-fence`).
 * `steerable` / `non-steerable`: interrupts counted on that CPU while ranking: device IRQs goset can steer away, and kernel-owned rows (NMI, LOC, RES) it cannot.
-* `sibl`: sibling core's scheduler load, used to rank CPUs.
+* `sibl`: noise on the SMT sibling, used to rank CPUs. Steerable interrupts count only without `-steer`.
 * `Telemetry`: per-CPU counters sampled during the run, one row per counter source.
 * `Global`: steer/cgroup/ctxsw summary and the task's own wall time and exit code.
 
@@ -146,10 +146,10 @@ Technical insights
 -------------
 
 **Selection** (`internal/cpu/bench.go`)
-- Rank input: IRQ delta (500ms sample) + sibling runqueue load.
+- Rank input: IRQ delta (500ms sample). A CPU costs twice its own noise plus its SMT sibling's. Steerable IRQs count only without `-steer`.
 - Lowest noise: booked for the task and the next lowest become housekeeper.
-- Picks are made one at a time by marginal cost: a sibling of a booked core costs its own non-steerable IRQs once, a fresh core costs its own plus its sibling's. A noisy sibling loses to a quiet core.
-- With `-fence`, the booking (task CPUs + fence) leaves a quarter of the online CPUs, minimum 2, to the system.
+- Ties rank a core's threads together. A noisy sibling pushes its core down, no thread is forced.
+- With `-fence`, the remaining siblings of the task cores are booked while a CPU stays free for the housekeeper and, with `-steer`, for the IRQs. Siblings left open are reported.
 - Housekeeper avoids the task's core and its SMT sibling.
 
 **Isolation**

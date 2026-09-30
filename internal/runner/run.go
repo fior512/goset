@@ -31,10 +31,15 @@ func Run(cfg *cli.Config) (err error) {
 		Include: cfg.Include,
 		Exclude: cfg.Exclude,
 		Numa:    cfg.Numa,
-		Fence:   cfg.Cgroup && cfg.Fence,
+		Fence:   cfg.Fence,
+		Steer:   cfg.Steering,
 	})
 	if err != nil {
 		return err
+	}
+	if selected.Unfenced.Any() {
+		fmt.Fprintf(os.Stderr, "%sfence: cpu %s left open, no room beside the housekeeper and irq steering, or excluded\n",
+			generic.LogPrefix, selected.Unfenced.String())
 	}
 
 	// Isolation (steer/cgroup)

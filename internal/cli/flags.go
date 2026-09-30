@@ -51,6 +51,11 @@ func (cfg *Config) Validate() error {
 			"-n >1 requires a cgroup-backed thread pool.\n" +
 				"  add -cgroup (needs sudo)")
 	}
+	if cfg.Fence && !cfg.Cgroup {
+		return fmt.Errorf(
+			"-fence books the SMT siblings inside the cgroup cpuset.\n" +
+				"  add -cgroup (needs sudo)")
+	}
 	if cfg.Steering && !isSudo() {
 		return fmt.Errorf(
 			"-steer avoids steerable IRQs happening over selected threads.\n" +

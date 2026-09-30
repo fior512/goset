@@ -105,6 +105,7 @@ func (set *CPUSet) And(other CPUSet) {
 }
 
 
+// Or unions two CPU sets
 func (set *CPUSet) Or(other CPUSet) {
 	for word := range set {
 		set[word] |= other[word]
