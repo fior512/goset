@@ -2,10 +2,11 @@ package cpu
 
 import (
 	"cmp"
-	"goset/internal/cli"
-	"goset/internal/generic"
 	"slices"
 	"time"
+
+	"goset/internal/cli"
+	"goset/internal/generic"
 
 	"goset/internal/telemetry"
 )
@@ -62,6 +63,25 @@ func siblingLoads(topo *Topology, delta []telemetry.IRQCount, steer bool) map[in
 	return sibling
 }
 
+// maps each thread to the other thread of its core, -1 when it has none
+func siblingCPUs(topo *Topology) map[int]int {
+	pending := map[int]int{}
+	out := make(map[int]int, len(topo.Core))
+	for cpu := range topo.Online.All() {
+		core := topo.Core[cpu]
+		other, seen := pending[core]
+		if !seen {
+			pending[core] = cpu
+			out[cpu] = -1
+			continue
+		}
+		delete(pending, core)
+		out[cpu] = other
+		out[other] = cpu
+	}
+	return out
+}
+
 func rankCPUs(topo *Topology, candidates generic.CPUSet, cfg *cli.Config) ([]generic.CPUScore, error) {
 	/*
 		include{1,2,5} // threads id requested
@@ -92,6 +112,7 @@ func rankCPUs(topo *Topology, candidates generic.CPUSet, cfg *cli.Config) ([]gen
 		return nil, err
 	}
 	sibling := siblingLoads(topo, delta, cfg.Steering)
+	threads := siblingCPUs(topo)
 
 	// saving
 	out := make([]generic.CPUScore, 0, candidates.Count())
@@ -103,6 +124,7 @@ func rankCPUs(topo *Topology, candidates generic.CPUSet, cfg *cli.Config) ([]gen
 			NonSteerable: irq.NonSteerable,
 			Noise:        cpuNoise(irq, cfg.Steering),
 			SiblingLoad:  sibling[cpu],
+			Sibling:      threads[cpu],
 			Numa:         topo.Numa[cpu],
 			KernelIsol:   topo.KernelIsol.GetBit(cpu),
 			NohzFull:     topo.NohzFull.GetBit(cpu),
@@ -114,22 +136,16 @@ func rankCPUs(topo *Topology, candidates generic.CPUSet, cfg *cli.Config) ([]gen
 		out = append(out, score)
 	}
 
-	return RankScores(topo, out), nil
-}
-
-// RankScores orders scores so the quietest core comes first, and the threads
-// of one core stay together.
-func RankScores(topo *Topology, scores []generic.CPUScore) []generic.CPUScore {
-	rank := slices.Clone(scores)
-	slices.SortStableFunc(rank, func(left, right generic.CPUScore) int {
+	/* rank */
+	slices.SortStableFunc(out, func(left, right generic.CPUScore) int {
 		return cmp.Or(
 			cmp.Compare(right.Included, left.Included), // desc
-			cmp.Compare(2*left.NonSteerable+left.SiblingLoad, 2*right.NonSteerable+right.SiblingLoad),
-			cmp.Compare(left.NonSteerable, right.NonSteerable),
+			cmp.Compare(left.Noise+left.SiblingLoad, right.Noise+right.SiblingLoad),
+			cmp.Compare(left.Noise, right.Noise),
 			cmp.Compare(left.Steerable, right.Steerable),
 			cmp.Compare(topo.Core[left.CPU], topo.Core[right.CPU]),
 			cmp.Compare(left.CPU, right.CPU),
 		)
 	})
-	return rank
+	return out, nil
 }

@@ -7,6 +7,7 @@ type CPUScore struct {
 	NonSteerable uint64 // named rows: LOC, RES, CAL, TLB
 	Noise        uint64 // non-steerable IRQs, plus steerable ones without -steer
 	SiblingLoad  uint64 // Noise of the SMT siblings, self excluded
+	Sibling      int    // other thread of the core, -1 when alone
 	Numa         int
 	KernelIsol   bool
 	NohzFull     bool

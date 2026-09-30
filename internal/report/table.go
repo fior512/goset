@@ -15,7 +15,7 @@ import (
 )
 
 func SelectionTable(selected *generic.Selection) Table {
-	header := []string{"cpu", "sel", "steerable", "non-steerable", "sibl", "isol", "numa", "nohz", "rcu"}
+	header := []string{"cpu", "sel", "steer", "non-steer", "core", "sibl", "isol", "numa", "nohz", "rcu"}
 	rows := make([][]string, 0, len(selected.Scores))
 	for _, candidate := range selected.Scores {
 		mark := ""
@@ -33,12 +33,17 @@ func SelectionTable(selected *generic.Selection) Table {
 			}
 			return ""
 		}
+		sibling := "-"
+		if candidate.Sibling >= 0 {
+			sibling = strconv.Itoa(candidate.Sibling)
+		}
 		rows = append(rows, []string{
 			fmt.Sprintf("%3d", candidate.CPU),
 			mark,
 			FormatValue(float64(candidate.Steerable)),
 			FormatValue(float64(candidate.NonSteerable)),
-			FormatValue(float64(candidate.SiblingLoad)),
+			FormatValue(float64(candidate.Noise + candidate.SiblingLoad)),
+			sibling,
 			flag(candidate.KernelIsol),
 			fmt.Sprintf("%4d", candidate.Numa),
 			flag(candidate.NohzFull),
@@ -372,7 +377,6 @@ func CgroupTable(infos []isolation.CgroupInfo) Table {
 	}
 	return Table{Title: "Cgroups", Header: header, Rows: rows}
 }
-
 
 func avg(values []float64) float64 {
 	if len(values) == 0 {
