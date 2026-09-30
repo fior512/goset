@@ -2,6 +2,7 @@ package cpu
 
 import (
 	"cmp"
+	"goset/internal/cli"
 	"goset/internal/generic"
 	"slices"
 	"time"
@@ -61,7 +62,7 @@ func siblingLoads(topo *Topology, delta []telemetry.IRQCount, steer bool) map[in
 	return sibling
 }
 
-func rankCPUs(topo *Topology, candidates generic.CPUSet, request generic.SelectionRequest) ([]generic.CPUScore, error) {
+func rankCPUs(topo *Topology, candidates generic.CPUSet, cfg *cli.Config) ([]generic.CPUScore, error) {
 	/*
 		include{1,2,5} // threads id requested
 		candidates{1,2,3,4,5,6} // all available threads
@@ -90,7 +91,7 @@ func rankCPUs(topo *Topology, candidates generic.CPUSet, request generic.Selecti
 	if err != nil {
 		return nil, err
 	}
-	sibling := siblingLoads(topo, delta, request.Steer)
+	sibling := siblingLoads(topo, delta, cfg.Steering)
 
 	// saving
 	out := make([]generic.CPUScore, 0, candidates.Count())
@@ -100,14 +101,14 @@ func rankCPUs(topo *Topology, candidates generic.CPUSet, request generic.Selecti
 			CPU:          cpu,
 			Steerable:    irq.Steerable,
 			NonSteerable: irq.NonSteerable,
-			Noise:        cpuNoise(irq, request.Steer),
+			Noise:        cpuNoise(irq, cfg.Steering),
 			SiblingLoad:  sibling[cpu],
-			Numa:     topo.Numa[cpu],
+			Numa:         topo.Numa[cpu],
 			KernelIsol:   topo.KernelIsol.GetBit(cpu),
 			NohzFull:     topo.NohzFull.GetBit(cpu),
 			RcuNocb:      topo.RcuNocb.GetBit(cpu),
 		}
-		if request.Include.GetBit(cpu) {
+		if cfg.Include.GetBit(cpu) {
 			score.Included = 1
 		}
 		out = append(out, score)

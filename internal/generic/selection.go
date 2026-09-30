@@ -13,19 +13,8 @@ type CPUScore struct {
 	RcuNocb      bool
 }
 
-
-// SelectionRequest holds selection constraints
-type SelectionRequest struct {
-	N       int
-	Include CPUSet
-	Exclude CPUSet
-	Numa    int
-	Fence   bool
-	Steer   bool
-}
-
 type Selection struct {
-	Scores      []CPUScore // SelectCPUs -> Report
+	Scores      []CPUScore // Selection -> Report
 	Numa        int
 	Task        CPUSet
 	Fence       CPUSet // SMT siblings of Task, booked idle in the cgroup

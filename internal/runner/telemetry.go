@@ -15,7 +15,7 @@ import (
 	"goset/internal/telemetry"
 )
 
-func startTelemetry(selected *generic.Selection, cfg *cli.Config, steering *isolation.Steering) (func(time.Duration, error, *isolation.Steering, *syscall.Rusage), error) {
+func Telemetry(selected *generic.Selection, cfg *cli.Config, steering *isolation.Steering) (func(time.Duration, error, *isolation.Steering, *syscall.Rusage), error) {
 	pinHousekeeper := func() error {
 		var mask generic.CPUSet
 		mask.SetBit(selected.HouseKeeper)
@@ -52,7 +52,7 @@ func startTelemetry(selected *generic.Selection, cfg *cli.Config, steering *isol
 	}
 
 	// lazy print
-	stop := func(wall time.Duration, runErr error, steering *isolation.Steering, rusage *syscall.Rusage) {
+	lazyReport := func(wall time.Duration, runErr error, steering *isolation.Steering, rusage *syscall.Rusage) {
 		fmt.Fprintln(os.Stderr, "\n\n----------------- GOSET -----------------")
 		counters, polls := sampler.Stop()
 		rep := report.Report{
@@ -70,9 +70,8 @@ func startTelemetry(selected *generic.Selection, cfg *cli.Config, steering *isol
 		tables = append(tables, report.RunTable(rep), report.NotReportedTable(rep))
 		report.Render(os.Stderr, tables...)
 	}
-	return stop, nil
+	return lazyReport, nil
 }
-
 
 // reportWidth is the terminal width of file, or 80 columns when file is not a terminal.
 func reportWidth(file *os.File) int {
