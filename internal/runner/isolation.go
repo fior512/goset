@@ -36,7 +36,7 @@ func startIsolation(cfg *cli.Config, topo *cpu.Topology, selected *generic.Selec
 			return nil, nil, nil, err
 		}
 		locks = append(locks, lock)
-		if group, err = isolation.InitCgroup(cgroupName, selected.Task, selected.Numa); err != nil {
+		if group, err = isolation.InitCgroup(cgroupName, selected.Booked(), selected.Numa); err != nil {
 			return nil, nil, nil, errors.Join(err, release())
 		}
 	}
@@ -47,7 +47,7 @@ func startIsolation(cfg *cli.Config, topo *cpu.Topology, selected *generic.Selec
 			return nil, nil, nil, errors.Join(err, release())
 		}
 		locks = append(locks, lock)
-		if steering, err = isolation.Steer(topo, selected.Task, selected.HouseKeeper); err != nil {
+		if steering, err = isolation.Steer(topo, selected.Booked(), selected.HouseKeeper); err != nil {
 			return nil, nil, nil, errors.Join(err, release())
 		}
 	}

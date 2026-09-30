@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"goset/internal/cpu"
+	"goset/internal/generic"
 )
 
 func onlineIDs(t *testing.T) []int {
@@ -330,5 +331,40 @@ func TestNumaOffReportsAnyNode(t *testing.T) {
 	}
 	if !strings.Contains(res.stderr, "remain on any numa node") {
 		t.Errorf("stderr should report the unconstrained pool, got: %s", res.stderr)
+	}
+}
+
+
+func TestSelectionFenceBooksTaskSiblings(t *testing.T) {
+	topo, err := cpu.GetTopology()
+	if err != nil {
+		t.Fatalf("cpu.GetTopology: %v", err)
+	}
+	selected, err := cpu.SelectCPUs(topo, generic.SelectionRequest{N: 1, Numa: -2, Fence: true})
+	if err != nil {
+		t.Fatalf("SelectCPUs: %v", err)
+	}
+	task := selected.Task.NextSet(0)
+	for sibling := range selected.Fence.All() {
+		if topo.Core[sibling] != topo.Core[task] {
+			t.Errorf("fenced cpu %d is on core %d, task cpu %d is on core %d", sibling, topo.Core[sibling], task, topo.Core[task])
+		}
+		if sibling == task || sibling == selected.HouseKeeper {
+			t.Errorf("fence holds cpu %d, the task or housekeeper cpu", sibling)
+		}
+	}
+	for cpuID := range topo.Online.All() {
+		onCore := topo.Core[cpuID] == topo.Core[task] && cpuID != task && cpuID != selected.HouseKeeper
+		if onCore != selected.Fence.GetBit(cpuID) {
+			t.Errorf("cpu %d: on task core (not housekeeper) = %v, in fence = %v", cpuID, onCore, selected.Fence.GetBit(cpuID))
+		}
+	}
+
+	unfenced, err := cpu.SelectCPUs(topo, generic.SelectionRequest{N: 1, Numa: -2})
+	if err != nil {
+		t.Fatalf("SelectCPUs: %v", err)
+	}
+	if unfenced.Fence.Any() {
+		t.Errorf("fence disabled, got fence %s", unfenced.Fence.String())
 	}
 }

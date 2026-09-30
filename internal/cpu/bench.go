@@ -41,22 +41,27 @@ func deltaAt(delta []telemetry.IRQCount, cpu int) telemetry.IRQCount {
 	return delta[cpu]
 }
 
-func siblingLoads(topo *Topology, delta []telemetry.IRQCount) map[int]uint64 {
+func cpuNoise(irq telemetry.IRQCount, steer bool) uint64 {
+	if steer {
+		return irq.NonSteerable
+	}
+	return irq.NonSteerable + irq.Steerable
+}
+
+func siblingLoads(topo *Topology, delta []telemetry.IRQCount, steer bool) map[int]uint64 {
 	coreTotal := make(map[int]uint64, len(topo.Core))
 	for cpu := range topo.Online.All() {
-		irq := deltaAt(delta, cpu)
-		coreTotal[topo.Core[cpu]] += irq.Steerable + irq.NonSteerable
+		coreTotal[topo.Core[cpu]] += cpuNoise(deltaAt(delta, cpu), steer)
 	}
 
 	sibling := make(map[int]uint64, len(topo.Core))
 	for cpu := range topo.Online.All() {
-		own := deltaAt(delta, cpu)
-		sibling[cpu] = coreTotal[topo.Core[cpu]] - (own.Steerable + own.NonSteerable)
+		sibling[cpu] = coreTotal[topo.Core[cpu]] - cpuNoise(deltaAt(delta, cpu), steer)
 	}
 	return sibling
 }
 
-func rankCPUs(topo *Topology, candidates, include generic.CPUSet) ([]generic.CPUScore, error) {
+func rankCPUs(topo *Topology, candidates generic.CPUSet, request generic.SelectionRequest) ([]generic.CPUScore, error) {
 	/*
 		include{1,2,5} // threads id requested
 		candidates{1,2,3,4,5,6} // all available threads
@@ -85,7 +90,7 @@ func rankCPUs(topo *Topology, candidates, include generic.CPUSet) ([]generic.CPU
 	if err != nil {
 		return nil, err
 	}
-	sibling := siblingLoads(topo, delta)
+	sibling := siblingLoads(topo, delta, request.Steer)
 
 	// saving
 	out := make([]generic.CPUScore, 0, candidates.Count())
@@ -95,26 +100,35 @@ func rankCPUs(topo *Topology, candidates, include generic.CPUSet) ([]generic.CPU
 			CPU:          cpu,
 			Steerable:    irq.Steerable,
 			NonSteerable: irq.NonSteerable,
+			Noise:        cpuNoise(irq, request.Steer),
 			SiblingLoad:  sibling[cpu],
 			Numa:     topo.Numa[cpu],
 			KernelIsol:   topo.KernelIsol.GetBit(cpu),
 			NohzFull:     topo.NohzFull.GetBit(cpu),
 			RcuNocb:      topo.RcuNocb.GetBit(cpu),
 		}
-		if include.GetBit(cpu) {
+		if request.Include.GetBit(cpu) {
 			score.Included = 1
 		}
 		out = append(out, score)
 	}
 
-	// sorting
-	slices.SortStableFunc(out, func(left, right generic.CPUScore) int {
+	return RankScores(topo, out), nil
+}
+
+// RankScores orders scores so the quietest core comes first, and the threads
+// of one core stay together.
+func RankScores(topo *Topology, scores []generic.CPUScore) []generic.CPUScore {
+	rank := slices.Clone(scores)
+	slices.SortStableFunc(rank, func(left, right generic.CPUScore) int {
 		return cmp.Or(
 			cmp.Compare(right.Included, left.Included), // desc
+			cmp.Compare(2*left.NonSteerable+left.SiblingLoad, 2*right.NonSteerable+right.SiblingLoad),
 			cmp.Compare(left.NonSteerable, right.NonSteerable),
-			cmp.Compare(left.SiblingLoad, right.SiblingLoad),
 			cmp.Compare(left.Steerable, right.Steerable),
+			cmp.Compare(topo.Core[left.CPU], topo.Core[right.CPU]),
+			cmp.Compare(left.CPU, right.CPU),
 		)
 	})
-	return out, nil
+	return rank
 }

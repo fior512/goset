@@ -7,6 +7,7 @@ const (
 	SysCgroup      = "/sys/fs/cgroup"
 	ProcRoot       = "/proc"
 	ProcIRQ        = "/proc/irq"
+	ProcTaskDir    = "task"
 	ProcInterrupts = "/proc/interrupts"
 	ProcCmd        = "/proc/cmdline"
 	RunLockDir     = "/run/lock"
@@ -47,6 +48,7 @@ const (
 	SteerLockName    = "goset-steer.lock"
 	IRQBalanceComm   = "irqbalance"
 	IRQBalanceUnit   = "irqbalance.service"
+	TasksetBin       = "taskset"
 )
 
 // counter identity
