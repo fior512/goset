@@ -97,7 +97,7 @@ func pinTask(pid int, cpus generic.CPUSet) error {
 	for _, entry := range entries {
 		tid, err := strconv.Atoi(entry.Name())
 		if err != nil {
-			return err
+			return fmt.Errorf("tid %q: %w", entry.Name(), err)
 		}
 		// ESRCH: the thread exited after the listing
 		if err := cpu.SetAffinity(tid, cpus); err != nil && !errors.Is(err, syscall.ESRCH) {

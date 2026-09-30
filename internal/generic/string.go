@@ -51,12 +51,6 @@ const (
 	TasksetBin       = "taskset"
 )
 
-// booking reserve
-const (
-	BookingReserveShare = 4
-	BookingReserveMin   = 2
-)
-
 // counter identity
 const (
 	SourceIRQ      = "irq"
