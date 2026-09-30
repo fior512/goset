@@ -23,7 +23,21 @@ const (
 	AlignLabel Align = iota // column 0 only
 	AlignLeft               // every column
 	AlignRight              // none
+	AlignPairs              // name/value pairs: the even columns only
 )
+
+
+// left reports whether the column at index i takes a left-aligned cell.
+func (a Align) left(i int) bool {
+	switch a {
+	case AlignLeft:
+		return true
+	case AlignPairs:
+		return i%2 == 0
+	default:
+		return a == AlignLabel && i == 0
+	}
+}
 
 
 func Render(out io.Writer, tables ...Table) {
@@ -85,7 +99,7 @@ func printRow(out io.Writer, cells []string, widths []int, align Align) {
 		if i > 0 {
 			buf.WriteString(strings.Repeat(" ", gutter))
 		}
-		left := align == AlignLeft || (align == AlignLabel && i == 0)
+		left := align.left(i)
 		if left {
 			fmt.Fprintf(&buf, "%-*s", widths[i], cell)
 		} else {
