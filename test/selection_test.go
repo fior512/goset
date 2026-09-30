@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"goset/internal/cli"
 	"goset/internal/cpu"
-	"goset/internal/generic"
 )
 
 func onlineIDs(t *testing.T) []int {
@@ -26,7 +26,6 @@ func onlineIDs(t *testing.T) []int {
 	return ids
 }
 
-
 func csv(ids ...int) string {
 	parts := make([]string, len(ids))
 	for i, id := range ids {
@@ -34,7 +33,6 @@ func csv(ids ...int) string {
 	}
 	return strings.Join(parts, ",")
 }
-
 
 func containsInt(list []int, want int) bool {
 	for _, v := range list {
@@ -45,13 +43,11 @@ func containsInt(list []int, want int) bool {
 	return false
 }
 
-
 func setup(t *testing.T) (gosetBin, probeBin string) {
 	t.Helper()
 	root := repoRoot(t)
 	return buildBin(t, root, "goset", "./cmd/goset"), buildBin(t, root, "threadprobe", "./test/threadprobe")
 }
-
 
 func TestSelectionNoIncludeNoExclude(t *testing.T) {
 	onlineIDs(t)
@@ -67,7 +63,6 @@ func TestSelectionNoIncludeNoExclude(t *testing.T) {
 	}
 }
 
-
 func TestSelectionIncludeExactlyN(t *testing.T) {
 	ids := onlineIDs(t)
 	gosetBin, probeBin := setup(t)
@@ -82,7 +77,6 @@ func TestSelectionIncludeExactlyN(t *testing.T) {
 		t.Errorf("allowed=%q, want exactly %q (include size == n)", rep.Threads[0].Allowed, strconv.Itoa(want))
 	}
 }
-
 
 func TestSelectionIncludeGreaterThanN(t *testing.T) {
 	ids := onlineIDs(t)
@@ -103,7 +97,6 @@ func TestSelectionIncludeGreaterThanN(t *testing.T) {
 	}
 }
 
-
 func TestSelectionExcludeShrinksPool(t *testing.T) {
 	ids := onlineIDs(t)
 	gosetBin, probeBin := setup(t)
@@ -119,7 +112,6 @@ func TestSelectionExcludeShrinksPool(t *testing.T) {
 		t.Errorf("allowed=%v includes excluded cpu %d", got, excluded)
 	}
 }
-
 
 func TestSelectionExcludeToBoundary(t *testing.T) {
 	ids := onlineIDs(t)
@@ -138,7 +130,6 @@ func TestSelectionExcludeToBoundary(t *testing.T) {
 	}
 }
 
-
 func TestSelectionExcludeBelowMinimum(t *testing.T) {
 	ids := onlineIDs(t)
 	gosetBin, probeBin := setup(t)
@@ -154,7 +145,6 @@ func TestSelectionExcludeBelowMinimum(t *testing.T) {
 	}
 }
 
-
 func TestSelectionIncludeOffline(t *testing.T) {
 	ids := onlineIDs(t)
 	gosetBin, probeBin := setup(t)
@@ -168,7 +158,6 @@ func TestSelectionIncludeOffline(t *testing.T) {
 		t.Errorf("stderr should mention 'offline or excluded', got: %s", res.stderr)
 	}
 }
-
 
 func TestSelectionIncludeAndExcludeDisjoint(t *testing.T) {
 	ids := onlineIDs(t)
@@ -185,7 +174,6 @@ func TestSelectionIncludeAndExcludeDisjoint(t *testing.T) {
 		t.Errorf("allowed=%q, want exactly %q", rep.Threads[0].Allowed, strconv.Itoa(want))
 	}
 }
-
 
 func hostNuma(t *testing.T) (topo *cpu.Topology, nodes []int) {
 	t.Helper()
@@ -206,7 +194,6 @@ func hostNuma(t *testing.T) (topo *cpu.Topology, nodes []int) {
 	return topo, nodes
 }
 
-
 func TestNumaNotOnHost(t *testing.T) {
 	preflight(t, 2)
 	_, nodes := hostNuma(t)
@@ -224,7 +211,6 @@ func TestNumaNotOnHost(t *testing.T) {
 		t.Errorf("stderr should list the host numa nodes, got: %s", res.stderr)
 	}
 }
-
 
 func TestNumaAutoStaysOnOneNode(t *testing.T) {
 	preflight(t, 2)
@@ -244,7 +230,6 @@ func TestNumaAutoStaysOnOneNode(t *testing.T) {
 	}
 }
 
-
 func TestNumaExplicitHoldsPool(t *testing.T) {
 	preflight(t, 2)
 	topo, nodes := hostNuma(t)
@@ -261,7 +246,6 @@ func TestNumaExplicitHoldsPool(t *testing.T) {
 		}
 	}
 }
-
 
 func TestNumaExplicitIncludeOnOtherNode(t *testing.T) {
 	preflight(t, 4)
@@ -288,7 +272,6 @@ func TestNumaExplicitIncludeOnOtherNode(t *testing.T) {
 		t.Errorf("stderr should name the conflict, got: %s", res.stderr)
 	}
 }
-
 
 func TestNumaExplicitBelowMinimum(t *testing.T) {
 	preflight(t, 2)
@@ -318,7 +301,6 @@ func TestNumaExplicitBelowMinimum(t *testing.T) {
 	}
 }
 
-
 func TestNumaOffReportsAnyNode(t *testing.T) {
 	preflight(t, 2)
 	ids := onlineIDs(t)
@@ -334,15 +316,14 @@ func TestNumaOffReportsAnyNode(t *testing.T) {
 	}
 }
 
-
 func TestSelectionFenceBooksTaskSiblings(t *testing.T) {
 	topo, err := cpu.GetTopology()
 	if err != nil {
 		t.Fatalf("cpu.GetTopology: %v", err)
 	}
-	selected, err := cpu.SelectCPUs(topo, generic.SelectionRequest{N: 1, Numa: -2, Fence: true})
+	selected, err := cpu.Selection(topo, &cli.Config{NThreads: 1, Numa: -2, Fence: true})
 	if err != nil {
-		t.Fatalf("SelectCPUs: %v", err)
+		t.Fatalf("Selection: %v", err)
 	}
 	task := selected.Task.NextSet(0)
 	for sibling := range selected.Fence.All() {
@@ -360,9 +341,9 @@ func TestSelectionFenceBooksTaskSiblings(t *testing.T) {
 		}
 	}
 
-	unfenced, err := cpu.SelectCPUs(topo, generic.SelectionRequest{N: 1, Numa: -2})
+	unfenced, err := cpu.Selection(topo, &cli.Config{NThreads: 1, Numa: -2})
 	if err != nil {
-		t.Fatalf("SelectCPUs: %v", err)
+		t.Fatalf("Selection: %v", err)
 	}
 	if unfenced.Fence.Any() {
 		t.Errorf("fence disabled, got fence %s", unfenced.Fence.String())

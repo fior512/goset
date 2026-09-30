@@ -3,7 +3,6 @@ package runner
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -11,7 +10,6 @@ import (
 
 	"goset/internal/cli"
 	"goset/internal/cpu"
-	"goset/internal/generic"
 	"goset/internal/isolation"
 )
 
@@ -19,54 +17,25 @@ func Run(cfg *cli.Config) (err error) {
 	ctx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stopSignals()
 
-	// Topology
 	topo, err := cpu.GetTopology()
 	if err != nil {
 		return err
 	}
-
-	// Select threads
-	selected, err := cpu.SelectCPUs(topo, generic.SelectionRequest{
-		N:       cfg.NThreads,
-		Include: cfg.Include,
-		Exclude: cfg.Exclude,
-		Numa:    cfg.Numa,
-		Fence:   cfg.Fence,
-		Steer:   cfg.Steering,
-	})
+	selected, err := cpu.Selection(topo, cfg)
 	if err != nil {
 		return err
 	}
-	if selected.Unfenced.Any() {
-		fmt.Fprintf(os.Stderr, "%sfence: cpu %s left open, no room beside the housekeeper and irq steering, or excluded\n",
-			generic.LogPrefix, selected.Unfenced.String())
-	}
-
-	// Isolation (steer/cgroup)
-	group, steering, release, err := startIsolation(cfg, topo, selected)
+	group, steering, release, err := Isolation(cfg, topo, selected)
 	if err != nil {
 		return err
 	}
-	defer func() { // destroy cgroup + counter-steer
-		failed := release()
-		if failed == nil {
-			return
-		}
-		fmt.Fprintf(os.Stderr, "%steardown: %v\n", generic.LogPrefix, failed)
-		if err == nil {
-			err = errors.New("isolation teardown incomplete")
-		}
-	}()
-
-	// Telemetry
-	stop, err := startTelemetry(selected, cfg, steering)
+	defer release(&err)
+	lazyReport, err := Telemetry(selected, cfg, steering)
 	if err != nil {
 		return err
 	}
-
-	// Pin + run task
-	rusage, wall, runErr := isolation.ApplyPin(ctx, cfg.Task, selected.Task, group)
-	stop(wall, runErr, steering, rusage) // Lazy telemetry report
+	rusage, wall, runErr := isolation.SpawnTask(ctx, cfg.Task, selected.Task, group)
+	lazyReport(wall, runErr, steering, rusage)
 	return runErr
 }
 
