@@ -362,3 +362,43 @@ func TestSelectionFenceBooksTaskSiblings(t *testing.T) {
 	assertFenceMatchesTaskCore(t, topo, selected)
 	assertFenceOff(t, topo)
 }
+
+/*
+a -fence run books whole cores: 2 task threads hold ceil(2/coreSize) cores,
+whatever the noise says
+*/
+func TestSelectionFenceFillsCores(t *testing.T) {
+	topo, err := cpu.GetTopology()
+	if err != nil {
+		t.Fatalf("cpu.GetTopology: %v", err)
+	}
+	if topo.Online.Count() < 3 {
+		t.Skipf("need 2 task cpus and a housekeeper, have %d online", topo.Online.Count())
+	}
+	// a core that cannot fill leaves no whole core to book
+	filled := map[int]int{}
+	for cpuID := range topo.Online.All() {
+		filled[topo.Core[cpuID]]++
+	}
+	coreSize := 0
+	for _, size := range filled {
+		if coreSize == 0 {
+			coreSize = size
+		} else if size != coreSize {
+			t.Skipf("cores hold %v online thread(s), need a uniform core size", filled)
+		}
+	}
+
+	selected, err := cpu.Selection(topo, &cli.Config{NThreads: 2, Numa: -2, Fence: true})
+	if err != nil {
+		t.Fatalf("Selection: %v", err)
+	}
+	cores := map[int]bool{}
+	for cpuID := range selected.Task.All() {
+		cores[topo.Core[cpuID]] = true
+	}
+	want := (2 + coreSize - 1) / coreSize
+	if len(cores) != want {
+		t.Errorf("task holds %d core(s) for 2 threads of %d, want %d", len(cores), coreSize, want)
+	}
+}
