@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -62,6 +64,14 @@ func ApplyPin(ctx context.Context, argv []string, cpus generic.CPUSet, group *Cg
 		if group == nil && gerr == nil {
 			_ = cpu.SetAffinity(0, prevCPUs)
 		}
+		if group != nil {
+			if err := pinTask(task.Process.Pid, cpus); err != nil {
+				_ = task.Process.Kill()
+				_ = task.Wait()
+				done <- fmt.Errorf("pin task inside cgroup: %w", err)
+				return
+			}
+		}
 
 		err := task.Wait()
 		wall = time.Since(t0) // Wait() return = process reaped
@@ -74,4 +84,25 @@ func ApplyPin(ctx context.Context, argv []string, cpus generic.CPUSet, group *Cg
 		rusage, _ = task.ProcessState.SysUsage().(*syscall.Rusage)
 	}
 	return rusage, wall, err
+}
+
+func pinTask(pid int, cpus generic.CPUSet) error {
+	/* list */
+	entries, err := os.ReadDir(filepath.Join(generic.ProcRoot, strconv.Itoa(pid), generic.ProcTaskDir))
+	if err != nil {
+		return err
+	}
+
+	/* pin */
+	for _, entry := range entries {
+		tid, err := strconv.Atoi(entry.Name())
+		if err != nil {
+			return fmt.Errorf("tid %q: %w", entry.Name(), err)
+		}
+		// ESRCH: the thread exited after the listing
+		if err := cpu.SetAffinity(tid, cpus); err != nil && !errors.Is(err, syscall.ESRCH) {
+			return fmt.Errorf("tid %d: %w", tid, err)
+		}
+	}
+	return nil
 }

@@ -62,7 +62,9 @@ func TestConcurrentCgroupRunRejected(t *testing.T) {
 }
 
 func TestConcurrentSteerRunRejected(t *testing.T) {
-	preflight(t, 2)
+	// -n 1 plus the housekeeper plus the steered cpu, or selection refuses
+	// before the lock is reached
+	preflight(t, 3)
 	gosetBin, probeBin := setup(t)
 
 	lock, err := isolation.AcquireLock(filepath.Join(generic.RunLockDir, generic.SteerLockName))

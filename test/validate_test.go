@@ -144,3 +144,15 @@ func TestFlagHelp(t *testing.T) {
 		t.Errorf("-h: usage re-emitted as an error: %s", res.stderr)
 	}
 }
+
+
+func TestFlagFenceWithoutCgroupRejected(t *testing.T) {
+	gosetBin, probeBin := setup(t)
+	res := runGoset(t, gosetBin, "-n", "1", "-fence", "--", probeBin)
+	if res.exitCode == 0 {
+		t.Fatal("expected error for -fence without -cgroup")
+	}
+	if !strings.Contains(res.stderr, "-cgroup") {
+		t.Errorf("stderr should mention -cgroup, got: %s", res.stderr)
+	}
+}
