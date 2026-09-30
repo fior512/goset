@@ -308,7 +308,7 @@ func steerPairs(rep Report) []runPair {
 		{generic.RunIRQSteerRejected, strconv.Itoa(rep.Steer.Rejected)},
 		{generic.RunIRQSteerRemaining, strconv.Itoa(len(rep.Steer.Remaining))},
 		{generic.RunIRQSteerDrift, strconv.Itoa(telemetry.CountDriftedIRQs(rep.Counters))},
-		{generic.RunIRQBalanceHeld, rep.Steer.Status()},
+		{generic.RunIRQBalance, rep.Steer.Status()},
 	}
 }
 

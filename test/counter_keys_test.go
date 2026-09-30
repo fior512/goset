@@ -53,7 +53,7 @@ func TestRunTableRows(t *testing.T) {
 		{"sched", "ctxsw voluntary", "5", "ctxsw involuntary", "6", "migrations", "3"},
 		{"", "run_delay", "4ns"},
 		{"steer", "applied", "1", "rejected", "2", "remaining", "1"},
-		{"", "drift", "2", "irqbalance held", "no"},
+		{"", "drift", "2", "irqbalance", "absent"},
 	}
 	if got := report.RunTable(rep).Rows; !reflect.DeepEqual(got, want) {
 		t.Errorf("RunTable rows =\n%q\nwant\n%q", got, want)

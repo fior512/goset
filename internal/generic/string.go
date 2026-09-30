@@ -97,5 +97,5 @@ const (
 	RunIRQSteerRejected  = "rejected"
 	RunIRQSteerRemaining = "remaining"
 	RunIRQSteerDrift     = "drift"
-	RunIRQBalanceHeld    = "irqbalance held"
+	RunIRQBalance        = "irqbalance"
 )

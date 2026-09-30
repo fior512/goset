@@ -30,17 +30,17 @@ func (steer *Steering) holdIRQBalance() error {
 		}
 		if pid > 0 {
 			fmt.Fprintf(os.Stderr, "%sirqbalance (pid %d): systemctl stop failed; steering may be overwritten\n", generic.LogPrefix, pid)
-			steer.Note = fmt.Sprintf("stop failed pid %d", pid)
+			steer.Note = fmt.Sprintf("stop failed, still running pid %d", pid)
 		} else {
 			fmt.Fprintf(os.Stderr, "%sirqbalance: systemctl stop failed; steering may be overwritten\n", generic.LogPrefix)
-			steer.Note = "stop failed, pid unknown"
+			steer.Note = "stop failed, still running, pid unknown"
 		}
 		steer.WasRunning = true
 		return nil
 	}
 	fmt.Fprintf(os.Stderr, "%sirqbalance (pid %d) unmanaged; steering may be overwritten\n", generic.LogPrefix, pid)
 	steer.WasRunning = true
-	steer.Note = fmt.Sprintf("unmanaged pid %d", pid)
+	steer.Note = fmt.Sprintf("unmanaged, still running pid %d", pid)
 	return nil
 }
 
@@ -49,7 +49,7 @@ func (steer *Steering) confirmStopped() {
 	alive, err := ScanProcComm(generic.ProcRoot, generic.IRQBalanceComm)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%sirqbalance not re-checkable: %v\n", generic.LogPrefix, err)
-		steer.Note = "unverified"
+		steer.Note = "stop state unverified"
 		return
 	}
 	if alive == 0 {
@@ -71,11 +71,11 @@ func (steer *Steering) Release() {
 func (steer *Steering) Status() string {
 	switch {
 	case steer == nil || !steer.WasRunning:
-		return "no"
+		return "absent"
 	case steer.Note != "":
 		return steer.Note
 	default:
-		return "yes"
+		return "held"
 	}
 }
 
