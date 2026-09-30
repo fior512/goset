@@ -30,9 +30,6 @@ func Isolation(cfg *cli.Config, topo *cpu.Topology, selected *generic.Selection)
 		releaseLocks(locks)
 		return errors.Join(failures...)
 	}
-	abort := func(err error) (*isolation.Cgroup, *isolation.Steering, func(*error), error) {
-		return nil, nil, nil, errors.Join(err, teardown())
-	}
 	if cfg.Cgroup {
 		cgroupName := generic.CgroupIdentifier + filepath.Base(cfg.Task[0])
 		lock, err := isolation.AcquireLock(filepath.Join(generic.RunLockDir, cgroupName+".lock"))
@@ -41,18 +38,18 @@ func Isolation(cfg *cli.Config, topo *cpu.Topology, selected *generic.Selection)
 		}
 		locks = append(locks, lock)
 		if group, err = isolation.InitCgroup(cgroupName, selected.Booked(), selected.Numa); err != nil {
-			return abort(err)
+			return nil, nil, nil, errors.Join(err, teardown())
 		}
 	}
 
 	if cfg.Steering {
 		lock, err := isolation.AcquireLock(filepath.Join(generic.RunLockDir, generic.SteerLockName))
 		if err != nil {
-			return abort(err)
+			return nil, nil, nil, errors.Join(err, teardown())
 		}
 		locks = append(locks, lock)
 		if steering, err = isolation.Steer(topo, selected.Booked(), selected.HouseKeeper); err != nil {
-			return abort(err)
+			return nil, nil, nil, errors.Join(err, teardown())
 		}
 	}
 
