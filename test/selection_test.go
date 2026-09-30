@@ -8,6 +8,7 @@ import (
 
 	"goset/internal/cli"
 	"goset/internal/cpu"
+	"goset/internal/generic"
 )
 
 func onlineIDs(t *testing.T) []int {
@@ -43,6 +44,13 @@ func containsInt(list []int, want int) bool {
 	return false
 }
 
+func assertAllowed(t *testing.T, rep probeReport, want int, note string) {
+	t.Helper()
+	if got := rep.Threads[0].Allowed; got != strconv.Itoa(want) {
+		t.Errorf("allowed=%q, want exactly %q (%s)", got, strconv.Itoa(want), note)
+	}
+}
+
 func setup(t *testing.T) (gosetBin, probeBin string) {
 	t.Helper()
 	root := repoRoot(t)
@@ -73,9 +81,7 @@ func TestSelectionIncludeExactlyN(t *testing.T) {
 		t.Fatalf("exited %d, stderr: %s", res.exitCode, res.stderr)
 	}
 	rep := parseProbe(t, res.stdout)
-	if rep.Threads[0].Allowed != strconv.Itoa(want) {
-		t.Errorf("allowed=%q, want exactly %q (include size == n)", rep.Threads[0].Allowed, strconv.Itoa(want))
-	}
+	assertAllowed(t, rep, want, "include size == n")
 }
 
 func TestSelectionIncludeGreaterThanN(t *testing.T) {
@@ -170,9 +176,7 @@ func TestSelectionIncludeAndExcludeDisjoint(t *testing.T) {
 		t.Fatalf("exited %d, stderr: %s", res.exitCode, res.stderr)
 	}
 	rep := parseProbe(t, res.stdout)
-	if rep.Threads[0].Allowed != strconv.Itoa(want) {
-		t.Errorf("allowed=%q, want exactly %q", rep.Threads[0].Allowed, strconv.Itoa(want))
-	}
+	assertAllowed(t, rep, want, "include minus exclude")
 }
 
 func hostNuma(t *testing.T) (topo *cpu.Topology, nodes []int) {
@@ -277,7 +281,7 @@ func TestNumaExplicitBelowMinimum(t *testing.T) {
 	preflight(t, 2)
 	topo, nodes := hostNuma(t)
 	gosetBin, probeBin := setup(t)
-	var keep int = -1
+	keep := -1
 	var drop []int
 	for id := range topo.Online.All() {
 		switch {
@@ -316,15 +320,8 @@ func TestNumaOffReportsAnyNode(t *testing.T) {
 	}
 }
 
-func TestSelectionFenceBooksTaskSiblings(t *testing.T) {
-	topo, err := cpu.GetTopology()
-	if err != nil {
-		t.Fatalf("cpu.GetTopology: %v", err)
-	}
-	selected, err := cpu.Selection(topo, &cli.Config{NThreads: 1, Numa: -2, Fence: true})
-	if err != nil {
-		t.Fatalf("Selection: %v", err)
-	}
+func assertFenceMatchesTaskCore(t *testing.T, topo *cpu.Topology, selected *generic.Selection) {
+	t.Helper()
 	task := selected.Task.NextSet(0)
 	for sibling := range selected.Fence.All() {
 		if topo.Core[sibling] != topo.Core[task] {
@@ -340,7 +337,10 @@ func TestSelectionFenceBooksTaskSiblings(t *testing.T) {
 			t.Errorf("cpu %d: on task core (not housekeeper) = %v, in fence = %v", cpuID, onCore, selected.Fence.GetBit(cpuID))
 		}
 	}
+}
 
+func assertFenceOff(t *testing.T, topo *cpu.Topology) {
+	t.Helper()
 	unfenced, err := cpu.Selection(topo, &cli.Config{NThreads: 1, Numa: -2})
 	if err != nil {
 		t.Fatalf("Selection: %v", err)
@@ -348,4 +348,17 @@ func TestSelectionFenceBooksTaskSiblings(t *testing.T) {
 	if unfenced.Fence.Any() {
 		t.Errorf("fence disabled, got fence %s", unfenced.Fence.String())
 	}
+}
+
+func TestSelectionFenceBooksTaskSiblings(t *testing.T) {
+	topo, err := cpu.GetTopology()
+	if err != nil {
+		t.Fatalf("cpu.GetTopology: %v", err)
+	}
+	selected, err := cpu.Selection(topo, &cli.Config{NThreads: 1, Numa: -2, Fence: true})
+	if err != nil {
+		t.Fatalf("Selection: %v", err)
+	}
+	assertFenceMatchesTaskCore(t, topo, selected)
+	assertFenceOff(t, topo)
 }
