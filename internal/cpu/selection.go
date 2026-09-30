@@ -2,30 +2,35 @@ package cpu
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 
+	"goset/internal/cli"
 	"goset/internal/generic"
 )
 
-// SelectCPUs plans a CPU booking
-func SelectCPUs(topo *Topology, request generic.SelectionRequest) (*generic.Selection, error) {
+func Selection(topo *Topology, cfg *cli.Config) (*generic.Selection, error) {
 	/* rank */
-	candidates, numa, err := selectCandidates(topo, request)
+	candidates, numa, err := selectCandidates(topo, cfg)
 	if err != nil {
 		return nil, err
 	}
-	scores, err := rankCPUs(topo, candidates, request)
+	scores, err := rankCPUs(topo, candidates, cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	/* select */
 	var task generic.CPUSet
-	for _, score := range scores[:request.N] { // select CPUs for task
+	for _, score := range scores[:cfg.NThreads] { // select CPUs for task
 		task.SetBit(score.CPU)
 	}
 	housekeeper := selectHousekeeper(topo, scores, task)
-	fence, unfenced := selectFence(topo, scores, task, housekeeper, request)
+	fence, unfenced := selectFence(topo, scores, task, housekeeper, cfg)
+	if unfenced.Any() {
+		fmt.Fprintf(os.Stderr, "%sfence: cpu %s left open, no room beside the housekeeper and irq steering, or excluded\n",
+			generic.LogPrefix, unfenced.String())
+	}
 	return &generic.Selection{
 		Scores:      scores,
 		Numa:        numa,
@@ -36,18 +41,18 @@ func SelectCPUs(topo *Topology, request generic.SelectionRequest) (*generic.Sele
 	}, nil
 }
 
-func selectCandidates(topo *Topology, request generic.SelectionRequest) (generic.CPUSet, int, error) {
+func selectCandidates(topo *Topology, cfg *cli.Config) (generic.CPUSet, int, error) {
 	candidates := topo.Online
 
 	// incl&excl overlap check by run()
-	candidates.AndNot(request.Exclude)
-	if !request.Include.IsSubset(candidates) {
+	candidates.AndNot(cfg.Exclude)
+	if !cfg.Include.IsSubset(candidates) {
 		return generic.CPUSet{}, 0, fmt.Errorf("include %s: offline or excluded cpu",
-			request.Include.String())
+			cfg.Include.String())
 	}
 
 	/* numa */
-	candidates, numa, err := constrainNuma(topo, candidates, request.Include, request.Numa)
+	candidates, numa, err := constrainNuma(topo, candidates, cfg.Include, cfg.Numa)
 	if err != nil {
 		return generic.CPUSet{}, 0, err
 	}
@@ -57,17 +62,17 @@ func selectCandidates(topo *Topology, request generic.SelectionRequest) (generic
 	if numa >= 0 {
 		scope = " on numa " + strconv.Itoa(numa)
 	}
-	if candidates.Count() < request.N+1 { // +housekeeper
+	if candidates.Count() < cfg.NThreads+1 { // +housekeeper
 		return generic.CPUSet{}, 0, fmt.Errorf(
 			"need %d cpu(s) plus 1 housekeeper but only %d candidate(s) remain%s",
-			request.N, candidates.Count(), scope)
+			cfg.NThreads, candidates.Count(), scope)
 	}
 
 	/* steer */
-	if request.Steer && topo.Online.Count() < request.N+2 { // +housekeeper +steered placeholder
+	if cfg.Steering && topo.Online.Count() < cfg.NThreads+2 { // +housekeeper +steered placeholder
 		return generic.CPUSet{}, 0, fmt.Errorf(
 			"-steer needs a cpu outside the %d task cpu(s) and the housekeeper, only %d online",
-			request.N, topo.Online.Count())
+			cfg.NThreads, topo.Online.Count())
 	}
 	return candidates, numa, nil
 }
@@ -95,14 +100,14 @@ func selectHousekeeper(topo *Topology, scores []generic.CPUScore, task generic.C
 	return fallback
 }
 
-func selectFence(topo *Topology, scores []generic.CPUScore, task generic.CPUSet, housekeeper int, request generic.SelectionRequest) (fence, unfenced generic.CPUSet) {
-	if !request.Fence {
+func selectFence(topo *Topology, scores []generic.CPUScore, task generic.CPUSet, housekeeper int, cfg *cli.Config) (fence, unfenced generic.CPUSet) {
+	if !cfg.Fence {
 		return fence, unfenced
 	}
 
 	/* room */
 	room := topo.Online.Count() - task.Count() - 1 // -housekeeper
-	if request.Steer {
+	if cfg.Steering {
 		room-- // steered place
 	}
 

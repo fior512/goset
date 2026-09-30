@@ -18,7 +18,7 @@ import (
 
 const taskKillDelay = 3 * time.Second
 
-func ApplyPin(ctx context.Context, argv []string, cpus generic.CPUSet, group *Cgroup) (*syscall.Rusage, time.Duration, error) {
+func SpawnTask(ctx context.Context, argv []string, cpus generic.CPUSet, group *Cgroup) (*syscall.Rusage, time.Duration, error) {
 	// Task In/Out
 	task := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	task.Stdin = os.Stdin
