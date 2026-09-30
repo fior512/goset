@@ -46,7 +46,7 @@ Goset needs sudo only for `-cgroup` and `-steer`.
 > Multi-thread tasks: linux `sched_setaffinity` can't pin multithreaded tasks, for this reason `-cgroup` is needed.
 
 
-Goset has a second form called `Diagnostic`, callable in the same way but without task (`sudo goset`; `-- ./task` absent).
+Goset has a second form called `Diagnostic`, callable with bare `goset`.
 
 | flag | description | rule |
 |---|---|---|
