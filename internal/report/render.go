@@ -26,8 +26,7 @@ const (
 	AlignPairs              // name/value pairs: the even columns only
 )
 
-
-// left reports whether the column at index i takes a left-aligned cell.
+// even columns only under AlignPairs
 func (a Align) left(i int) bool {
 	switch a {
 	case AlignLeft:
@@ -38,7 +37,6 @@ func (a Align) left(i int) bool {
 		return a == AlignLabel && i == 0
 	}
 }
-
 
 func Render(out io.Writer, tables ...Table) {
 	for _, tab := range tables {
@@ -58,7 +56,6 @@ func Render(out io.Writer, tables ...Table) {
 		fmt.Fprintln(out)
 	}
 }
-
 
 func columnWidths(tab Table) []int {
 	widths := make([]int, 0, len(tab.Header))
@@ -91,7 +88,6 @@ func lineWidth(widths []int) int {
 	return total
 }
 
-
 func printRow(out io.Writer, cells []string, widths []int, align Align) {
 	var buf strings.Builder
 	buf.WriteString(strings.Repeat(" ", gutter))
@@ -108,7 +104,6 @@ func printRow(out io.Writer, cells []string, widths []int, align Align) {
 	}
 	fmt.Fprintln(out, strings.TrimRight(buf.String(), " "))
 }
-
 
 func compress(value float64) string {
 	prec := 2
@@ -129,7 +124,6 @@ func compress(value float64) string {
 	}
 }
 
-
 func FormatValue(value float64) string {
 	units := [...]struct {
 		scale float64
@@ -145,7 +139,6 @@ func FormatValue(value float64) string {
 	}
 	return compress(value)
 }
-
 
 // FormatFreq renders a Hz value with SI prefixes (k/M/G/T), not the
 // count-style k/M/B/T used by FormatValue.
@@ -164,7 +157,6 @@ func FormatFreq(hz float64) string {
 	}
 	return compress(hz) + "Hz"
 }
-
 
 func FormatTime(elapsed time.Duration) string {
 	switch {

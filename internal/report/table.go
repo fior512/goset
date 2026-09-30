@@ -246,8 +246,7 @@ type runPair struct {
 	value string
 }
 
-// runScope is one Run column: the scope name heads its counters, which run
-// down the column.
+// the scope name heads its own counters
 type runScope struct {
 	name  string
 	pairs []runPair
@@ -277,7 +276,7 @@ func RunTable(rep Report) Table {
 	return tab
 }
 
-// runScopes returns the scopes holding counters, the empty ones dropped.
+// a scope with no counter is dropped
 func runScopes(rep Report) []runScope {
 	var scopes []runScope
 	for _, scope := range []runScope{
