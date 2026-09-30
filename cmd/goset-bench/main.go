@@ -585,8 +585,7 @@ func parseReport(out []byte) sample {
 	return parsed
 }
 
-// runColumns returns the Run block scopes and the offset each starts at: a
-// scope owns every column from its offset to the next one's.
+// a scope owns the columns from its offset to the next scope's
 func runColumns(header string) (scopes []string, offsets []int) {
 	for _, span := range runScopes.FindAllStringIndex(header, -1) {
 		scopes = append(scopes, header[span[0]:span[1]])
@@ -595,7 +594,7 @@ func runColumns(header string) (scopes []string, offsets []int) {
 	return scopes, offsets
 }
 
-// runCounter reads the name and the value a Run line holds in a scope column.
+// key and value are the first two fields of the span
 func runCounter(span string) (key, value string) {
 	fields := splitCols.Split(strings.TrimSpace(span), -1)
 	if len(fields) < 2 {
@@ -671,8 +670,7 @@ func runLabel(scope, key string) string {
 	return scope + " " + key
 }
 
-// runScopes matches a Run block scope name in its header, whose offset marks
-// the column the scope's counters are rendered in.
+// offsets are byte positions in the Run header row
 var runScopes = regexp.MustCompile(strings.Join([]string{generic.ScopeTask, generic.ScopeSched, generic.ScopeSteer}, "|"))
 
 func report(label string, samples []sample, hasGoset bool, metricNames []string) {
