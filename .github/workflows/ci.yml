@@ -6,6 +6,31 @@ on:
   pull_request:
 
 jobs:
+  lint:
+    name: linters
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # both gates diff against a revision, so they need the history
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+      - name: pick the diff base
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "BASE=$(git merge-base origin/${{ github.base_ref }} HEAD)" >> "$GITHUB_ENV"
+          else
+            echo "BASE=${{ github.event.before }}" >> "$GITHUB_ENV"
+          fi
+      - name: goset-lint rules
+        run: go test ./.github/lint && go run ./.github/lint -diff "$BASE"
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: v2.13
+          args: --new-from-rev="$BASE" --whole-files
+
   build:
     name: build, vet, unit tests
     runs-on: ubuntu-latest
