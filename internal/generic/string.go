@@ -87,11 +87,11 @@ const (
 
 // run report keys
 const (
+	RunPoll              = "Poll"
 	RunWall              = "wall"
 	RunExit              = "exit"
-	RunSamples           = "samples"
-	RunCtxswVoluntary    = "ctxsw voluntary"
-	RunCtxswInvoluntary  = "ctxsw involuntary"
+	RunCtxswVol          = "ctxsw vol"
+	RunCtxswInvol        = "ctxsw invol"
 	RunMigrations        = "migrations"
 	RunIRQSteerApplied   = "applied"
 	RunIRQSteerRejected  = "rejected"

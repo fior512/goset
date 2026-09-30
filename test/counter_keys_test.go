@@ -35,7 +35,7 @@ func perCPUCounters(cpus ...int) []telemetry.Counter {
 	return counters
 }
 
-func TestRunTableRows(t *testing.T) {
+func TestRunTableKeysByScope(t *testing.T) {
 	rep := report.Report{
 		Counters: []telemetry.Counter{
 			{Source: generic.SourceIRQSteer, CPU: -1, Name: generic.IRQSteerDrift, Value: 2},
@@ -48,22 +48,53 @@ func TestRunTableRows(t *testing.T) {
 		Polls:    19,
 		Interval: 100 * time.Millisecond,
 	}
-	want := [][]string{
-		{"task", "wall", "1.00s", "exit", "0", "samples", "19@100ms"},
-		{"sched", "ctxsw voluntary", "5", "ctxsw involuntary", "6", "migrations", "3"},
-		{"", "run_delay", "4ns"},
-		{"steer", "applied", "1", "rejected", "2", "remaining", "1"},
-		{"", "drift", "2", "irqbalance", "absent"},
+	tab := report.RunTable(rep)
+	wantHeader := []string{generic.ScopeTask, "", generic.ScopeSched, "", generic.ScopeSteer, ""}
+	if !reflect.DeepEqual(tab.Header, wantHeader) {
+		t.Errorf("RunTable header = %q, want the scope names over their counters %q", tab.Header, wantHeader)
 	}
-	if got := report.RunTable(rep).Rows; !reflect.DeepEqual(got, want) {
-		t.Errorf("RunTable rows =\n%q\nwant\n%q", got, want)
+	want := [][]string{
+		{generic.RunPoll, generic.RunCtxswVol, generic.RunIRQSteerApplied},
+		{generic.RunWall, generic.RunCtxswInvol, generic.RunIRQSteerRejected},
+		{generic.RunExit, generic.RunMigrations, generic.RunIRQSteerRemaining},
+		{"", generic.SchedRunDelay, generic.RunIRQSteerDrift},
+		{"", "", generic.RunIRQBalance},
+	}
+	if len(tab.Rows) != len(want) {
+		t.Fatalf("RunTable rows = %d, want %d: one row per counter of the longest scope", len(tab.Rows), len(want))
+	}
+	for idx, keys := range want {
+		for scope, key := range keys {
+			got, value := tab.Rows[idx][scope*2], tab.Rows[idx][scope*2+1]
+			if got != key {
+				t.Errorf("row %d, scope %q = %q, want %q", idx, tab.Header[scope*2], got, key)
+			}
+			if key == "" && value != "" {
+				t.Errorf("row %d: value %q without a key", idx, value)
+			}
+			if key != "" && value == "" {
+				t.Errorf("row %d: key %q without a value", idx, key)
+			}
+		}
 	}
 }
 
 func TestRunTableOptionalScopes(t *testing.T) {
-	want := [][]string{{"task", "wall", "1.00s", "exit", "0", "samples", "0@0s"}}
-	if got := report.RunTable(report.Report{Wall: time.Second}).Rows; !reflect.DeepEqual(got, want) {
-		t.Errorf("RunTable(no steer, no rusage) rows = %q, want %q", got, want)
+	want := []string{generic.RunPoll, generic.RunWall, generic.RunExit}
+	tab := report.RunTable(report.Report{Wall: time.Second})
+	if got := tab.Header; !reflect.DeepEqual(got, []string{generic.ScopeTask, ""}) {
+		t.Errorf("RunTable(no steer, no rusage) header = %q, want the task scope alone", got)
+	}
+	if len(tab.Rows) != len(want) {
+		t.Fatalf("RunTable(no steer, no rusage) rows = %q, want one row per task counter", tab.Rows)
+	}
+	for idx, key := range want {
+		if len(tab.Rows[idx]) != len(tab.Header) {
+			t.Errorf("row %d = %q, want %d cells: no column for a scope without counter", idx, tab.Rows[idx], len(tab.Header))
+		}
+		if got := tab.Rows[idx][0]; got != key {
+			t.Errorf("row %d key = %q, want %q", idx, got, key)
+		}
 	}
 }
 

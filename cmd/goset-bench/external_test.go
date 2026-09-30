@@ -540,8 +540,8 @@ func TestParseReportReadsSplitTelemetryAndRun(t *testing.T) {
 			}
 			wantGlobal := map[string]float64{
 				exitLabel: 3,
-				runLabel(generic.ScopeSched, generic.RunCtxswVoluntary):   812,
-				runLabel(generic.ScopeSched, generic.RunCtxswInvoluntary): 9,
+				runLabel(generic.ScopeSched, generic.RunCtxswVol):   812,
+				runLabel(generic.ScopeSched, generic.RunCtxswInvol): 9,
 				runDelayLabel: 41.2e-6,
 				runLabel(generic.ScopeSteer, generic.RunIRQSteerApplied):  40,
 				runLabel(generic.ScopeSteer, generic.RunIRQSteerRejected): 26,

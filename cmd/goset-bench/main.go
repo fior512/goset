@@ -477,8 +477,8 @@ func runBaseline(bench plugin.Benchmark, argv []string) (sample, bool) {
 	s.wall = time.Since(start).Seconds()
 	s.metrics, s.structure = collectMetrics(bench, buf.Bytes())
 	if ru, ok := cmd.ProcessState.SysUsage().(*syscall.Rusage); ok {
-		s.global[runLabel(generic.ScopeSched, generic.RunCtxswVoluntary)] = float64(ru.Nvcsw)
-		s.global[runLabel(generic.ScopeSched, generic.RunCtxswInvoluntary)] = float64(ru.Nivcsw)
+		s.global[runLabel(generic.ScopeSched, generic.RunCtxswVol)] = float64(ru.Nvcsw)
+		s.global[runLabel(generic.ScopeSched, generic.RunCtxswInvol)] = float64(ru.Nivcsw)
 	}
 	return s, true
 }
@@ -520,12 +520,14 @@ func parseReport(out []byte) sample {
 		out = out[i:]
 	}
 	scanner := bufio.NewScanner(bytes.NewReader(out))
-	var section, scope string
+	var section string
 	var header []string
+	var runOffsets []int
 	for scanner.Scan() {
-		trimmed := strings.TrimSpace(scanner.Text())
+		line := scanner.Text()
+		trimmed := strings.TrimSpace(line)
 		if trimmed == "" {
-			header = nil // Telemetry continues in a further block when split
+			header, runOffsets = nil, nil // Telemetry continues in a further block when split
 			continue
 		}
 		if trimmed == "Run" || trimmed == "Telemetry" || trimmed == "Selection" {
@@ -535,18 +537,26 @@ func parseReport(out []byte) sample {
 		fields := splitCols.Split(trimmed, -1)
 		switch section {
 		case "Run":
-			if slices.Contains(runScopes, fields[0]) { // a scope opens, continuation lines have none
-				scope, fields = fields[0], fields[1:]
+			if header == nil {
+				header, runOffsets = runColumns(line)
+				continue
 			}
-			for i := 0; i+1 < len(fields); i += 2 {
-				key := runLabel(scope, fields[i])
-				switch key {
+			for idx, scope := range header {
+				end := len(line)
+				if idx+1 < len(runOffsets) {
+					end = runOffsets[idx+1]
+				}
+				key, value := runCounter(line[runOffsets[idx]:end])
+				if key == "" {
+					continue // this scope has no counter on this line
+				}
+				switch label := runLabel(scope, key); label {
 				case wallLabel:
-					parsed.wall = parseDuration(fields[i+1])
+					parsed.wall = parseDuration(value)
 				case runDelayLabel:
-					parsed.global[key] = parseDuration(fields[i+1])
+					parsed.global[label] = parseDuration(value)
 				default:
-					parsed.global[key] = parseCount(fields[i+1])
+					parsed.global[label] = parseCount(value)
 				}
 			}
 		case "Telemetry":
@@ -573,6 +583,25 @@ func parseReport(out []byte) sample {
 		}
 	}
 	return parsed
+}
+
+// runColumns returns the Run block scopes and the offset each starts at: a
+// scope owns every column from its offset to the next one's.
+func runColumns(header string) (scopes []string, offsets []int) {
+	for _, span := range runScopes.FindAllStringIndex(header, -1) {
+		scopes = append(scopes, header[span[0]:span[1]])
+		offsets = append(offsets, span[0])
+	}
+	return scopes, offsets
+}
+
+// runCounter reads the name and the value a Run line holds in a scope column.
+func runCounter(span string) (key, value string) {
+	fields := splitCols.Split(strings.TrimSpace(span), -1)
+	if len(fields) < 2 {
+		return "", ""
+	}
+	return fields[0], fields[1]
 }
 
 func indexOf(fields []string, want string) int {
@@ -622,8 +651,8 @@ var counterKeys = []string{
 	telemetry.Counter{Source: generic.SourceThrottle, Name: generic.ThrottleCount}.Label(),
 }
 var globalKeys = []string{
-	runLabel(generic.ScopeSched, generic.RunCtxswVoluntary),
-	runLabel(generic.ScopeSched, generic.RunCtxswInvoluntary),
+	runLabel(generic.ScopeSched, generic.RunCtxswVol),
+	runLabel(generic.ScopeSched, generic.RunCtxswInvol),
 	runLabel(generic.ScopeSched, generic.RunMigrations),
 	runDelayLabel,
 	runLabel(generic.ScopeSteer, generic.RunIRQSteerApplied),
@@ -642,8 +671,9 @@ func runLabel(scope, key string) string {
 	return scope + " " + key
 }
 
-// runScopes are the Run block labels the parser recognises.
-var runScopes = []string{generic.ScopeTask, generic.ScopeSched, generic.ScopeSteer}
+// runScopes matches a Run block scope name in its header, whose offset marks
+// the column the scope's counters are rendered in.
+var runScopes = regexp.MustCompile(strings.Join([]string{generic.ScopeTask, generic.ScopeSched, generic.ScopeSteer}, "|"))
 
 func report(label string, samples []sample, hasGoset bool, metricNames []string) {
 	fmt.Printf("\n%s (n=%d)\n", label, len(samples))

@@ -241,44 +241,62 @@ func NotReportedTable(rep Report) Table {
 	return Table{Rows: [][]string{{"not reported: " + strings.Join(missing, ", ")}}}
 }
 
-const runPairsPerLine = 3
-
 type runPair struct {
 	key   string
 	value string
 }
 
+// runScope is one Run column: the scope name heads its counters, which run
+// down the column.
+type runScope struct {
+	name  string
+	pairs []runPair
+}
+
 func RunTable(rep Report) Table {
-	scopes := []struct {
-		name  string
-		pairs []runPair
-	}{
+	scopes := runScopes(rep)
+	tab := Table{Title: "Run", Align: AlignPairs}
+	for _, scope := range scopes {
+		tab.Header = append(tab.Header, scope.name, "")
+	}
+	lines := 0
+	for _, scope := range scopes {
+		lines = max(lines, len(scope.pairs))
+	}
+	for line := 0; line < lines; line++ {
+		row := make([]string, 0, 2*len(scopes))
+		for _, scope := range scopes {
+			pair := runPair{}
+			if line < len(scope.pairs) {
+				pair = scope.pairs[line]
+			}
+			row = append(row, pair.key, pair.value)
+		}
+		tab.Rows = append(tab.Rows, row)
+	}
+	return tab
+}
+
+// runScopes returns the scopes holding counters, the empty ones dropped.
+func runScopes(rep Report) []runScope {
+	var scopes []runScope
+	for _, scope := range []runScope{
 		{generic.ScopeTask, taskPairs(rep)},
 		{generic.ScopeSched, schedPairs(rep)},
 		{generic.ScopeSteer, steerPairs(rep)},
-	}
-	var rows [][]string
-	for _, scope := range scopes {
-		for start := 0; start < len(scope.pairs); start += runPairsPerLine {
-			label := ""
-			if start == 0 {
-				label = scope.name
-			}
-			row := []string{label}
-			for _, pair := range scope.pairs[start:min(start+runPairsPerLine, len(scope.pairs))] {
-				row = append(row, pair.key, pair.value)
-			}
-			rows = append(rows, row)
+	} {
+		if len(scope.pairs) > 0 {
+			scopes = append(scopes, scope)
 		}
 	}
-	return Table{Title: "Run", Rows: rows, Align: AlignLeft}
+	return scopes
 }
 
 func taskPairs(rep Report) []runPair {
 	return []runPair{
+		{generic.RunPoll, fmt.Sprintf("%d@%s", rep.Polls, rep.Interval)},
 		{generic.RunWall, FormatTime(rep.Wall)},
 		{generic.RunExit, strconv.Itoa(rep.ExitCode)},
-		{generic.RunSamples, fmt.Sprintf("%d@%s", rep.Polls, rep.Interval)},
 	}
 }
 
@@ -286,8 +304,8 @@ func schedPairs(rep Report) []runPair {
 	var pairs []runPair
 	if rep.Rusage != nil {
 		pairs = append(pairs,
-			runPair{generic.RunCtxswVoluntary, fmt.Sprintf("%d", rep.Rusage.Nvcsw)},
-			runPair{generic.RunCtxswInvoluntary, fmt.Sprintf("%d", rep.Rusage.Nivcsw)},
+			runPair{generic.RunCtxswVol, fmt.Sprintf("%d", rep.Rusage.Nvcsw)},
+			runPair{generic.RunCtxswInvol, fmt.Sprintf("%d", rep.Rusage.Nivcsw)},
 		)
 	}
 	if migrations, ok := telemetry.CountMigrations(rep.Counters); ok {
