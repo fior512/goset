@@ -101,56 +101,53 @@ Goset output format (with `-steer` and `-cgroup`):
 ```
 ----------------- GOSET -----------------
 Selection
-  cpu  sel  steerable  non-steerable  sibl  isol  numa  nohz  rcu
-    8   *           0            412   600           0
-    6   *           0            485   500           0
-   10   *           0            492   602           0
-    0   *           0            500   485           0
-    2              94            506   412           0
-    1   &           0            508   701           0
-   11               5            539   822           0
-    5             275            547   544           0
-    4               9            593   492           0
-    9               0            609   747           0
-    7               0            701   508           0
-    3               0            747   609           0
+  cpu  sel  steer  non-steer   core  sibl  isol  numa  nohz  rcu
+    7   *       2        306    673     1           0
+    1   *     239        367    673     7           0
+    8   &       4        297    685     2           0
+    2           0        388    685     8           0
+    3           0        373    842     9           0
+    9           0        469    842     3           0
+    6           0        408    909     0           0
+    0           0        501    909     6           0
+    4           0        456    964    10           0
+   10           0        508    964     4           0
+   11          94        522  1.06k     5           0
+    5           0        535  1.06k    11           0
 
 Telemetry
   cpu  freq min  freq avg  freq max  irq steerable  irq non-steerable
-  0     2.99GHz   3.01GHz   3.88GHz              0              1.50k
-  6     2.99GHz   3.00GHz   3.49GHz              0                108
-  8     2.99GHz   3.01GHz   4.83GHz              0                154
-  10    2.99GHz   3.06GHz   5.00GHz              2                330
-  all   2.99GHz   3.02GHz   5.00GHz              2              2.10k
+  1     2.99GHz   2.99GHz   2.99GHz              0                147
+  7     2.99GHz   2.99GHz   2.99GHz              0                 13
+  all   2.99GHz   2.99GHz   2.99GHz              0                160
 
 Run
-  task   wall             10.00s  exit               0   samples     100@100ms
-  sched  ctxsw voluntary  2       ctxsw involuntary  0   migrations  0
+  task   wall             1.00s  exit               0   samples     10@100ms
+  sched  ctxsw voluntary  2      ctxsw involuntary  0   migrations  0
          run_delay        0ns
-  steer  applied          40      rejected           26  remaining   0
-         drift            0       irqbalance held    no
+  steer  applied          40     rejected           26  remaining   0
+         drift            0      irqbalance held    no
 
   not reported: throttle
 ```
 
 
 
-* `sel`: `*` marks the pinned CPU, `&` marks the housekeeper, `!` marks a fenced SMT sibling (`-fence`).
-* `steerable` / `non-steerable`: interrupts counted on that CPU while ranking: device IRQs goset can steer away, and kernel-owned rows (NMI, LOC, RES) it cannot.
-* `sibl`: noise on the SMT sibling, used to rank CPUs. Steerable interrupts count only without `-steer`.
-* `Telemetry`: per-CPU counters sampled during the run, one row per counter source.
-* `Global`: steer/cgroup/ctxsw summary and the task's own wall time and exit code.
+Selection columns:
+* `sel`: `*` task cpu, `&` housekeeper, `!` fenced sibling (`-fence`).
+* `steer`, `non-steer`: interrupts counted on the cpu during the 500ms ranking sample. Steerable ones can be moved away, non-steerable (NMI, LOC, RES) cannot.
+* `core`: rank cost, this cpu's noise plus its sibling's. Steerable interrupts count only without `-steer`.
+* `sibl`: SMT sibling cpu, `-` when alone.
 
+The other tables: `Telemetry` holds per-cpu counters over the run, `Run` holds wall time, exit code, scheduler, steer and drift counters.
 
 Technical insights
 -------------
 
 **Selection** (`internal/cpu/bench.go`)
-- Rank input: IRQ delta (500ms sample). A CPU costs twice its own noise plus its SMT sibling's. Steerable IRQs count only without `-steer`.
-- Lowest noise: booked for the task and the next lowest become housekeeper.
-- Ties rank a core's threads together. A noisy sibling pushes its core down, no thread is forced.
-- With `-fence`, the remaining siblings of the task cores are booked while a CPU stays free for the housekeeper and, with `-steer`, for the IRQs. Siblings left open are reported.
-- Housekeeper avoids the task's core and its SMT sibling.
+- Cores rank by the noise of both threads, quietest first, a core's threads together.
+- The task takes the top cpus, the housekeeper the next one outside the task's core.
+- With `-fence`, the siblings of the task cpus are booked idle while a cpu stays free for the housekeeper and, with `-steer`, for the IRQs. Siblings left open are reported.
 
 **Isolation**
 | mode | mechanism | scope |

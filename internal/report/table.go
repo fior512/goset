@@ -15,7 +15,7 @@ import (
 )
 
 func SelectionTable(selected *generic.Selection) Table {
-	header := []string{"cpu", "sel", "steerable", "non-steerable", "sibl", "isol", "numa", "nohz", "rcu"}
+	header := []string{"cpu", "sel", "steer", "non-steer", "core", "sibl", "isol", "numa", "nohz", "rcu"}
 	rows := make([][]string, 0, len(selected.Scores))
 	for _, candidate := range selected.Scores {
 		mark := ""
@@ -33,12 +33,17 @@ func SelectionTable(selected *generic.Selection) Table {
 			}
 			return ""
 		}
+		sibling := "-"
+		if candidate.Sibling >= 0 {
+			sibling = strconv.Itoa(candidate.Sibling)
+		}
 		rows = append(rows, []string{
 			fmt.Sprintf("%3d", candidate.CPU),
 			mark,
 			FormatValue(float64(candidate.Steerable)),
 			FormatValue(float64(candidate.NonSteerable)),
-			FormatValue(float64(candidate.SiblingLoad)),
+			FormatValue(float64(candidate.Noise + candidate.SiblingLoad)),
+			sibling,
 			flag(candidate.KernelIsol),
 			fmt.Sprintf("%4d", candidate.Numa),
 			flag(candidate.NohzFull),
@@ -109,32 +114,42 @@ func TelemetryTables(rep Report, width int) []Table {
 
 	/* rows */
 	for cpu := range rep.Cpus.All() {
-		var row []string
-		if keys > 0 {
-			row = append(row, strconv.Itoa(cpu))
-		}
-		for _, column := range columns {
-			value, ok := values[column.label()][cpu]
-			if !ok {
-				row = append(row, "-")
-				continue
-			}
-			row = append(row, column.format(value))
-		}
-		tab.Rows = append(tab.Rows, row)
+		tab.Rows = append(tab.Rows, telemetryRow(cpu, columns, values, keys > 0))
 	}
 	if keys > 0 {
-		footer := []string{generic.TelemetryAll}
-		for _, column := range columns {
-			cell, ok := column.reduceAll(values[column.label()], rep.Cpus)
-			if !ok {
-				cell = "-"
-			}
-			footer = append(footer, cell)
-		}
-		tab.Rows = append(tab.Rows, footer)
+		tab.Rows = append(tab.Rows, telemetryFooter(columns, values, rep.Cpus))
 	}
 	return splitColumns(tab, groups, keys, width)
+}
+
+// one counter per column, "-" where the cpu reports none
+func telemetryRow(cpu int, columns []telemetryColumn, values map[string]map[int]float64, keys bool) []string {
+	var row []string
+	if keys {
+		row = append(row, strconv.Itoa(cpu))
+	}
+	for _, column := range columns {
+		value, ok := values[column.label()][cpu]
+		if !ok {
+			row = append(row, "-")
+			continue
+		}
+		row = append(row, column.format(value))
+	}
+	return row
+}
+
+// one all-cpu row per table, each column folded over the task cpus
+func telemetryFooter(columns []telemetryColumn, values map[string]map[int]float64, cpus generic.CPUSet) []string {
+	footer := []string{generic.TelemetryAll}
+	for _, column := range columns {
+		cell, ok := column.reduceAll(values[column.label()], cpus)
+		if !ok {
+			cell = "-"
+		}
+		footer = append(footer, cell)
+	}
+	return footer
 }
 
 // reduceAll folds the column over every task cpu, and reports false when one
@@ -362,7 +377,6 @@ func CgroupTable(infos []isolation.CgroupInfo) Table {
 	}
 	return Table{Title: "Cgroups", Header: header, Rows: rows}
 }
-
 
 func avg(values []float64) float64 {
 	if len(values) == 0 {
