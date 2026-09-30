@@ -1,0 +1,103 @@
+# golangci-lint config for the anti-patterns CONTRIBUTING forbids: duplicated
+# code, dead branches, unused symbols, and unchecked errors. Every linter below
+# is on for a reason stated at it. The default set stays off, so a new linter
+# cannot land unreviewed through a dependency bump.
+#
+# CI reports the whole tree on main, and only the lines a PR touches on a pull
+# request. See .github/workflows/ci.yml for the revision each run diffs from.
+version: "2"
+
+run:
+  tests: true
+  timeout: 5m
+
+linters:
+  default: none
+  enable:
+    # dead branches, unreachable code, bad format and comparison calls
+    - staticcheck
+    # unused constants, variables, functions, types, struct fields
+    - unused
+    # a parameter that always receives the same value, a result nobody reads
+    - unparam
+    - unconvert
+    - predeclared
+    - nilerr
+    - wastedassign
+    # unchecked error, and an error wrapped by string concatenation
+    - errcheck
+    - errorlint
+    - # a helper copied into a second package
+      dupl
+    - # complexity that hides the stepdown rule
+      gocyclo
+    - nestif
+    - # missed simplifications, shadowing, redundant conditions
+      gocritic
+    - copyloopvar
+    - mirror
+    - # naming: one-letter, stutter, initialism, error naming
+      revive
+    - misspell
+    - dupword
+    - nolintlint
+
+  settings:
+    dupl:
+      # token count. The default is 150, which is above every copy this tree
+      # holds; 30 puts the duplicated Summary and isolate helpers in reach.
+      threshold: 30
+    gocyclo:
+      min-complexity: 12
+    nestif:
+      min-complexity: 4
+    revive:
+      # exported and package-comments stay off: CONTRIBUTING puts the cue on
+      # the field and forbids prose on the declaration.
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: dot-imports
+        - name: empty-block
+        - name: error-naming
+        - name: error-return
+        - name: error-strings
+        - name: errorf
+        - name: increment-decrement
+        - name: indent-error-flow
+        - name: range
+        - name: receiver-naming
+        - name: redefines-builtin-id
+        - name: superfluous-else
+        - name: time-naming
+        - name: unexported-return
+        - name: unreachable-code
+        - name: unused-parameter
+        - name: var-declaration
+        - name: var-naming
+    staticcheck:
+      checks:
+        - all
+        # ST1000, ST1020, ST1021 and ST1022 demand the godoc CONTRIBUTING
+        # calls prose, and the repo runs on trailing cues instead.
+        - -ST1000
+        - -ST1020
+        - -ST1021
+        - -ST1022
+
+  exclusions:
+    generated: lax
+    # a new-from-rev run filters first, so an unused rule is normal there
+    warn-unused: false
+    presets:
+      - comments
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  uniq-by-line: false
