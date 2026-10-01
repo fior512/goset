@@ -229,4 +229,4 @@ sudo goset-bench -runs 10 -n 1 -settle 5s -taskset=true -- ./mytask arg1 arg2
 License
 -------
 
-Apache-2.0. Copyright 2026 fior512. See [LICENSE](LICENSE).
+Apache-2.0. Copyright 2026. See [LICENSE](LICENSE).
