@@ -122,11 +122,12 @@ Telemetry
   all   2.99GHz   2.99GHz   2.99GHz              0                160
 
 Run
-  task   wall             1.00s  exit               0   samples     10@100ms
-  sched  ctxsw voluntary  2      ctxsw involuntary  0   migrations  0
-         run_delay        0ns
-  steer  applied          40     rejected           26  remaining   0
-         drift            0      irqbalance held    no
+  task             sched             steer
+  Poll  10@100ms  ctxsw vol      2  applied         40
+  wall     1.00s  ctxsw invol    0  rejected        26
+  exit          0  migrations     0  remaining        0
+                  run_delay    0ns  drift            0
+                                     irqbalance  absent
 
   not reported: throttle
 ```

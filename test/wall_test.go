@@ -3,6 +3,7 @@ package integration
 import (
 	"os/exec"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -37,20 +38,21 @@ func reportWall(t *testing.T, stderr string) time.Duration {
 			continue
 		}
 		fields := splitCells.Split(trimmed, -1)
-		if len(fields) < 3 || fields[0] != generic.ScopeTask || fields[1] != generic.RunWall {
+		idx := slices.Index(fields, generic.RunWall)
+		if idx < 0 || idx+1 >= len(fields) {
 			continue
 		}
 		for _, unit := range units {
-			if !strings.HasSuffix(fields[2], unit.suffix) {
+			if !strings.HasSuffix(fields[idx+1], unit.suffix) {
 				continue
 			}
-			value, err := strconv.ParseFloat(strings.TrimSuffix(fields[2], unit.suffix), 64)
+			value, err := strconv.ParseFloat(strings.TrimSuffix(fields[idx+1], unit.suffix), 64)
 			if err != nil {
-				t.Fatalf("parse %s value %q: %v", generic.RunWall, fields[2], err)
+				t.Fatalf("parse %s value %q: %v", generic.RunWall, fields[idx+1], err)
 			}
 			return time.Duration(value * float64(unit.scale))
 		}
-		t.Fatalf("%s value %q has no known unit", generic.RunWall, fields[2])
+		t.Fatalf("%s value %q has no known unit", generic.RunWall, fields[idx+1])
 	}
 	t.Fatalf("no %s row in the report:\n%s", generic.RunWall, stderr)
 	return 0

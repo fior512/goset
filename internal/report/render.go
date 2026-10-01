@@ -23,8 +23,20 @@ const (
 	AlignLabel Align = iota // column 0 only
 	AlignLeft               // every column
 	AlignRight              // none
+	AlignPairs              // name/value pairs: the even columns only
 )
 
+// even columns only under AlignPairs
+func (a Align) left(i int) bool {
+	switch a {
+	case AlignLeft:
+		return true
+	case AlignPairs:
+		return i%2 == 0
+	default:
+		return a == AlignLabel && i == 0
+	}
+}
 
 func Render(out io.Writer, tables ...Table) {
 	for _, tab := range tables {
@@ -44,7 +56,6 @@ func Render(out io.Writer, tables ...Table) {
 		fmt.Fprintln(out)
 	}
 }
-
 
 func columnWidths(tab Table) []int {
 	widths := make([]int, 0, len(tab.Header))
@@ -77,7 +88,6 @@ func lineWidth(widths []int) int {
 	return total
 }
 
-
 func printRow(out io.Writer, cells []string, widths []int, align Align) {
 	var buf strings.Builder
 	buf.WriteString(strings.Repeat(" ", gutter))
@@ -85,7 +95,7 @@ func printRow(out io.Writer, cells []string, widths []int, align Align) {
 		if i > 0 {
 			buf.WriteString(strings.Repeat(" ", gutter))
 		}
-		left := align == AlignLeft || (align == AlignLabel && i == 0)
+		left := align.left(i)
 		if left {
 			fmt.Fprintf(&buf, "%-*s", widths[i], cell)
 		} else {
@@ -94,7 +104,6 @@ func printRow(out io.Writer, cells []string, widths []int, align Align) {
 	}
 	fmt.Fprintln(out, strings.TrimRight(buf.String(), " "))
 }
-
 
 func compress(value float64) string {
 	prec := 2
@@ -115,7 +124,6 @@ func compress(value float64) string {
 	}
 }
 
-
 func FormatValue(value float64) string {
 	units := [...]struct {
 		scale float64
@@ -131,7 +139,6 @@ func FormatValue(value float64) string {
 	}
 	return compress(value)
 }
-
 
 // FormatFreq renders a Hz value with SI prefixes (k/M/G/T), not the
 // count-style k/M/B/T used by FormatValue.
@@ -150,7 +157,6 @@ func FormatFreq(hz float64) string {
 	}
 	return compress(hz) + "Hz"
 }
-
 
 func FormatTime(elapsed time.Duration) string {
 	switch {

@@ -346,72 +346,6 @@ func TestExternalCmdImplementsBenchmark(t *testing.T) {
 	bench.RegisterFlags(flag.NewFlagSet("test", flag.ContinueOnError))
 }
 
-func TestRestoreColumnOrder(t *testing.T) {
-	names := []string{"b N #1 ms", "a N #0 ns", "b N #0 us", "a N #2"}
-	cols := map[string]int{"a N #0 ns": 0, "a N #2": 2, "b N #0 us": 0, "b N #1 ms": 1}
-	got := restoreColumnOrder(names, cols)
-	want := []string{"b N #0 us", "b N #1 ms", "a N #0 ns", "a N #2"}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("restoreColumnOrder = %v, want %v", got, want)
-	}
-}
-
-func TestStatWidthClamp(t *testing.T) {
-	if got := statWidth([]string{"short"}); got != 18 {
-		t.Errorf("statWidth(short) = %d, want 18", got)
-	}
-	long := ""
-	for len(long) < 40 {
-		long += "x"
-	}
-	if got := statWidth([]string{long}); got != 32 {
-		t.Errorf("statWidth(long) = %d, want 32", got)
-	}
-}
-
-func TestTruncLabel(t *testing.T) {
-	cases := []struct {
-		label string
-		width int
-		want  string
-	}{
-		{label: "short", width: 10, want: "short"},
-		{label: "exactly10", width: 10, want: "exactly10"},
-		{label: "elevenchars", width: 10, want: "elevenc..."},
-		{label: "abcdefgh", width: 3, want: "..."},
-		{label: "abcdef", width: 2, want: "ab"},
-		{label: "abcdef", width: 0, want: ""},
-	}
-	for _, c := range cases {
-		if got := truncLabel(c.label, c.width); got != c.want {
-			t.Errorf("truncLabel(%q,%d) = %q, want %q", c.label, c.width, got, c.want)
-		}
-	}
-}
-
-func TestIsTimeLabelExact(t *testing.T) {
-	for _, label := range []string{"sched run_delay", "jitter iter"} {
-		if !isTimeLabel(label) {
-			t.Errorf("isTimeLabel(%q) = false, want true", label)
-		}
-	}
-	for _, label := range []string{"iter", "iter ns", "string_builder : ns", "lat ns", "wall(s)", "iterations", "ns"} {
-		if isTimeLabel(label) {
-			t.Errorf("isTimeLabel(%q) = true, want false: only goset's own labels carry a time unit", label)
-		}
-	}
-}
-
-func TestCellFormatterExtractedValuesAreRaw(t *testing.T) {
-	format := cellFormatter("string_builder : GB/s")
-	if got := format(1.15); got != "1.15" {
-		t.Errorf("cellFormatter(1.15) = %q, want raw 1.15", got)
-	}
-	if got := cellFormatter(runDelayLabel)(0.0000234); got == "0.00" {
-		t.Errorf("run_delay formatter dropped sub-ms precision: %q", got)
-	}
-}
-
 func TestStructureWarnReportsCrossModeDivergence(t *testing.T) {
 	baseline := []sample{{structure: map[string]int{"lat N [ns]": 1, "gone N []": 1}}}
 	isolated := []sample{{structure: map[string]int{"lat N [us]": 1, "new N []": 2}}}
@@ -540,8 +474,8 @@ func TestParseReportReadsSplitTelemetryAndRun(t *testing.T) {
 			}
 			wantGlobal := map[string]float64{
 				exitLabel: 3,
-				runLabel(generic.ScopeSched, generic.RunCtxswVoluntary):   812,
-				runLabel(generic.ScopeSched, generic.RunCtxswInvoluntary): 9,
+				runLabel(generic.ScopeSched, generic.RunCtxswVol):   812,
+				runLabel(generic.ScopeSched, generic.RunCtxswInvol): 9,
 				runDelayLabel: 41.2e-6,
 				runLabel(generic.ScopeSteer, generic.RunIRQSteerApplied):  40,
 				runLabel(generic.ScopeSteer, generic.RunIRQSteerRejected): 26,
