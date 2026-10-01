@@ -1,7 +1,7 @@
-// goset-lint holds the checks golangci-lint does not ship: capitalized
-// locals, one-letter locals, prose comments. Each maps to a CONTRIBUTING
-// code style rule. Run it over the whole tree, or against one revision to
-// gate only the lines a change touches.
+// goset-lint holds the checks that gate a change: capitalized locals,
+// one-letter locals, prose comments. Each maps to a CONTRIBUTING code style
+// rule. Run it over the whole tree, or against one revision to gate only the
+// lines a change touches.
 package main
 
 import (
