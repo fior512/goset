@@ -35,7 +35,7 @@ Goset needs sudo only for `-cgroup` and `-steer`.
 |---|---|---|---|---|
 | ` -- ` |string| | Separating Goset flags and task | |
 | `-n` |int| 1 | How many threads to book | n>=1 |
-| `-cgroup` |bool| false | Containerize task inside Cgroupv2. Required for N>1 | **sudo** |
+| `-cgroup` |bool| false | Containerize task inside Cgroupv2, holds tasks that reset their own affinity | **sudo** |
 | `-fence` |bool| false | Books the SMT siblings of the selected CPUs in the cgroup, idle. | **sudo**, `-cgroup` |
 | `-steer` |bool| false | Push away steerable IRQs, automatically handle IRQBalance | **sudo** |
 | `-interval` |int| 100 | Poll interval in milliseconds for telemetry collection | |
@@ -43,7 +43,7 @@ Goset needs sudo only for `-cgroup` and `-steer`.
 | `-exclude` |string| | List of threads to avoid, handles ranges (e.g.: `1,3-5` -> 1,3,4,5) | |
 | `-numa` |int| -2 | Constrain the task cpus and memory to one node: 0..N that node only, -1:Auto (widest node), -2:Off (multi node). A node that cannot fill `-n` is an error. | |
 
-> Multi-thread tasks: linux `sched_setaffinity` can't pin multithreaded tasks, for this reason `-cgroup` is needed.
+> Multi-thread tasks: `-n >1` works without `-cgroup`, the mask is inherited by every thread. `-cgroup` adds exclusivity and holds tasks that reset their own affinity.
 
 
 Goset has a second form called `Diagnostic`, callable with bare `goset`.
@@ -134,10 +134,10 @@ Technical insights
 **Isolation**
 | mode | mechanism | scope |
 |---|---|---|
-| default | `sched_setaffinity` | 1 thread |
+| default | `sched_setaffinity` | N threads, shared mask |
 | `-cgroup` | cgroupv2 cpuset, placed at clone (`CLONE_INTO_CGROUP`) | N threads |
 
-`-n>1` requires `-cgroup`. Affinity alone can't hold a process tree.
+Without `-cgroup`, the CPU mask is inherited by every thread the task starts. A task that resets its own affinity (OpenMP, MPI) escapes it. Use `-cgroup` to hold it.
 
 With `-cgroup`, the cpuset holds the task CPUs plus their SMT siblings (`-fence`), and the task is pinned to the task CPUs by `sched_setaffinity`. A busy sibling halves the throughput of an FP-bound task.
 

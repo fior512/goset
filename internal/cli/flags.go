@@ -16,7 +16,7 @@ type Config struct {
 	/* Thread selection */
 	NThreads int
 	Steering bool // (root) smp_affinity_list
-	Cgroup   bool // (root, -n > 1) cgroup v2 cpuset
+	Cgroup   bool // (root) cgroup v2 cpuset
 	Fence    bool // book the SMT siblings of the selected cpus in the cgroup
 
 	/* Selection Preference */
@@ -43,13 +43,7 @@ func (cfg *Config) Validate() error {
 	if cfg.NThreads < 1 {
 		return fmt.Errorf(
 			"-n: how many threads to book for the task.\n"+
-				"  got %d, minimum is 1.\n"+
-				"  use 1 to pin only, or >1 with -cgroup", cfg.NThreads)
-	}
-	if !cfg.Cgroup && cfg.NThreads > 1 {
-		return fmt.Errorf(
-			"-n >1 requires a cgroup-backed thread pool.\n" +
-				"  add -cgroup (needs sudo)")
+				"  got %d, minimum is 1", cfg.NThreads)
 	}
 	if cfg.Fence && !cfg.Cgroup {
 		return fmt.Errorf(
@@ -105,7 +99,7 @@ func Register(fs *flag.FlagSet) *Config {
 	cfg := &Config{}
 	fs.IntVar(&cfg.NThreads, "n", 1, "how many threads to book, minimum 1")
 	fs.BoolVar(&cfg.Steering, "steer", false, "set smp_affinity_list (sudo)")
-	fs.BoolVar(&cfg.Cgroup, "cgroup", false, "confine the task to the selected cpus (sudo, required for -n > 1)")
+	fs.BoolVar(&cfg.Cgroup, "cgroup", false, "confine the task to the selected cpus (sudo)")
 	fs.BoolVar(&cfg.Fence, "fence", false, "book the SMT siblings of the selected cpus so no other task runs on the core")
 	fs.Var(&cfg.Include, "include", "cpu list to force into the benchmark set, e.g. 2,4-6")
 	fs.Var(&cfg.Exclude, "exclude", "cpu list to exclude from selection")

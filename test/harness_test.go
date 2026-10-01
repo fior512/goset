@@ -98,7 +98,7 @@ func TestSingleThreadNoCgroup(t *testing.T) {
 }
 
 
-func TestMultiThreadCgroupDestroyed(t *testing.T) {
+func TestMultiThreadSharesInheritedMask(t *testing.T) {
 	preflight(t, 3) // n=2 + housekeeper
 	root := repoRoot(t)
 	gosetBin := buildBin(t, root, "goset", "./cmd/goset")
@@ -113,15 +113,13 @@ func TestMultiThreadCgroupDestroyed(t *testing.T) {
 	}
 	leaked, missing := diffSnapshots(before, after)
 	if len(leaked) != 0 || len(missing) != 0 {
-		t.Errorf("cgroup dir set not restored after run: leaked=%v missing=%v (see InitCgroup/Destroy in internal/isolation/cgroup.go)", leaked, missing)
+		t.Errorf("cgroup dir set changed for -n 2 without -cgroup: leaked=%v missing=%v", leaked, missing)
 	}
 
 	rep := parseProbe(t, res.stdout)
 	assertUniformAllowed(t, rep, 2)
-	if rep.Cgroup == "" || strings.Contains(rep.Cgroup, "0::/\n") || strings.HasSuffix(rep.Cgroup, "0::/") {
-		t.Errorf("expected task to run inside a non-root cgroup, got %q", rep.Cgroup)
-	} else {
-		t.Logf("task ran in cgroup: %s", rep.Cgroup)
+	if !strings.HasSuffix(rep.Cgroup, "0::/") {
+		t.Errorf("expected the task to stay in the root cgroup without -cgroup, got %q", rep.Cgroup)
 	}
 }
 
@@ -180,8 +178,8 @@ func TestErrorNRequestTooLarge(t *testing.T) {
 	if res.exitCode == 0 {
 		t.Fatalf("expected non-zero exit for oversized -n, got 0")
 	}
-	if !strings.Contains(res.stderr, "cgroup") {
-		t.Errorf("stderr should mention the missing -cgroup requirement first, got: %s", res.stderr)
+	if !strings.Contains(res.stderr, "housekeeper") {
+		t.Errorf("stderr should name the housekeeper cpu in the count, got: %s", res.stderr)
 	}
 
 	res = runGoset(t, gosetBin, "-n", "100000", "-cgroup", "--", probeBin)
@@ -189,7 +187,7 @@ func TestErrorNRequestTooLarge(t *testing.T) {
 		t.Fatalf("expected non-zero exit for oversized -n even with -cgroup, got 0")
 	}
 	if !strings.Contains(res.stderr, "housekeeper") {
-		t.Errorf("stderr should explain the housekeeper+n requirement once -cgroup is set, got: %s", res.stderr)
+		t.Errorf("stderr should explain the housekeeper+n requirement, got: %s", res.stderr)
 	}
 }
 

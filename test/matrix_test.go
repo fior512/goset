@@ -27,7 +27,7 @@ func TestMatrixPermutations(t *testing.T) {
 			"-exclude", strconv.Itoa(ids[len(ids)-1]),
 			"-steer",
 		}, 2},
-		{"n1_cgroup_flag_noop", []string{"-n", "1", "-cgroup"}, 1}, // n=1: cgroup gated on n>1, flag itself is a no-op (see TestMultiThreadCgroupFlagIsDead)
+		{"n1_cgroup", []string{"-n", "1", "-cgroup"}, 1},
 		{"n2_cgroup_steer_numa", []string{
 			"-n", "2", "-cgroup", "-steer", "-numa", "-1", "-interval", "10",
 		}, 2},
