@@ -26,7 +26,6 @@ Table of Contents
 * [License](LICENSE)
 
 
-
 Quick Start
 -----------
 
@@ -60,38 +59,20 @@ Goset has a second form called `Diagnostic`, callable with bare `goset`.
 
 **Real usage**:
 ```bash
-# Diagnose: topology, environment, existing cgroups.
-goset
+# Pin to one quiet CPU
+goset -n 1 -- ./task
 
-# Pin to one quiet CPU ('-n 1' under the hood)
-goset -- ./task
+# Request 4 threads with full isolation
+sudo goset -n 4 -cgroup -steer -fence -- ./task
 
-# Full isolation: exclusive CPU, IRQ steered away.
-sudo goset -n 1 -cgroup -steer -- ./mybench
+# Steer selection toward 2,4,5,6 and avoid 0 and 1 for remaining N
+goset -n 5 -numa 0 -include 2,4-6 -exclude 0,1 -- ./task
 
-# Build STREAM.c, goset's own bundled benchmark
-cp benchmark/stream/stream.c.tmpl /tmp/stream.c
-cc -O2 -o /tmp/stream /tmp/stream.c
+# Change the telemetry sampling window
+goset -interval 500 -- ./task
 
-# Pin it, full isolation
-sudo goset -n 1 -cgroup -steer -- /tmp/stream 20000000 50
 
-# Multi-thread task. -cgroup is required at n>1
-sudo goset -n 4 -cgroup -- ./mybench -threads 4
-
-# Force selection onto specific CPUs
-goset -include 2,4-6 -- ./mybench
-
-# Keep selection off specific CPUs
-goset -exclude 0,1 -- ./mybench
-
-# Constrain selection to one NUMA node
-goset -numa 0 -- ./mybench
-
-# Change the telemetry sampling window (ms).
-goset -interval 500 -- ./mybench
-
-# Remove a cgroup goset left behind (incase of bug)
+# Remove a cgroup goset left behind (in case of bug)
 sudo goset -rm-cgroup goset-mybench
 ```
 
@@ -176,5 +157,76 @@ With `-cgroup`, the cpuset holds the task CPUs plus their SMT siblings (`-fence`
 Performance results
 --------------------
 
-COMING SOON
+Setup: Ryzen 5 7600X (6 cores, SMT on), 10 interleaved runs per mode, 5s idle before each run.
 
+- baseline: bare binary, scheduler places it.
+- taskset: `taskset -c` on one CPU, rotating over CPUs.
+- goset: `-n 1 -cgroup -steer -fence`.
+
+Benchmarks:
+- jitter: one dependent xorshift-multiply chain. Exposes CPU time lost to interrupts and preemption.
+- chase: dependent loads over a 192 KiB ring that fits L2. Exposes core migration and cache pollution.
+- matmul: 32x32 double matrix multiply, L1-resident. Exposes CPU frequency and sibling-thread interference.
+- stream: STREAM Triad over 20M-element arrays. Exposes memory-bandwidth variation.
+
+**jitter** (ms per iteration, lower is better)
+
+| mode | median | sd | min | max | spread |
+|---|---|---|---|---|---|
+| baseline | 5.05 | 0.059 | 4.98 | 5.14 | 3.2% |
+| taskset | 5.14 | 0.059 | 5.00 | 5.17 | 3.3% |
+| goset | 5.00 | 0.042 | 4.96 | 5.10 | 2.8% |
+
+**chase** (ns per load, lower is better)
+
+| mode | median | sd | min | max | spread |
+|---|---|---|---|---|---|
+| baseline | 2.61 | 0.05 | 2.52 | 2.70 | 6.9% |
+| taskset | 2.63 | 0.04 | 2.59 | 2.70 | 4.2% |
+| goset | 2.54 | 0.02 | 2.51 | 2.56 | 2.0% |
+
+**matmul** (MFLOP/s, higher is better)
+
+| mode | median | sd | min | max | spread |
+|---|---|---|---|---|---|
+| baseline | 17241 | 597 | 15803 | 17689 | 10.9% |
+| taskset | 16556 | 736 | 14856 | 17434 | 15.6% |
+| goset | 18191 | 336 | 17134 | 18352 | 6.7% |
+
+**stream Triad** (MB/s, higher is better)
+
+| mode | median | sd | min | max | spread |
+|---|---|---|---|---|---|
+| baseline | 40826 | 363 | 40182 | 41367 | 2.9% |
+| taskset | 40645 | 395 | 40136 | 41415 | 3.1% |
+| goset | 41156 | 233 | 40896 | 41799 | 2.2% |
+
+> `spread` is (max - min) / median
+
+Limits:
+- taskset changes core every run, so its spread includes core-to-core differences.
+- jitter, chase and stream medians differ by under 4% between modes.
+- pingpong is excluded: taskset co-locates both threads on one CPU, goset books 2.
+
+Reproduce: `sudo goset-bench -bench jitter -runs 10 -n 1 -settle 5s -fence=true -taskset=true`.
+
+### Your own task
+
+`goset-bench` runs any command after `--` in each mode, 10 interleaved runs by default, and compares the numbers the task prints.
+
+```
+sudo goset-bench -runs 10 -n 1 -settle 5s -taskset=true -- ./mytask arg1 arg2
+```
+
+- Every number in the task's output becomes a metric, keyed by its line label and column.
+- `-dump` prints the extracted keys. `-match REGEX` selects keys. `-topk N` caps the keys shown (default 8).
+- A task that exits non-zero has its run discarded.
+- The task must print the same line structure every run. A changed structure raises an `output drift` warning.
+
+> goset-bench extracts metrics from any output format, so unusual structures can yield wrong metrics. Feel free to open an issue with the task's output when that happens!!
+
+
+License
+-------
+
+Apache-2.0. Copyright 2026 fior512. See [LICENSE](LICENSE).
