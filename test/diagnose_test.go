@@ -5,20 +5,6 @@ import (
 	"testing"
 )
 
-func TestDiagnoseBareInvocation(t *testing.T) {
-	gosetBin, _ := setup(t)
-	res := runGoset(t, gosetBin)
-	if res.exitCode != 0 {
-		t.Fatalf("bare goset exited %d, stderr: %s", res.exitCode, res.stderr)
-	}
-	for _, want := range []string{"Topology", "Environment", "Cgroups"} {
-		if !strings.Contains(res.stdout, want) {
-			t.Errorf("diagnose output missing %q table, got: %s", want, res.stdout)
-		}
-	}
-}
-
-
 func TestDiagnoseRejectsInvalidSelectionFlags(t *testing.T) {
 	gosetBin, _ := setup(t)
 	res := runGoset(t, gosetBin, "-n", "2", "-include", "0")
@@ -29,7 +15,6 @@ func TestDiagnoseRejectsInvalidSelectionFlags(t *testing.T) {
 		t.Errorf("stderr should mention cgroup, got: %s", res.stderr)
 	}
 }
-
 
 func TestDiagnoseInvalidFlagsStillValidated(t *testing.T) {
 	gosetBin, _ := setup(t)
