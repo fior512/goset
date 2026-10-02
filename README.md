@@ -206,7 +206,6 @@ Benchmarks:
 Limits:
 - taskset changes core every run, so its spread includes core-to-core differences.
 - jitter, chase and stream medians differ by under 4% between modes.
-- pingpong is excluded: taskset co-locates both threads on one CPU, goset books 2.
 
 Reproduce: `sudo goset-bench -bench jitter -runs 10 -n 1 -settle 5s -fence=true -taskset=true`.
 
