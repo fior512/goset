@@ -1,9 +1,7 @@
 closes #ID
 
-## Current State
+## What
 
-## Why it changes
+## Why
 
-## What the implementation is
-
-## Output
+## Verification
