@@ -23,7 +23,7 @@ func writeSchedstat(t *testing.T, root string, pid, tid int, runDelay float64) {
 	}
 }
 
-func runDelayValue(t *testing.T, src *telemetry.RunqueueSource) (float64, bool) {
+func runDelayValue(t *testing.T, src *telemetry.RunqueueSource) float64 {
 	t.Helper()
 	return telemetry.CountRunqueue(src.Summary())
 }
@@ -42,10 +42,7 @@ func TestRunqueueSumsTaskThreads(t *testing.T) {
 	if err := src.Poll(); err != nil {
 		t.Fatal(err)
 	}
-	got, ok := runDelayValue(t, src)
-	if !ok {
-		t.Fatal("Summary reported no run_delay counter after a live child sample")
-	}
+	got := runDelayValue(t, src)
 	if got != 3500 {
 		t.Errorf("run_delay = %v, want 3500 (1000+2500 over task threads)", got)
 	}
@@ -64,7 +61,7 @@ func TestRunqueueStickyAfterChildVanishes(t *testing.T) {
 	if err := src.Poll(); err != nil {
 		t.Fatal(err)
 	}
-	if got, _ := runDelayValue(t, src); got != 700 {
+	if got := runDelayValue(t, src); got != 700 {
 		t.Fatalf("run_delay = %v, want 700", got)
 	}
 
@@ -78,16 +75,13 @@ func TestRunqueueStickyAfterChildVanishes(t *testing.T) {
 	if err := src.Stop(); err != nil {
 		t.Fatal(err)
 	}
-	got, ok := runDelayValue(t, src)
-	if !ok {
-		t.Fatal("Summary dropped the run_delay counter after child vanished")
-	}
+	got := runDelayValue(t, src)
 	if got != 700 {
 		t.Errorf("run_delay = %v after reap, want sticky 700", got)
 	}
 }
 
-func TestRunqueueNoChildNoCounter(t *testing.T) {
+func TestRunqueueNoChildReportsZero(t *testing.T) {
 	src := &telemetry.RunqueueSource{Root: t.TempDir()}
 	if err := src.Baseline(generic.CPUSet{}); err != nil {
 		t.Fatal(err)
@@ -98,8 +92,8 @@ func TestRunqueueNoChildNoCounter(t *testing.T) {
 	if err := src.Stop(); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := runDelayValue(t, src); ok {
-		t.Error("Summary reported a run_delay counter with no child ever sampled")
+	if got := runDelayValue(t, src); got != 0 {
+		t.Errorf("run_delay = %v with no child ever sampled, want 0", got)
 	}
 }
 
@@ -115,7 +109,7 @@ func TestRunqueueMissingSchedstatFile(t *testing.T) {
 	if err := src.Poll(); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := runDelayValue(t, src); ok {
-		t.Error("Summary reported a run_delay counter when schedstat was unreadable")
+	if got := runDelayValue(t, src); got != 0 {
+		t.Errorf("run_delay = %v when schedstat was unreadable, want 0", got)
 	}
 }

@@ -38,9 +38,9 @@ func TestTelemetryTablesFooterReducesPerColumn(t *testing.T) {
 		t.Fatalf("TelemetryTables blocks = %d, want 1", len(tables))
 	}
 	want := [][]string{
-		{"3", "1GHz", "2GHz", "3GHz", "1", "10"},
-		{"7", "2GHz", "4GHz", "6GHz", "2", "20"},
-		{generic.TelemetryAll, "1GHz", "3GHz", "6GHz", "3", "30"}, // min, avg, max, sum, sum
+		{"3", "1GHz", "2GHz", "3GHz", "-", "1", "10"},
+		{"7", "2GHz", "4GHz", "6GHz", "-", "2", "20"},
+		{generic.TelemetryAll, "1GHz", "3GHz", "6GHz", "-", "3", "30"}, // min, avg, max, sum, sum
 	}
 	if !reflect.DeepEqual(tables[0].Rows, want) {
 		t.Errorf("rows =\n%q\nwant\n%q", tables[0].Rows, want)
@@ -52,12 +52,23 @@ func TestTelemetryTablesRowPerBookedCPU(t *testing.T) {
 	if len(tables) != 1 {
 		t.Fatalf("TelemetryTables blocks = %d, want 1", len(tables))
 	}
-	want := []string{"7", "-", "-", "-", "-", "-"}
+	want := []string{"7", "-", "-", "-", "-", "-", "-"}
 	if rows := tables[0].Rows; len(rows) != 3 || !reflect.DeepEqual(rows[1], want) {
 		t.Errorf("rows = %q, want cpu 7 as %q: a booked cpu without values keeps its row", rows, want)
 	}
-	footer := []string{generic.TelemetryAll, "-", "-", "-", "-", "-"}
+	footer := []string{generic.TelemetryAll, "-", "-", "-", "-", "-", "-"}
 	if rows := tables[0].Rows; !reflect.DeepEqual(rows[2], footer) {
 		t.Errorf("footer = %q, want %q: a column missing a cpu is not reduced", rows, footer)
+	}
+}
+
+func TestTelemetryTablesRendersEveryColumnOnAnEmptyRun(t *testing.T) {
+	tables := report.TelemetryTables(report.Report{Cpus: cpuSet(3)}, 200)
+	if len(tables) != 1 {
+		t.Fatalf("TelemetryTables blocks = %d, want 1", len(tables))
+	}
+	want := []string{"-", "-", "-", "-", "-", "-"}
+	if rows := tables[0].Rows; len(rows) != 1 || !reflect.DeepEqual(rows[0], want) {
+		t.Errorf("rows = %q, want %q: a counter nobody reported is still shown", rows, want)
 	}
 }

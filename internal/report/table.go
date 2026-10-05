@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
@@ -87,15 +86,6 @@ var telemetryColumns = []telemetryColumn{
 
 func TelemetryTables(rep Report, width int) []Table {
 	values := perCPUValues(rep.Counters)
-	var columns []telemetryColumn
-	for _, column := range telemetryColumns {
-		if len(values[column.label()]) > 0 {
-			columns = append(columns, column)
-		}
-	}
-	if len(columns) == 0 {
-		return nil
-	}
 
 	/* layout */
 	keys := 0
@@ -107,17 +97,17 @@ func TelemetryTables(rep Report, width int) []Table {
 		tab.Header = append(tab.Header, generic.TelemetryCPU)
 		groups = append(groups, "")
 	}
-	for _, column := range columns {
+	for _, column := range telemetryColumns {
 		tab.Header = append(tab.Header, column.label())
 		groups = append(groups, column.source)
 	}
 
 	/* rows */
 	for cpu := range rep.Cpus.All() {
-		tab.Rows = append(tab.Rows, telemetryRow(cpu, columns, values, keys > 0))
+		tab.Rows = append(tab.Rows, telemetryRow(cpu, telemetryColumns, values, keys > 0))
 	}
 	if keys > 0 {
-		tab.Rows = append(tab.Rows, telemetryFooter(columns, values, rep.Cpus))
+		tab.Rows = append(tab.Rows, telemetryFooter(values, rep.Cpus))
 	}
 	return splitColumns(tab, groups, keys, width)
 }
@@ -140,9 +130,9 @@ func telemetryRow(cpu int, columns []telemetryColumn, values map[string]map[int]
 }
 
 // one all-cpu row per table, each column folded over the task cpus
-func telemetryFooter(columns []telemetryColumn, values map[string]map[int]float64, cpus generic.CPUSet) []string {
+func telemetryFooter(values map[string]map[int]float64, cpus generic.CPUSet) []string {
 	footer := []string{generic.TelemetryAll}
-	for _, column := range columns {
+	for _, column := range telemetryColumns {
 		cell, ok := column.reduceAll(values[column.label()], cpus)
 		if !ok {
 			cell = "-"
@@ -227,20 +217,6 @@ func pick[T any](values []T, indexes []int) []T {
 	return out
 }
 
-func NotReportedTable(rep Report) Table {
-	values := perCPUValues(rep.Counters)
-	var missing []string
-	for _, column := range telemetryColumns {
-		if len(values[column.label()]) == 0 && !slices.Contains(missing, column.source) {
-			missing = append(missing, column.source)
-		}
-	}
-	if len(missing) == 0 {
-		return Table{}
-	}
-	return Table{Rows: [][]string{{"not reported: " + strings.Join(missing, ", ")}}}
-}
-
 type runPair struct {
 	key   string
 	value string
@@ -307,12 +283,10 @@ func schedPairs(rep Report) []runPair {
 			runPair{generic.RunCtxswInvol, fmt.Sprintf("%d", rep.Rusage.Nivcsw)},
 		)
 	}
-	if migrations, ok := telemetry.CountMigrations(rep.Counters); ok {
-		pairs = append(pairs, runPair{generic.RunMigrations, strconv.Itoa(migrations)})
-	}
-	if runDelay, ok := telemetry.CountRunqueue(rep.Counters); ok {
-		pairs = append(pairs, runPair{generic.SchedRunDelay, FormatTime(time.Duration(runDelay))})
-	}
+	pairs = append(pairs,
+		runPair{generic.RunMigrations, strconv.Itoa(telemetry.CountMigrations(rep.Counters))},
+		runPair{generic.SchedRunDelay, FormatTime(time.Duration(telemetry.CountRunqueue(rep.Counters)))},
+	)
 	return pairs
 }
 

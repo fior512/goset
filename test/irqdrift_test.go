@@ -94,7 +94,7 @@ func TestIRQDriftMissingFile(t *testing.T) {
 	}
 }
 
-func TestIRQDriftEmptyExpected(t *testing.T) {
+func TestIRQDriftEmptyExpectedReportsZero(t *testing.T) {
 	src := &telemetry.IRQDriftSource{
 		Root:     t.TempDir(),
 		Expected: nil,
@@ -103,7 +103,7 @@ func TestIRQDriftEmptyExpected(t *testing.T) {
 	if err := src.Poll(); err != nil {
 		t.Fatal(err)
 	}
-	if out := src.Summary(); len(out) != 0 {
-		t.Errorf("Summary() = %v, want empty", out)
+	if got := driftCount(t, src); got != 0 {
+		t.Errorf("drift with no IRQ steered = %d, want 0", got)
 	}
 }

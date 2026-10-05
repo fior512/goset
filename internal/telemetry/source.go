@@ -17,5 +17,5 @@ type Source interface {
 	Baseline(cpus generic.CPUSet) error // starting point
 	Poll() error                        // sample
 	Stop() error                        // ending point
-	Summary() []Counter                 // report
+	Summary() []Counter                 // report, every counter the source owns
 }

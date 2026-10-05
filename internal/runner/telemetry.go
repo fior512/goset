@@ -23,9 +23,9 @@ func Telemetry(selected *generic.Selection, cfg *cli.Config, steering *isolation
 	}
 
 	sources := []telemetry.Source{
-		&telemetry.IRQSource{},
+		&telemetry.IRQSource{Root: generic.ProcRoot},
 		&telemetry.ThrottleSource{Root: generic.SysCPU},
-		&telemetry.FreqSource{},
+		&telemetry.FreqSource{Root: generic.SysCPU},
 		&telemetry.MigrationsSource{Root: generic.ProcRoot},
 		&telemetry.RunqueueSource{Root: generic.ProcRoot},
 	}
@@ -67,7 +67,7 @@ func Telemetry(selected *generic.Selection, cfg *cli.Config, steering *isolation
 		}
 		tables := []report.Table{report.SelectionTable(selected)}
 		tables = append(tables, report.TelemetryTables(rep, reportWidth(os.Stderr))...)
-		tables = append(tables, report.RunTable(rep), report.NotReportedTable(rep))
+		tables = append(tables, report.RunTable(rep))
 		report.Render(os.Stderr, tables...)
 	}
 	return lazyReport, nil

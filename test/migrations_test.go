@@ -42,7 +42,7 @@ func writeChildren(t *testing.T, root string, childPIDs ...int) {
 	}
 }
 
-func migrationValue(t *testing.T, src *telemetry.MigrationsSource) (int, bool) {
+func migrationValue(t *testing.T, src *telemetry.MigrationsSource) int {
 	t.Helper()
 	return telemetry.CountMigrations(src.Summary())
 }
@@ -61,10 +61,7 @@ func TestMigrationsSumsTaskThreads(t *testing.T) {
 	if err := src.Poll(); err != nil {
 		t.Fatal(err)
 	}
-	got, ok := migrationValue(t, src)
-	if !ok {
-		t.Fatal("Summary reported no migration counter after a live child sample")
-	}
+	got := migrationValue(t, src)
 	if got != 8 {
 		t.Errorf("migrations = %d, want 8 (3+5 over task threads)", got)
 	}
@@ -83,7 +80,7 @@ func TestMigrationsStickyAfterChildVanishes(t *testing.T) {
 	if err := src.Poll(); err != nil {
 		t.Fatal(err)
 	}
-	if got, _ := migrationValue(t, src); got != 7 {
+	if got := migrationValue(t, src); got != 7 {
 		t.Fatalf("migrations = %d, want 7", got)
 	}
 
@@ -97,16 +94,13 @@ func TestMigrationsStickyAfterChildVanishes(t *testing.T) {
 	if err := src.Stop(); err != nil {
 		t.Fatal(err)
 	}
-	got, ok := migrationValue(t, src)
-	if !ok {
-		t.Fatal("Summary dropped the migration counter after child vanished")
-	}
+	got := migrationValue(t, src)
 	if got != 7 {
 		t.Errorf("migrations = %d after reap, want sticky 7", got)
 	}
 }
 
-func TestMigrationsNoChildNoCounter(t *testing.T) {
+func TestMigrationsNoChildReportsZero(t *testing.T) {
 	src := &telemetry.MigrationsSource{Root: t.TempDir()}
 	if err := src.Baseline(generic.CPUSet{}); err != nil {
 		t.Fatal(err)
@@ -117,8 +111,8 @@ func TestMigrationsNoChildNoCounter(t *testing.T) {
 	if err := src.Stop(); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := migrationValue(t, src); ok {
-		t.Error("Summary reported a migration counter with no child ever sampled")
+	if got := migrationValue(t, src); got != 0 {
+		t.Errorf("migrations = %d with no child ever sampled, want 0", got)
 	}
 }
 
@@ -134,7 +128,7 @@ func TestMigrationsMissingSchedFile(t *testing.T) {
 	if err := src.Poll(); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := migrationValue(t, src); ok {
-		t.Error("Summary reported a migration counter when sched was unreadable")
+	if got := migrationValue(t, src); got != 0 {
+		t.Errorf("migrations = %d when sched was unreadable, want 0", got)
 	}
 }

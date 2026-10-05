@@ -2,15 +2,15 @@ package generic
 
 // paths
 const (
-	SysCPU         = "/sys/devices/system/cpu"
-	SysNode        = "/sys/devices/system/node"
-	SysCgroup      = "/sys/fs/cgroup"
-	ProcRoot       = "/proc"
-	ProcIRQ        = "/proc/irq"
-	ProcTaskDir    = "task"
-	ProcInterrupts = "/proc/interrupts"
-	ProcCmd        = "/proc/cmdline"
-	RunLockDir     = "/run/lock"
+	SysCPU             = "/sys/devices/system/cpu"
+	SysNode            = "/sys/devices/system/node"
+	SysCgroup          = "/sys/fs/cgroup"
+	ProcRoot           = "/proc"
+	ProcIRQ            = "/proc/irq"
+	ProcTaskDir        = "task"
+	ProcInterruptsName = "interrupts"
+	ProcCmd            = "/proc/cmdline"
+	RunLockDir         = "/run/lock"
 )
 
 // cgroup v2 control files
@@ -69,7 +69,7 @@ const (
 	FreqAvg         = "avg"
 	SchedRunDelay   = "run_delay"
 	SchedMigrations = "nr_migrations"
-	IRQSteerDrift   = "drift"
+	SteerDrift      = "drift"
 )
 
 // telemetry row labels
@@ -87,7 +87,7 @@ const (
 
 // run report keys
 const (
-	RunPoll              = "Poll"
+	RunPoll              = "poll"
 	RunWall              = "wall"
 	RunExit              = "exit"
 	RunCtxswVol          = "ctxsw vol"

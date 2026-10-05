@@ -11,9 +11,8 @@ import (
 
 // https://man7.org/linux/man-pages/man5/proc.5.html
 type RunqueueSource struct {
-	Root    string // "/proc" in production, temp dir in tests
-	value   float64
-	sampled bool
+	Root  string // "/proc" in production, temp dir in tests
+	value float64
 }
 
 func (src *RunqueueSource) Baseline(generic.CPUSet) error {
@@ -31,7 +30,6 @@ func (src *RunqueueSource) sample() {
 		return // mid-exit race: keep sticky value
 	}
 	src.value = total
-	src.sampled = true
 }
 
 func (src *RunqueueSource) Stop() error {
@@ -40,9 +38,6 @@ func (src *RunqueueSource) Stop() error {
 }
 
 func (src *RunqueueSource) Summary() []Counter {
-	if !src.sampled {
-		return nil
-	}
 	return []Counter{{
 		Source: generic.SourceSched,
 		CPU:    -1, // run-global, not per-cpu
@@ -100,11 +95,11 @@ func parseRunDelay(content string) (float64, bool) {
 	return delay, true
 }
 
-func CountRunqueue(counters []Counter) (float64, bool) {
+func CountRunqueue(counters []Counter) float64 {
 	for _, counter := range counters {
 		if counter.Source == generic.SourceSched && counter.Name == generic.SchedRunDelay {
-			return counter.Value, true
+			return counter.Value
 		}
 	}
-	return 0, false
+	return 0
 }
