@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 
@@ -70,5 +71,23 @@ func TestTelemetryTablesRendersEveryColumnOnAnEmptyRun(t *testing.T) {
 	want := []string{"-", "-", "-", "-", "-", "-"}
 	if rows := tables[0].Rows; len(rows) != 1 || !reflect.DeepEqual(rows[0], want) {
 		t.Errorf("rows = %q, want %q: a counter nobody reported is still shown", rows, want)
+	}
+}
+
+func TestErrorsTableOneRowPerFailure(t *testing.T) {
+	rep := report.Report{Errors: []error{errors.New("telemetry stop *telemetry.IRQSource: open /proc/interrupts")}}
+	tab := report.ErrorsTable(rep)
+	if tab.Title != "Errors" {
+		t.Errorf("title = %q, want %q", tab.Title, "Errors")
+	}
+	want := [][]string{{"telemetry stop *telemetry.IRQSource: open /proc/interrupts"}}
+	if !reflect.DeepEqual(tab.Rows, want) {
+		t.Errorf("rows = %q, want %q", tab.Rows, want)
+	}
+}
+
+func TestErrorsTableEmptyOnACleanRun(t *testing.T) {
+	if tab := report.ErrorsTable(report.Report{}); len(tab.Rows) != 0 {
+		t.Errorf("rows = %q, want none: Render skips the table", tab.Rows)
 	}
 }

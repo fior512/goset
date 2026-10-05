@@ -61,6 +61,7 @@ type Report struct {
 	ExitCode int
 	Polls    int
 	Interval time.Duration
+	Errors   []error // distinct telemetry failures, the counters they left at 0
 }
 
 type telemetryColumn struct {
@@ -301,6 +302,15 @@ func steerPairs(rep Report) []runPair {
 		{generic.RunIRQSteerDrift, strconv.Itoa(telemetry.CountDriftedIRQs(rep.Counters))},
 		{generic.RunIRQBalance, rep.Steer.Status()},
 	}
+}
+
+// one row per distinct telemetry failure, naming the counters it left at 0
+func ErrorsTable(rep Report) Table {
+	rows := make([][]string, 0, len(rep.Errors))
+	for _, failure := range rep.Errors {
+		rows = append(rows, []string{failure.Error()})
+	}
+	return Table{Title: "Errors", Align: AlignLeft, Rows: rows}
 }
 
 func TopologyTable(topo *cpu.Topology) Table {

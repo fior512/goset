@@ -54,7 +54,7 @@ func Telemetry(selected *generic.Selection, cfg *cli.Config, steering *isolation
 	// lazy print
 	lazyReport := func(wall time.Duration, runErr error, steering *isolation.Steering, rusage *syscall.Rusage) {
 		fmt.Fprintln(os.Stderr, "\n\n----------------- GOSET -----------------")
-		counters, polls := sampler.Stop()
+		counters, polls, errs := sampler.Stop()
 		rep := report.Report{
 			Cpus:     selected.Task,
 			Steer:    steering,
@@ -64,10 +64,11 @@ func Telemetry(selected *generic.Selection, cfg *cli.Config, steering *isolation
 			ExitCode: ExitCode(runErr),
 			Polls:    polls,
 			Interval: sampler.Interval,
+			Errors:   errs,
 		}
 		tables := []report.Table{report.SelectionTable(selected)}
 		tables = append(tables, report.TelemetryTables(rep, reportWidth(os.Stderr))...)
-		tables = append(tables, report.RunTable(rep))
+		tables = append(tables, report.RunTable(rep), report.ErrorsTable(rep))
 		report.Render(os.Stderr, tables...)
 	}
 	return lazyReport, nil
