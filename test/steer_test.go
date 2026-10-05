@@ -101,13 +101,14 @@ func TestSteerNoRoomToSteer(t *testing.T) {
 	preflight(t, 2)
 	ids := onlineIDs(t)
 	gosetBin, probeBin := setup(t)
-	n := len(ids) - 1
-	if n < 1 {
-		t.Skip("need at least 2 online cpus")
+	// Need taskCPUs task + 1 housekeeper + 1 steer = taskCPUs + 2 CPUs total
+	taskCPUs := len(ids) - 2
+	if taskCPUs < 1 {
+		t.Skip("need at least 3 online cpus for -steer headroom")
 	}
 
-	res := runGoset(t, gosetBin, "-n", strconv.Itoa(n), "-steer", "--", probeBin)
+	res := runGoset(t, gosetBin, "-n", strconv.Itoa(taskCPUs), "-steer", "--", probeBin)
 	if res.exitCode != 0 {
-		t.Fatalf("goset -n %d -steer exited %d, stderr: %s", n, res.exitCode, res.stderr)
+		t.Fatalf("goset -n %d -steer exited %d, stderr: %s", taskCPUs, res.exitCode, res.stderr)
 	}
 }
