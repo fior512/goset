@@ -46,22 +46,17 @@ func (src *IRQDriftSource) sample() {
 }
 
 func (src *IRQDriftSource) Summary() []Counter {
-	if len(src.Expected) == 0 {
-		return nil
-	}
 	return []Counter{{
 		Source: generic.SourceIRQSteer,
 		CPU:    -1, // run-global, not per-cpu
-		Name:   generic.IRQSteerDrift,
+		Name:   generic.SteerDrift,
 		Value:  float64(len(src.Drifted)),
 	}}
 }
 
-// CountDriftedIRQs extracts the run-global drift counter from a summary.
-// 0 when steering was off or nothing drifted.
 func CountDriftedIRQs(counters []Counter) int {
 	for _, counter := range counters {
-		if counter.Source == generic.SourceIRQSteer && counter.Name == generic.IRQSteerDrift {
+		if counter.Source == generic.SourceIRQSteer && counter.Name == generic.SteerDrift {
 			return int(counter.Value)
 		}
 	}

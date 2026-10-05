@@ -452,7 +452,7 @@ func renderedReport(cpus []int, width int) []byte {
 	var out bytes.Buffer
 	out.WriteString("Run\ntask wall  9s\n" + gosetReportMarker + "\n")
 	tables := rpt.TelemetryTables(rep, width)
-	tables = append(tables, rpt.RunTable(rep), rpt.NotReportedTable(rep))
+	tables = append(tables, rpt.RunTable(rep))
 	rpt.Render(&out, tables...)
 	return out.Bytes()
 }

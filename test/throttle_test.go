@@ -33,7 +33,7 @@ func writeThrottle(t *testing.T, root string, cpu int, content []byte) {
 	}
 }
 
-func TestThrottleReportsAbsentAsMissingAndUnknownAsZero(t *testing.T) {
+func TestThrottleReportsEveryBookedCPU(t *testing.T) {
 	root := t.TempDir()
 	const absent, counted, unreadable, malformed, lostAtStop = 0, 1, 2, 3, 4
 	writeThrottle(t, root, counted, []byte("7\n"))
@@ -59,8 +59,8 @@ func TestThrottleReportsAbsentAsMissingAndUnknownAsZero(t *testing.T) {
 	for _, counter := range src.Summary() {
 		got[counter.CPU] = counter.Value
 	}
-	want := map[int]float64{counted: 2, unreadable: 0, malformed: 0, lostAtStop: 0}
+	want := map[int]float64{absent: 0, counted: 2, unreadable: 0, malformed: 0, lostAtStop: 0}
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("throttle per cpu = %v, want %v: an absent counter has no value, an unknown one reads 0", got, want)
+		t.Errorf("throttle per cpu = %v, want %v: an absent counter and an unknown one both read 0", got, want)
 	}
 }

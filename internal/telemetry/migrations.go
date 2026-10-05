@@ -11,9 +11,8 @@ import (
 
 // https://man7.org/linux/man-pages/man5/proc.5.html
 type MigrationsSource struct {
-	Root    string // "/proc" in production, temp dir in tests
-	value   float64
-	sampled bool
+	Root  string // "/proc" in production, temp dir in tests
+	value float64
 }
 
 func (src *MigrationsSource) Baseline(generic.CPUSet) error {
@@ -31,9 +30,6 @@ func (src *MigrationsSource) Stop() error {
 }
 
 func (src *MigrationsSource) Summary() []Counter {
-	if !src.sampled {
-		return nil
-	}
 	return []Counter{{
 		Source: generic.SourceSched,
 		CPU:    -1, // run-global, not per-cpu
@@ -48,7 +44,6 @@ func (src *MigrationsSource) sample() {
 		return
 	}
 	src.value = total
-	src.sampled = true
 }
 
 func (src *MigrationsSource) readChildrenMigrations() (float64, bool) {
@@ -123,11 +118,11 @@ func parseNrMigrations(sched string) (float64, bool) {
 	return 0, false
 }
 
-func CountMigrations(counters []Counter) (int, bool) {
+func CountMigrations(counters []Counter) int {
 	for _, counter := range counters {
 		if counter.Source == generic.SourceSched && counter.Name == generic.SchedMigrations {
-			return int(counter.Value), true
+			return int(counter.Value)
 		}
 	}
-	return 0, false
+	return 0
 }

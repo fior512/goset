@@ -12,12 +12,12 @@ import (
 )
 
 func sampleIRQDelta(interval time.Duration) ([]telemetry.IRQCount, error) {
-	before, err := telemetry.ReadIRQCounts()
+	before, err := telemetry.ReadIRQCounts(generic.ProcRoot)
 	if err != nil {
 		return nil, err
 	}
 	time.Sleep(interval)
-	after, err := telemetry.ReadIRQCounts()
+	after, err := telemetry.ReadIRQCounts(generic.ProcRoot)
 	if err != nil {
 		return nil, err
 	}

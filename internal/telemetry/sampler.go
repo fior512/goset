@@ -3,6 +3,7 @@ package telemetry
 import (
 	"fmt"
 	"runtime"
+	"slices"
 	"sync"
 	"time"
 
@@ -17,12 +18,14 @@ type Sampler struct {
 	exit     chan struct{}
 	counters chan sampled
 	once     sync.Once
+	errs     []error
 	polls    int
 }
 
 // sampled is what the housekeeper hands back when the run ends.
 type sampled struct {
 	counters []Counter
+	errs     []error
 	polls    int
 }
 
@@ -73,7 +76,7 @@ func (sam *Sampler) poll() {
 			return
 		case <-ticker.C:
 			for _, src := range sam.Sources {
-				_ = src.Poll()
+				sam.recordFailure("poll", src, src.Poll())
 			}
 			sam.polls++
 		}
@@ -83,15 +86,28 @@ func (sam *Sampler) poll() {
 func (sam *Sampler) summary() sampled {
 	out := sampled{polls: sam.polls}
 	for _, src := range sam.Sources {
-		_ = src.Stop()
+		sam.recordFailure("stop", src, src.Stop())
 		out.counters = append(out.counters, src.Summary()...)
 	}
+	out.errs = sam.errs
 	return out
 }
 
-// Stop ends the run and returns the counters with the poll ticks taken.
-func (sam *Sampler) Stop() ([]Counter, int) {
+// one entry per distinct failure: a source failing on every tick keeps one
+func (sam *Sampler) recordFailure(stage string, src Source, err error) {
+	if err == nil {
+		return
+	}
+	failure := fmt.Errorf("telemetry %s %T: %w", stage, src, err)
+	if slices.ContainsFunc(sam.errs, func(seen error) bool { return seen.Error() == failure.Error() }) {
+		return
+	}
+	sam.errs = append(sam.errs, failure)
+}
+
+// the counters, the poll ticks taken, and every distinct source failure
+func (sam *Sampler) Stop() ([]Counter, int, []error) {
 	sam.once.Do(func() { close(sam.exit) })
 	final := <-sam.counters
-	return final.counters, final.polls
+	return final.counters, final.polls, final.errs
 }

@@ -11,7 +11,6 @@ import (
 	"strings"
 )
 
-// ReadThrottleCounts indexes counts by cpu id; absent holds the cpus with no thermal_throttle in sysfs.
 func ReadThrottleCounts(root string, cpus generic.CPUSet) (counts []uint64, absent generic.CPUSet) {
 	counts = make([]uint64, cpus.Max()+1)
 	for cpu := range cpus.All() {
@@ -29,9 +28,9 @@ func ReadThrottleCounts(root string, cpus generic.CPUSet) (counts []uint64, abse
 	return counts, absent
 }
 
-
 type ThrottleSource struct {
-	Root  string // generic.SysCPU in production, temp dir in tests
+	Root  string         // generic.SysCPU in production, temp dir in tests
+	all   generic.CPUSet // task cpus
 	cpus  generic.CPUSet // task cpus minus the absent ones
 	start []uint64
 	end   []uint64
@@ -40,6 +39,7 @@ type ThrottleSource struct {
 func (src *ThrottleSource) Baseline(cpus generic.CPUSet) error {
 	var absent generic.CPUSet
 	src.start, absent = ReadThrottleCounts(src.Root, cpus)
+	src.all = cpus
 	src.cpus = cpus
 	src.cpus.AndNot(absent)
 	return nil
@@ -54,12 +54,11 @@ func (src *ThrottleSource) Stop() error {
 	return nil
 }
 
-
 func (src *ThrottleSource) Summary() []Counter {
-	out := make([]Counter, 0, src.cpus.Count())
-	for cpu := range src.cpus.All() {
+	out := make([]Counter, 0, src.all.Count())
+	for cpu := range src.all.All() {
 		var delta uint64
-		if src.end[cpu] >= src.start[cpu] { // end read 0: unknown at Stop
+		if src.cpus.GetBit(cpu) && src.end[cpu] >= src.start[cpu] { // end read 0: unknown at Stop
 			delta = src.end[cpu] - src.start[cpu]
 		}
 		out = append(out, Counter{

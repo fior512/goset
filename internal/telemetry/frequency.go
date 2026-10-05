@@ -3,6 +3,7 @@ package telemetry
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -10,6 +11,7 @@ import (
 )
 
 type FreqSource struct {
+	Root  string // generic.SysCPU in production, temp dir in tests
 	cpus  generic.CPUSet
 	files []*os.File
 	buf   []byte
@@ -31,7 +33,7 @@ func (src *FreqSource) Baseline(cpus generic.CPUSet) error {
 	src.n = make([]int, size)
 
 	for cpu := range src.cpus.All() {
-		path := fmt.Sprintf(generic.SysCPU+"/cpu%d/"+generic.CpufreqDir+"/"+generic.ScalingCurFreq, cpu)
+		path := filepath.Join(src.Root, fmt.Sprintf("cpu%d", cpu), generic.CpufreqDir, generic.ScalingCurFreq)
 		file, err := os.Open(path)
 		if err != nil {
 			continue // absent on some cpus/VM
@@ -85,17 +87,18 @@ func (src *FreqSource) Stop() error {
 	return nil
 }
 
-// Summary values are Hz, from Poll samples only.
 func (src *FreqSource) Summary() []Counter {
 	out := make([]Counter, 0, src.cpus.Count()*3)
 	for cpu := range src.cpus.All() {
-		if cpu >= len(src.n) || src.n[cpu] == 0 {
-			continue
+		var low, high, mean float64
+		if cpu < len(src.n) && src.n[cpu] > 0 {
+			low, high = src.min[cpu], src.max[cpu]
+			mean = src.sum[cpu] / float64(src.n[cpu])
 		}
 		out = append(out,
-			Counter{Source: generic.SourceFreq, CPU: cpu, Name: generic.FreqMin, Value: src.min[cpu]},
-			Counter{Source: generic.SourceFreq, CPU: cpu, Name: generic.FreqMax, Value: src.max[cpu]},
-			Counter{Source: generic.SourceFreq, CPU: cpu, Name: generic.FreqAvg, Value: src.sum[cpu] / float64(src.n[cpu])},
+			Counter{Source: generic.SourceFreq, CPU: cpu, Name: generic.FreqMin, Value: low},
+			Counter{Source: generic.SourceFreq, CPU: cpu, Name: generic.FreqMax, Value: high},
+			Counter{Source: generic.SourceFreq, CPU: cpu, Name: generic.FreqAvg, Value: mean},
 		)
 	}
 	return out
