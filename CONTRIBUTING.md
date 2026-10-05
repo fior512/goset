@@ -60,21 +60,18 @@ Git:
 - Commit messages must include enough information to use `git bisect`.
 - A PR is about a single aspect. Use stacked PRs to break down every change independently.
 
-A PR description must state:
-- the current state
-- why it changes
-- what the implementation is
-- the output of `go build ./...` and `go test ./...`, or a real run's telemetry, showing the change works
+A PR description must answer to:
+- What
+- Why
+- Verification
 
 Each section carries one job:
-- `Current State` states the defect, not how the defect appeared
-- `Why it changes` states the consequence, in one or two sentences
-- `What the implementation is` is one bullet per change, and no bullet restates what the patch already shows
-- `Output` carries verbatim command output, and any limit as a fact
+- What: the change is about
+- Why: reason to change it
+- Verification: any output that proves the implementation to work if code (`go build ./...` and `go test ./...` and optionally `goset` output)
 
-The first line is an issue reference when the change has one, and is absent when it does not. No line is ever written for the missing case.
-
-A commit body wraps at 72 columns. A markdown document does not wrap. They are different artifacts under different rules.
+If the PR solves an issue, `closes #<id>` heads the PR body.
+A commit body wraps at 72 columns. A markdown document does not wrap.
 
 If the author cannot explain any line of their own PR on request, the PR is discarded.
 

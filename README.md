@@ -97,20 +97,19 @@ Selection
     5           0        535  1.06k    11           0
 
 Telemetry
-  cpu  freq min  freq avg  freq max  irq steerable  irq non-steerable
-  1     2.99GHz   2.99GHz   2.99GHz              0                147
-  7     2.99GHz   2.99GHz   2.99GHz              0                 13
-  all   2.99GHz   2.99GHz   2.99GHz              0                160
+  cpu  freq min  freq avg  freq max  throttle count  irq steerable  irq non-steerable
+  1     2.99GHz   2.99GHz   2.99GHz               0              0                147
+  7     2.99GHz   2.99GHz   2.99GHz               0              0                 13
+  all   2.99GHz   2.99GHz   2.99GHz               0              0                160
 
 Run
   task             sched             steer
-  Poll  10@100ms  ctxsw vol      2  applied         40
+  poll  10@100ms  ctxsw vol      2  applied         40
   wall     1.00s  ctxsw invol    0  rejected        26
   exit          0  migrations     0  remaining        0
-                  run_delay    0ns  drift            0
-                                     irqbalance  absent
+                   run_delay    0ns  drift            0
+                                      irqbalance  absent
 
-  not reported: throttle
 ```
 
 
@@ -151,6 +150,7 @@ With `-cgroup`, the cpuset holds the task CPUs plus their SMT siblings (`-fence`
 - Reader: Only the housekeeper reads.
 - No IPI: every counter comes from procfs/sysfs. The pinned housekeeper thread does the mid-run poll; the before/after baseline runs on the calling thread.
 - Source: kernel software counters only: `/proc/interrupts`, sysfs throttle, `wait4()` rusage...
+- Every counter is reported, so `0` is ambiguous: no activity, no kernel support (a driver or `CONFIG_` option is missing), or nothing was sampled. `-interval 0` samples nothing, so the `freq` columns read 0. A read that failed ends the report in an `Errors` table, one line per failure.
 - `-interval`: mid-run poll tick, ms. Not used by `SelectCPUs()`.
 
 
