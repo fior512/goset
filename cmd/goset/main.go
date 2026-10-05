@@ -15,6 +15,7 @@ import (
 )
 
 func main() {
+	/* flags */
 	cfg, err := cli.Parse(os.Args[1:])
 	if errors.Is(err, flag.ErrHelp) { // usage already on stderr
 		return
@@ -24,14 +25,16 @@ func main() {
 		os.Exit(2)
 	}
 
+	//TODO: remove for diagnosis or help path
 	if cfg.Version {
 		fmt.Println(version.String())
 		return
 	}
 
+	/* forms */
 	switch {
 	case cfg.RmCgroup != "":
-		err = isolation.RemoveCgroup(cfg.RmCgroup)
+		err = isolation.RemoveCgroup(cfg.RmCgroup) //TODO: diagnose backend
 	case len(cfg.Task) == 0:
 		err = runner.Diagnose(cfg)
 	case len(cfg.Task) != 0:
@@ -39,6 +42,8 @@ func main() {
 	default:
 		err = fmt.Errorf("flag error, no goset form defined")
 	}
+
+	/* output */
 	if err != nil {
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {

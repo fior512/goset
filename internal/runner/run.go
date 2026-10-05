@@ -40,7 +40,7 @@ func Run(cfg *cli.Config) (err error) {
 }
 
 // ExitCode task's exit code, -1: task produced none
-func ExitCode(err error) int {
+func ExitCode(err error) int { // TODO: move somewhere else
 	if err == nil {
 		return 0
 	}
