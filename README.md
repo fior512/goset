@@ -83,29 +83,34 @@ Goset output format (with `-steer` and `-cgroup`):
 ----------------- GOSET -----------------
 Selection
   cpu  sel  steer  non-steer   core  sibl  isol  numa  nohz  rcu
-   11   *       0        337    755     5           0
-    5   !       0        418    755    11           0
-    0   &       0        706  1.43k     6           0
-    6           0        721  1.43k     0           0
-    3           0        610  1.51k     9           0
-    9           0        904  1.51k     3           0
-    1           0        735  1.55k     7           0
-    7           1        813  1.55k     1           0
-    8         552        762  1.59k     2           0
-    2          94        833  1.59k     8           0
-    4           0        755  1.71k    10           0
-   10          30        954  1.71k     4           0
+    4   *       2        212    632    10           0
+   10   *      30        420    632     4           0
+    5   *       0        436    919    11           0
+   11   *       0        483    919     5           0
+    1   *       0        365    958     7           0
+    7   !       2        593    958     1           0
+    8   &     223        473  1.01k     2           0
+    2          96        540  1.01k     8           0
+    9           0        454  1.06k     3           0
+    3           0        610  1.06k     9           0
+    6           2        625  1.26k     0           0
+    0           0        634  1.26k     6           0
 
 Telemetry
-  freq min  freq avg  freq max  throttle count  irq steerable  irq non-steerable
-   4.86GHz   5.28GHz   5.45GHz               0              0              10.4k
+  cpu  freq min  freq avg  freq max  throttle count  irq steerable  irq non-steerable
+  1     2.99GHz   3.28GHz   5.22GHz               0              0              8.42k
+  4     2.99GHz   3.37GHz   5.40GHz               0              0              2.25k
+  5     2.99GHz   3.47GHz   5.19GHz               0             43              3.07k
+  10    2.99GHz   4.89GHz   5.35GHz               0              0              11.0k
+  11    2.96GHz   3.31GHz   5.18GHz               0             78              2.08k
+  all   2.96GHz   3.66GHz   5.40GHz               0            121              26.8k
 
 Run
   task            sched                  steer
-  poll  5637@5ms  ctxsw vol           1  applied         40
-  wall    28.19s  ctxsw invol        41  rejected        26
-  exit         0  migrations          1  remaining        0
-                  run_delay    279.78us  drift            0
+  poll  5699@5ms  ctxsw vol           1  applied         40
+  wall    28.50s  ctxsw invol        37  rejected        26
+  exit         0  migrations         10  remaining        0
+                  run_delay    237.91us  drift            0
                                          irqbalance  absent
 ```
 
