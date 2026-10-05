@@ -27,6 +27,23 @@ func cgroupSnapshot(t *testing.T) []string {
 	return names
 }
 
+// the current process's cgroup path, or empty on error
+func currentCgroup() string {
+	data, err := os.ReadFile("/proc/self/cgroup")
+	if err != nil {
+		return ""
+	}
+	// 0::/system.slice
+	lines := strings.Split(string(data), "\n")
+	if len(lines) > 0 {
+		parts := strings.SplitN(lines[0], ":", 3)
+		if len(parts) == 3 {
+			return parts[2]
+		}
+	}
+	return ""
+}
+
 
 func diffSnapshots(before, after []string) (leaked, missing []string) {
 	seen := map[string]bool{}
@@ -100,6 +117,10 @@ func TestSingleThreadNoCgroup(t *testing.T) {
 
 func TestMultiThreadSharesInheritedMask(t *testing.T) {
 	preflight(t, 3) // n=2 + housekeeper
+	// Skip if not in root cgroup (GitHub Actions runs in systemd slice)
+	if !strings.HasSuffix(currentCgroup(), "0::/") {
+		t.Skip("not in root cgroup; cannot verify inherited mask behavior")
+	}
 	root := repoRoot(t)
 	gosetBin := buildBin(t, root, "goset", "./cmd/goset")
 	probeBin := buildBin(t, root, "threadprobe", "./test/threadprobe")
