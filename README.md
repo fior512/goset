@@ -78,7 +78,7 @@ sudo goset -rm-cgroup goset-mybench
 
 **Output**:
 
-Goset output format (with `-steer` and `-cgroup`):
+Goset output format (with `-cgroup`, `-steer` and `-fence`):
 ```
 ----------------- GOSET -----------------
 Selection
