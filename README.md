@@ -19,7 +19,7 @@ Table of Contents
 -----------------
 
 * [Quick Start](#quick-start)
-* [Technical insights](#documentation)
+* [Technical insights](#technical-insights)
 * [Performance results](#performance-results)
 * [Contributing](CONTRIBUTING.md)
 * [AI Policy](AGENTS.md)
