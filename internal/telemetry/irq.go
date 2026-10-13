@@ -98,7 +98,7 @@ func ReadIRQCounts(root string) ([]IRQCount, error) {
 		// segmentation (non|steerable)
 		label := strings.TrimSuffix(fields[0], ":")
 		_, err := strconv.Atoi(label)
-		steerable := err == nil
+		isSteerable := err==nil
 
 		// aggregate
 		for col, id := range ids {
@@ -106,7 +106,7 @@ func ReadIRQCounts(root string) ([]IRQCount, error) {
 			if err != nil {
 				return nil, fmt.Errorf("%s: row %s: %w", path, label, err)
 			}
-			if steerable {
+			if isSteerable {
 				counts[id].Steerable += val
 			} else {
 				counts[id].NonSteerable += val

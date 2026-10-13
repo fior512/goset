@@ -25,21 +25,13 @@ func cgroupV2Available() bool {
 	return err == nil
 }
 
-func readFileTrim(path string) (string, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(data)), nil
-}
-
 // https://docs.kernel.org/admin-guide/cgroup-v2.html
 func InitCgroup(name string, cpus generic.CPUSet, numa int) (*Cgroup, error) {
 	// prerequirements: check v2 and cpuset
 	if !cgroupV2Available() {
 		return nil, fmt.Errorf("cgroup v2 unified hierarchy not found at %s", generic.SysCgroup)
 	}
-	ctl, err := readFileTrim(filepath.Join(generic.SysCgroup, generic.CgroupControllers))
+	ctl, err := generic.ReadFileTrim(filepath.Join(generic.SysCgroup, generic.CgroupControllers))
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +42,7 @@ func InitCgroup(name string, cpus generic.CPUSet, numa int) (*Cgroup, error) {
 	// Enable cpuset on the root subtree
 	sub := filepath.Join(generic.SysCgroup, generic.CgroupSubtreeControl)
 	cpusetEnabled := false
-	if cur, err := readFileTrim(sub); err == nil && !strings.Contains(cur, "cpuset") {
+	if cur, err := generic.ReadFileTrim(sub); err == nil && !strings.Contains(cur, "cpuset") {
 		if err := os.WriteFile(sub, []byte("+cpuset"), 0o644); err != nil {
 			return nil, fmt.Errorf("enable cpuset in root subtree_control: %w", err)
 		}
@@ -97,7 +89,7 @@ func InitCgroup(name string, cpus generic.CPUSet, numa int) (*Cgroup, error) {
 	if err := os.WriteFile(partitionPath, []byte(partitionType), 0o644); err != nil {
 		_ = os.WriteFile(partitionPath, []byte("root"), 0o644)
 	}
-	if partition, err := readFileTrim(partitionPath); err == nil {
+	if partition, err := generic.ReadFileTrim(partitionPath); err == nil {
 		group.Partition = partition
 		if strings.Contains(partition, "invalid") {
 			group.Destroy()
@@ -137,10 +129,10 @@ func ListCgroups() ([]CgroupInfo, error) {
 		}
 
 		path := filepath.Join(generic.SysCgroup, entry.Name())
-		cpus, _ := readFileTrim(filepath.Join(path, generic.CpusetCpus))
-		mems, _ := readFileTrim(filepath.Join(path, generic.CpusetMems))
-		partition, _ := readFileTrim(filepath.Join(path, generic.CpusetCpusPartition))
-		procs, _ := readFileTrim(filepath.Join(path, generic.CgroupProcs))
+		cpus, _ := generic.ReadFileTrim(filepath.Join(path, generic.CpusetCpus))
+		mems, _ := generic.ReadFileTrim(filepath.Join(path, generic.CpusetMems))
+		partition, _ := generic.ReadFileTrim(filepath.Join(path, generic.CpusetCpusPartition))
+		procs, _ := generic.ReadFileTrim(filepath.Join(path, generic.CgroupProcs))
 		group := &Cgroup{Path: path}
 		out = append(out, CgroupInfo{
 			Name:      entry.Name(),
@@ -209,7 +201,7 @@ func (group *Cgroup) verifyLeftover() error {
 	if !strings.HasPrefix(filepath.Base(group.Name), generic.CgroupIdentifier) {
 		return fmt.Errorf("%s exists and is not a %s cgroup", group.Path, generic.CgroupIdentifier)
 	}
-	procs, err := readFileTrim(filepath.Join(group.Path, generic.CgroupProcs))
+	procs, err := generic.ReadFileTrim(filepath.Join(group.Path, generic.CgroupProcs))
 	if err != nil {
 		return fmt.Errorf("read %s in %s: %w", generic.CgroupProcs, group.Path, err)
 	}
@@ -248,7 +240,7 @@ func (group *Cgroup) restoreSubtreeControl() error {
 // https://docs.kernel.org/admin-guide/cgroup-v2.html
 func RemoveCgroup(name string) error {
 	path := filepath.Join(generic.SysCgroup, filepath.Base(name))
-	partition, _ := readFileTrim(filepath.Join(path, generic.CpusetCpusPartition))
+	partition, _ := generic.ReadFileTrim(filepath.Join(path, generic.CpusetCpusPartition))
 	group := &Cgroup{Path: path, Name: name, Partition: partition}
 	return group.Destroy()
 }

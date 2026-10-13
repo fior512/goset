@@ -26,12 +26,6 @@ func SelectionTable(selection *generic.Selection) Table {
 		case selection.Fence.GetBit(candidate.CPU):
 			mark = "! "
 		}
-		flag := func(on bool) string {
-			if on {
-				return "y"
-			}
-			return ""
-		}
 		sibling := "-"
 		if candidate.Sibling >= 0 {
 			sibling = strconv.Itoa(candidate.Sibling)
@@ -43,10 +37,10 @@ func SelectionTable(selection *generic.Selection) Table {
 			FormatValue(float64(candidate.NonSteerable)),
 			FormatValue(float64(candidate.Noise + candidate.SiblingLoad)),
 			sibling,
-			flag(candidate.KernelIsol),
+			yesMark(candidate.KernelIsol),
 			fmt.Sprintf("%4d", candidate.Numa),
-			flag(candidate.NohzFull),
-			flag(candidate.RcuNocb),
+			yesMark(candidate.NohzFull),
+			yesMark(candidate.RcuNocb),
 		})
 	}
 	return Table{Title: "Selection", Header: header, Rows: rows}
@@ -78,11 +72,11 @@ func (column telemetryColumn) label() string {
 
 var telemetryColumns = []telemetryColumn{
 	{generic.SourceFreq, generic.FreqMin, FormatFreq, slices.Min[[]float64]},
-	{generic.SourceFreq, generic.FreqAvg, FormatFreq, avg},
+	{generic.SourceFreq, generic.FreqAvg, FormatFreq, generic.Avg},
 	{generic.SourceFreq, generic.FreqMax, FormatFreq, slices.Max[[]float64]},
-	{generic.SourceThrottle, generic.ThrottleCount, FormatValue, sum},
-	{generic.SourceIRQ, generic.IRQSteerable, FormatValue, sum},
-	{generic.SourceIRQ, generic.IRQNonSteerable, FormatValue, sum},
+	{generic.SourceThrottle, generic.ThrottleCount, FormatValue, generic.Sum},
+	{generic.SourceIRQ, generic.IRQSteerable, FormatValue, generic.Sum},
+	{generic.SourceIRQ, generic.IRQNonSteerable, FormatValue, generic.Sum},
 }
 
 func TelemetryTables(rep Report, width int) []Table {
@@ -315,21 +309,15 @@ func ErrorsTable(rep Report) Table {
 
 func TopologyTable(topo *cpu.Topology) Table {
 	header := []string{"cpu", "core", "numa", "isol", "nohz", "rcu", "driver", "gov", "epp", "minf", "maxf"}
-	flag := func(on bool) string {
-		if on {
-			return "y"
-		}
-		return ""
-	}
 	var rows [][]string
 	for id := range topo.Online.All() {
 		rows = append(rows, []string{
 			fmt.Sprintf("%3d", id),
 			fmt.Sprintf("%4d", topo.Core[id]),
 			fmt.Sprintf("%4d", topo.Numa[id]),
-			flag(topo.KernelIsol.GetBit(id)),
-			flag(topo.NohzFull.GetBit(id)),
-			flag(topo.RcuNocb.GetBit(id)),
+			yesMark(topo.KernelIsol.GetBit(id)),
+			yesMark(topo.NohzFull.GetBit(id)),
+			yesMark(topo.RcuNocb.GetBit(id)),
 			topo.Driver[id],
 			topo.Governor[id],
 			topo.EPP[id],
@@ -379,17 +367,9 @@ func CgroupTable(infos []isolation.CgroupInfo) Table {
 	return Table{Title: "Cgroups", Header: header, Rows: rows}
 }
 
-func avg(values []float64) float64 {
-	if len(values) == 0 {
-		return 0
+func yesMark(on bool) string {
+	if on {
+		return "y"
 	}
-	return sum(values) / float64(len(values))
-}
-
-func sum(values []float64) float64 {
-	var total float64
-	for _, val := range values {
-		total += val
-	}
-	return total
+	return ""
 }
