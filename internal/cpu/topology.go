@@ -11,7 +11,7 @@ import (
 
 // Topology follows `/sys/devices/system/cpu/`
 type Topology struct {
-	Online     generic.CPUSet // availabe threads
+	Online     generic.CPUSet // available threads
 	Core       []int          // index: cpu id
 	Numa   []int          // index: cpu id
 	KernelIsol generic.CPUSet

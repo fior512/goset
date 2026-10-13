@@ -18,7 +18,7 @@ type Steering struct {
 	/* IRQBalance */
 	WasRunning bool
 	ViaSystemd bool
-	Note       string
+	Warning    string
 }
 
 // https://www.kernel.org/doc/html/latest/core-api/irq/irq-affinity.html
