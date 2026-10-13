@@ -13,17 +13,17 @@ import (
 	"goset/internal/telemetry"
 )
 
-func SelectionTable(selected *generic.Selection) Table {
+func SelectionTable(selection *generic.Selection) Table {
 	header := []string{"cpu", "sel", "steer", "non-steer", "core", "sibl", "isol", "numa", "nohz", "rcu"}
-	rows := make([][]string, 0, len(selected.Scores))
-	for _, candidate := range selected.Scores {
+	rows := make([][]string, 0, len(selection.Scores))
+	for _, candidate := range selection.Scores {
 		mark := ""
 		switch {
-		case candidate.CPU == selected.HouseKeeper:
+		case candidate.CPU == selection.HouseKeeper:
 			mark = "& "
-		case selected.Task.GetBit(candidate.CPU):
+		case selection.Task.GetBit(candidate.CPU):
 			mark = "* "
-		case selected.Fence.GetBit(candidate.CPU):
+		case selection.Fence.GetBit(candidate.CPU):
 			mark = "! "
 		}
 		flag := func(on bool) string {

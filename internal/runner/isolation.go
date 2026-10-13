@@ -12,7 +12,7 @@ import (
 	"goset/internal/isolation"
 )
 
-func Isolation(cfg *cli.Config, topo *cpu.Topology, selected *generic.Selection) (*isolation.Cgroup, *isolation.Steering, func(*error), error) {
+func Isolation(cfg *cli.Config, topo *cpu.Topology, selection *generic.Selection) (*isolation.Cgroup, *isolation.Steering, func(*error), error) {
 	var locks []*isolation.Lock
 	var group *isolation.Cgroup
 	var steering *isolation.Steering
@@ -37,7 +37,7 @@ func Isolation(cfg *cli.Config, topo *cpu.Topology, selected *generic.Selection)
 			return nil, nil, nil, err
 		}
 		locks = append(locks, lock)
-		if group, err = isolation.InitCgroup(cgroupName, selected.Booked(), selected.Numa); err != nil {
+		if group, err = isolation.InitCgroup(cgroupName, selection.Booked(), selection.Numa); err != nil {
 			return nil, nil, nil, errors.Join(err, teardown())
 		}
 	}
@@ -48,7 +48,7 @@ func Isolation(cfg *cli.Config, topo *cpu.Topology, selected *generic.Selection)
 			return nil, nil, nil, errors.Join(err, teardown())
 		}
 		locks = append(locks, lock)
-		if steering, err = isolation.Steer(topo, selected.Booked(), selected.HouseKeeper); err != nil {
+		if steering, err = isolation.Steer(topo, selection.Booked(), selection.HouseKeeper); err != nil {
 			return nil, nil, nil, errors.Join(err, teardown())
 		}
 	}
