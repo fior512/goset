@@ -12,7 +12,7 @@ import (
 )
 
 // https://github.com/Irbalance/irqbalance
-func (steer *Steering) holdIRQBalance() error {
+func (steering *Steering) holdIRQBalance() error {
 	pid, err := ScanProcComm(generic.ProcRoot, generic.IRQBalanceComm)
 	if err != nil {
 		return err
@@ -23,44 +23,44 @@ func (steer *Steering) holdIRQBalance() error {
 	}
 	if managed {
 		if err := exec.Command("systemctl", "stop", generic.IRQBalanceUnit).Run(); err == nil {
-			steer.WasRunning = true
-			steer.ViaSystemd = true
-			steer.confirmStopped()
+			steering.WasRunning = true
+			steering.ViaSystemd = true
+			steering.confirmStopped()
 			return nil
 		}
 		if pid > 0 {
 			fmt.Fprintf(os.Stderr, "%sirqbalance (pid %d): systemctl stop failed; steering may be overwritten\n", generic.LogPrefix, pid)
-			steer.Warning = fmt.Sprintf("stop failed, still running pid %d", pid)
+			steering.Warning = fmt.Sprintf("stop failed, still running pid %d", pid)
 		} else {
 			fmt.Fprintf(os.Stderr, "%sirqbalance: systemctl stop failed; steering may be overwritten\n", generic.LogPrefix)
-			steer.Warning = "stop failed, still running, pid unknown"
+			steering.Warning = "stop failed, still running, pid unknown"
 		}
-		steer.WasRunning = true
+		steering.WasRunning = true
 		return nil
 	}
 	fmt.Fprintf(os.Stderr, "%sirqbalance (pid %d) unmanaged; steering may be overwritten\n", generic.LogPrefix, pid)
-	steer.WasRunning = true
-	steer.Warning = fmt.Sprintf("unmanaged, still running pid %d", pid)
+	steering.WasRunning = true
+	steering.Warning = fmt.Sprintf("unmanaged, still running pid %d", pid)
 	return nil
 }
 
 // confirmStopped: a zero exit from systemctl is no proof the daemon is gone
-func (steer *Steering) confirmStopped() {
+func (steering *Steering) confirmStopped() {
 	alive, err := ScanProcComm(generic.ProcRoot, generic.IRQBalanceComm)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%sirqbalance not re-checkable: %v\n", generic.LogPrefix, err)
-		steer.Warning = "stop state unverified"
+		steering.Warning = "stop state unverified"
 		return
 	}
 	if alive == 0 {
 		return
 	}
 	fmt.Fprintf(os.Stderr, "%sirqbalance (pid %d) alive after stop; steering may be overwritten\n", generic.LogPrefix, alive)
-	steer.Warning = fmt.Sprintf("still running pid %d", alive)
+	steering.Warning = fmt.Sprintf("still running pid %d", alive)
 }
 
-func (steer *Steering) Release() {
-	if steer == nil || !steer.ViaSystemd {
+func (steering *Steering) Release() {
+	if steering == nil || !steering.ViaSystemd {
 		return
 	}
 	if err := exec.Command("systemctl", "start", generic.IRQBalanceUnit).Run(); err != nil {
@@ -68,12 +68,12 @@ func (steer *Steering) Release() {
 	}
 }
 
-func (steer *Steering) Status() string {
+func (steering *Steering) Status() string {
 	switch {
-	case steer == nil || !steer.WasRunning:
+	case steering == nil || !steering.WasRunning:
 		return "absent"
-	case steer.Warning != "":
-		return steer.Warning
+	case steering.Warning != "":
+		return steering.Warning
 	default:
 		return "held"
 	}
