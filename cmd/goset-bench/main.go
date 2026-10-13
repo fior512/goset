@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -255,7 +254,7 @@ func selectMetrics(all []sample, match string, topk int) ([]string, error) {
 			v, _ := s.metric(name)
 			heads = append(heads, v)
 		}
-		if len(heads) > 0 && minOf(heads) != maxOf(heads) {
+		if len(heads) > 0 && generic.MinOf(heads) != generic.MaxOf(heads) {
 			r.varies = true
 			r.constant = false
 		}
@@ -899,14 +898,14 @@ func printStat(label string, width int, values []float64) {
 		fmt.Printf("  %-*s no data\n", width, label)
 		return
 	}
-	mean := avg(values)
+	mean := generic.Avg(values)
 	cv := 0.0
 	if mean != 0 {
-		cv = stddev(values) / mean * 100
+		cv = generic.StdDev(values) / mean * 100
 	}
 	f := cellFormatter(label)
 	fmt.Printf("  %-*s n=%-4d avg=%-12s med=%-12s sd=%-12s cv=%5.1f%%  min=%-12s max=%s\n",
-		width, label, len(values), f(mean), f(median(values)), f(stddev(values)), cv, f(minOf(values)), f(maxOf(values)))
+		width, label, len(values), f(mean), f(generic.Median(values)), f(generic.StdDev(values)), cv, f(generic.MinOf(values)), f(generic.MaxOf(values)))
 }
 
 // isTimeLabel marks the two series carried as raw time: the jitter
@@ -952,9 +951,9 @@ func printTail(label string, width int, values []float64) {
 	if len(values) == 0 {
 		return
 	}
-	p50 := percentile(values, 0.50)
-	p99 := percentile(values, 0.99)
-	p999 := percentile(values, 0.999)
+	p50 := generic.Percentile(values, 0.50)
+	p99 := generic.Percentile(values, 0.99)
+	p999 := generic.Percentile(values, 0.999)
 	ratio := 0.0
 	if p50 != 0 {
 		ratio = p999 / p50
@@ -964,74 +963,10 @@ func printTail(label string, width int, values []float64) {
 		width, label, len(values), f(p50), f(p99), f(p999), ratio)
 }
 
-func percentile(values []float64, p float64) float64 {
-	sorted := append([]float64(nil), values...)
-	sort.Float64s(sorted)
-	idx := int(p * float64(len(sorted)-1))
-	return sorted[idx]
-}
-
 func getKey(samples []sample, get func(sample) float64) []float64 {
 	values := make([]float64, len(samples))
 	for i, s := range samples {
 		values[i] = get(s)
 	}
 	return values
-}
-
-func minOf(values []float64) float64 {
-	m := values[0]
-	for _, v := range values[1:] {
-		if v < m {
-			m = v
-		}
-	}
-	return m
-}
-
-func maxOf(values []float64) float64 {
-	m := values[0]
-	for _, v := range values[1:] {
-		if v > m {
-			m = v
-		}
-	}
-	return m
-}
-
-func avg(values []float64) float64 {
-	if len(values) == 0 {
-		return 0
-	}
-	var total float64
-	for _, v := range values {
-		total += v
-	}
-	return total / float64(len(values))
-}
-
-func median(values []float64) float64 {
-	if len(values) == 0 {
-		return 0
-	}
-	sorted := append([]float64(nil), values...)
-	sort.Float64s(sorted)
-	mid := len(sorted) / 2
-	if len(sorted)%2 == 0 {
-		return (sorted[mid-1] + sorted[mid]) / 2
-	}
-	return sorted[mid]
-}
-
-func stddev(values []float64) float64 {
-	if len(values) == 0 {
-		return 0
-	}
-	mean := avg(values)
-	var acc float64
-	for _, v := range values {
-		diff := v - mean
-		acc += diff * diff
-	}
-	return math.Sqrt(acc / float64(len(values)))
 }

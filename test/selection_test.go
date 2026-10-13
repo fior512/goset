@@ -320,21 +320,21 @@ func TestNumaOffReportsAnyNode(t *testing.T) {
 	}
 }
 
-func assertFenceMatchesTaskCore(t *testing.T, topo *cpu.Topology, selected *generic.Selection) {
+func assertFenceMatchesTaskCore(t *testing.T, topo *cpu.Topology, selection *generic.Selection) {
 	t.Helper()
-	task := selected.Task.NextSet(0)
-	for sibling := range selected.Fence.All() {
+	task := selection.Task.NextSet(0)
+	for sibling := range selection.Fence.All() {
 		if topo.Core[sibling] != topo.Core[task] {
 			t.Errorf("fenced cpu %d is on core %d, task cpu %d is on core %d", sibling, topo.Core[sibling], task, topo.Core[task])
 		}
-		if sibling == task || sibling == selected.HouseKeeper {
+		if sibling == task || sibling == selection.HouseKeeper {
 			t.Errorf("fence holds cpu %d, the task or housekeeper cpu", sibling)
 		}
 	}
 	for cpuID := range topo.Online.All() {
-		onCore := topo.Core[cpuID] == topo.Core[task] && cpuID != task && cpuID != selected.HouseKeeper
-		if onCore != selected.Fence.GetBit(cpuID) {
-			t.Errorf("cpu %d: on task core (not housekeeper) = %v, in fence = %v", cpuID, onCore, selected.Fence.GetBit(cpuID))
+		onCore := topo.Core[cpuID] == topo.Core[task] && cpuID != task && cpuID != selection.HouseKeeper
+		if onCore != selection.Fence.GetBit(cpuID) {
+			t.Errorf("cpu %d: on task core (not housekeeper) = %v, in fence = %v", cpuID, onCore, selection.Fence.GetBit(cpuID))
 		}
 	}
 }
@@ -355,11 +355,11 @@ func TestSelectionFenceBooksTaskSiblings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cpu.GetTopology: %v", err)
 	}
-	selected, err := cpu.Selection(topo, &cli.Config{NThreads: 1, Numa: -2, Fence: true})
+	selection, err := cpu.Selection(topo, &cli.Config{NThreads: 1, Numa: -2, Fence: true})
 	if err != nil {
 		t.Fatalf("Selection: %v", err)
 	}
-	assertFenceMatchesTaskCore(t, topo, selected)
+	assertFenceMatchesTaskCore(t, topo, selection)
 	assertFenceOff(t, topo)
 }
 
@@ -389,12 +389,12 @@ func TestSelectionFenceFillsCores(t *testing.T) {
 		}
 	}
 
-	selected, err := cpu.Selection(topo, &cli.Config{NThreads: 2, Numa: -2, Fence: true})
+	selection, err := cpu.Selection(topo, &cli.Config{NThreads: 2, Numa: -2, Fence: true})
 	if err != nil {
 		t.Fatalf("Selection: %v", err)
 	}
 	cores := map[int]bool{}
-	for cpuID := range selected.Task.All() {
+	for cpuID := range selection.Task.All() {
 		cores[topo.Core[cpuID]] = true
 	}
 	want := (2 + coreSize - 1) / coreSize
