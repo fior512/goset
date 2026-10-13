@@ -153,7 +153,7 @@ With `-cgroup`, the cpuset holds the task CPUs plus their SMT siblings (`-fence`
 - No IPI: every counter comes from procfs/sysfs. The pinned housekeeper thread does the mid-run poll; the before/after baseline runs on the calling thread.
 - Source: kernel software counters only: `/proc/interrupts`, sysfs throttle, `wait4()` rusage...
 - Every counter is reported, so `0` is ambiguous: no activity, no kernel support (a driver or `CONFIG_` option is missing), or nothing was sampled. `-interval 0` samples nothing, so the `freq` columns read 0. A read that failed ends the report in an `Errors` table, one line per failure.
-- `-interval`: mid-run poll tick, ms. Not used by `SelectCPUs()`.
+- `-interval`: mid-run poll tick of telemetry, ms.
 
 
 Performance results
