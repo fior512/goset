@@ -21,20 +21,20 @@ func Run(cfg *cli.Config) (err error) {
 	if err != nil {
 		return err
 	}
-	selected, err := cpu.Selection(topo, cfg)
+	selection, err := cpu.Selection(topo, cfg)
 	if err != nil {
 		return err
 	}
-	group, steering, release, err := Isolation(cfg, topo, selected)
+	group, steering, release, err := Isolation(cfg, topo, selection)
 	if err != nil {
 		return err
 	}
 	defer release(&err)
-	lazyReport, err := Telemetry(selected, cfg, steering)
+	lazyReport, err := Telemetry(selection, cfg, steering)
 	if err != nil {
 		return err
 	}
-	rusage, wall, runErr := isolation.SpawnTask(ctx, cfg.Task, selected.Task, group)
+	rusage, wall, runErr := isolation.SpawnTask(ctx, cfg.Task, selection.Task, group)
 	lazyReport(wall, runErr, steering, rusage)
 	return runErr
 }

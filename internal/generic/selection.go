@@ -24,8 +24,8 @@ type Selection struct {
 }
 
 // Booked returns task and fence
-func (selected *Selection) Booked() CPUSet {
-	booked := selected.Task
-	booked.Or(selected.Fence)
+func (selection *Selection) Booked() CPUSet {
+	booked := selection.Task
+	booked.Or(selection.Fence)
 	return booked
 }

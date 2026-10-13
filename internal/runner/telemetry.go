@@ -15,10 +15,10 @@ import (
 	"goset/internal/telemetry"
 )
 
-func Telemetry(selected *generic.Selection, cfg *cli.Config, steering *isolation.Steering) (func(time.Duration, error, *isolation.Steering, *syscall.Rusage), error) {
+func Telemetry(selection *generic.Selection, cfg *cli.Config, steering *isolation.Steering) (func(time.Duration, error, *isolation.Steering, *syscall.Rusage), error) {
 	pinHousekeeper := func() error {
 		var mask generic.CPUSet
-		mask.SetBit(selected.HouseKeeper)
+		mask.SetBit(selection.HouseKeeper)
 		return cpu.SetAffinity(0, mask)
 	}
 
@@ -41,7 +41,7 @@ func Telemetry(selected *generic.Selection, cfg *cli.Config, steering *isolation
 		}
 	}
 	sampler := &telemetry.Sampler{
-		Cpus:     selected.Task,
+		Cpus:     selection.Task,
 		Interval: time.Duration(cfg.SamplingMS) * time.Millisecond,
 		Sources:  sources,
 	}
@@ -56,7 +56,7 @@ func Telemetry(selected *generic.Selection, cfg *cli.Config, steering *isolation
 		fmt.Fprintln(os.Stderr, "\n\n----------------- GOSET -----------------")
 		counters, polls, errs := sampler.Stop()
 		rep := report.Report{
-			Cpus:     selected.Task,
+			Cpus:     selection.Task,
 			Steer:    steering,
 			Rusage:   rusage,
 			Wall:     wall,
@@ -66,7 +66,7 @@ func Telemetry(selected *generic.Selection, cfg *cli.Config, steering *isolation
 			Interval: sampler.Interval,
 			Errors:   errs,
 		}
-		tables := []report.Table{report.SelectionTable(selected)}
+		tables := []report.Table{report.SelectionTable(selection)}
 		tables = append(tables, report.TelemetryTables(rep, reportWidth(os.Stderr))...)
 		tables = append(tables, report.RunTable(rep), report.ErrorsTable(rep))
 		report.Render(os.Stderr, tables...)
