@@ -15,7 +15,7 @@ import (
 )
 
 func main() {
-	cfg, err := cli.Parse(os.Args[1:])
+	config, err := cli.Parse(os.Args[1:])
 	if errors.Is(err, flag.ErrHelp) { // usage already on stderr
 		return
 	}
@@ -24,18 +24,18 @@ func main() {
 		os.Exit(2)
 	}
 
-	if cfg.Version {
+	if config.Version {
 		fmt.Println(version.String())
 		return
 	}
 
 	switch {
-	case cfg.RmCgroup != "":
-		err = isolation.RemoveCgroup(cfg.RmCgroup)
-	case len(cfg.Task) == 0:
-		err = runner.Diagnose(cfg)
-	case len(cfg.Task) != 0:
-		err = runner.Run(cfg)
+	case config.RmCgroup != "":
+		err = isolation.RemoveCgroup(config.RmCgroup)
+	case len(config.Task) == 0:
+		err = runner.Diagnose()
+	case len(config.Task) != 0:
+		err = runner.Run(config)
 	default:
 		err = fmt.Errorf("flag error, no goset form defined")
 	}

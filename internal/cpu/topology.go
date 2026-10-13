@@ -2,18 +2,19 @@ package cpu
 
 import (
 	"fmt"
-	"goset/internal/generic"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"goset/internal/generic"
 )
 
 // Topology follows `/sys/devices/system/cpu/`
 type Topology struct {
 	Online     generic.CPUSet // available threads
 	Core       []int          // index: cpu id
-	Numa   []int          // index: cpu id
+	Numa       []int          // index: cpu id
 	KernelIsol generic.CPUSet
 	NohzFull   generic.CPUSet
 	RcuNocb    generic.CPUSet
@@ -31,11 +32,11 @@ func GetTopology() (*Topology, error) {
 	if err != nil {
 		return nil, err
 	}
-	size := online.Max()+1
-	topo := &Topology{
+	size := online.Max() + 1
+	topology := &Topology{
 		Online:   online,
 		Core:     make([]int, size),
-		Numa: make([]int, size),
+		Numa:     make([]int, size),
 		Driver:   make([]string, size),
 		Governor: make([]string, size),
 		EPP:      make([]string, size),
@@ -49,25 +50,25 @@ func GetTopology() (*Topology, error) {
 		siblings, err := readCPUList(fmt.Sprintf(
 			generic.SysCPU+"/cpu%d/topology/thread_siblings_list",
 			cpu))
-		topo.Core[cpu] = cpu
+		topology.Core[cpu] = cpu
 		if first := siblings.NextSet(0); err == nil && first >= 0 {
-			topo.Core[cpu] = first
+			topology.Core[cpu] = first
 		}
-		topo.Numa[cpu] = -1
+		topology.Numa[cpu] = -1
 	}
 
 	///Cpufreq
 	for cpu := range online.All() {
 		// https://docs.kernel.org/admin-guide/pm/cpufreq.html
 		base := fmt.Sprintf(generic.SysCPU+"/cpu%d/cpufreq", cpu)
-		topo.Driver[cpu], _ = generic.ReadFileTrim(filepath.Join(base, "scaling_driver"))
-		topo.Governor[cpu], _ = generic.ReadFileTrim(filepath.Join(base, "scaling_governor"))
-		topo.EPP[cpu], _ = generic.ReadFileTrim(filepath.Join(base, "energy_performance_preference"))
+		topology.Driver[cpu], _ = generic.ReadFileTrim(filepath.Join(base, "scaling_driver"))
+		topology.Governor[cpu], _ = generic.ReadFileTrim(filepath.Join(base, "scaling_governor"))
+		topology.EPP[cpu], _ = generic.ReadFileTrim(filepath.Join(base, "energy_performance_preference"))
 		if text, err := generic.ReadFileTrim(filepath.Join(base, "scaling_min_freq")); err == nil {
-			topo.MinFreq[cpu], _ = strconv.Atoi(text)
+			topology.MinFreq[cpu], _ = strconv.Atoi(text)
 		}
 		if text, err := generic.ReadFileTrim(filepath.Join(base, "scaling_max_freq")); err == nil {
-			topo.MaxFreq[cpu], _ = strconv.Atoi(text)
+			topology.MaxFreq[cpu], _ = strconv.Atoi(text)
 		}
 	}
 
@@ -89,18 +90,18 @@ func GetTopology() (*Topology, error) {
 		}
 		cpus.And(online) // cpulist may hold offline cpus
 		for cpu := range cpus.All() {
-			topo.Numa[cpu] = numa
+			topology.Numa[cpu] = numa
 		}
 	}
 
 	///KernelIsol & NohzFull
 	// https://www.kernel.org/doc/html/latest/admin-guide/kernel-parameters.html
-	topo.KernelIsol, _ = readCPUList(generic.SysCPU + "/isolated") // absent/null if not used
-	topo.NohzFull, _ = readCPUList(generic.SysCPU + "/nohz_full")
+	topology.KernelIsol, _ = readCPUList(generic.SysCPU + "/isolated") // absent/null if not used
+	topology.NohzFull, _ = readCPUList(generic.SysCPU + "/nohz_full")
 
 	///RcuNocb
-	topo.RcuNocb, _ = readCmdlineCPUList("rcu_nocbs") // absent if not used
-	return topo, nil
+	topology.RcuNocb, _ = readCmdlineCPUList("rcu_nocbs") // absent if not used
+	return topology, nil
 }
 
 // readCmdlineCPUList extracts a "<param>=<cpulist>" token from /proc/cmdline

@@ -39,26 +39,26 @@ func (a Align) left(i int) bool {
 }
 
 func Render(out io.Writer, tables ...Table) {
-	for _, tab := range tables {
-		if len(tab.Rows) == 0 {
+	for _, table := range tables {
+		if len(table.Rows) == 0 {
 			continue
 		}
-		if tab.Title != "" {
-			fmt.Fprintln(out, tab.Title)
+		if table.Title != "" {
+			fmt.Fprintln(out, table.Title)
 		}
-		widths := columnWidths(tab)
-		if len(tab.Header) > 0 {
-			printRow(out, tab.Header, widths, tab.Align)
+		widths := columnWidths(table)
+		if len(table.Header) > 0 {
+			printRow(out, table.Header, widths, table.Align)
 		}
-		for _, row := range tab.Rows {
-			printRow(out, row, widths, tab.Align)
+		for _, row := range table.Rows {
+			printRow(out, row, widths, table.Align)
 		}
 		fmt.Fprintln(out)
 	}
 }
 
-func columnWidths(tab Table) []int {
-	widths := make([]int, 0, len(tab.Header))
+func columnWidths(table Table) []int {
+	widths := make([]int, 0, len(table.Header))
 	widest := func(row []string) {
 		for len(widths) < len(row) {
 			widths = append(widths, 0)
@@ -67,8 +67,8 @@ func columnWidths(tab Table) []int {
 			widths[i] = max(widths[i], len(cell))
 		}
 	}
-	widest(tab.Header)
-	for _, row := range tab.Rows {
+	widest(table.Header)
+	for _, row := range table.Rows {
 		widest(row)
 	}
 	return widths

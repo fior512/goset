@@ -15,7 +15,7 @@ type Cgroup struct {
 	Name          string
 	Partition     string   // kernel cpuset.cpus.partition: "member", "root", or "isolated"
 	File          *os.File // 0o644, owner: read/write, else: read
-	cpusetEnabled bool     // root subtree_control gained cpuset from this group
+	cpusetEnabled bool     // root subtree_control gained cpuset from this cgroup
 	destroyed     bool
 }
 
@@ -49,30 +49,30 @@ func InitCgroup(name string, cpus generic.CPUSet, numa int) (*Cgroup, error) {
 		cpusetEnabled = true
 	}
 
-	// Create the group directory
+	// Create the cgroup directory
 	path := filepath.Join(generic.SysCgroup, filepath.Base(name))
-	group := &Cgroup{Path: path, Name: name, cpusetEnabled: cpusetEnabled}
+	cgroup := &Cgroup{Path: path, Name: name, cpusetEnabled: cpusetEnabled}
 	switch err := os.Mkdir(path, 0o755); {
 	case err == nil:
 	case os.IsExist(err):
-		if err := group.verifyLeftover(); err != nil {
-			_ = group.restoreSubtreeControl()
+		if err := cgroup.verifyLeftover(); err != nil {
+			_ = cgroup.restoreSubtreeControl()
 			return nil, err
 		}
 	default:
-		_ = group.restoreSubtreeControl()
+		_ = cgroup.restoreSubtreeControl()
 		return nil, fmt.Errorf("mkdir %s: %w", path, err)
 	}
 
 	// Assign the pinned CPUs
 	list := cpus.String()
 	if err := os.WriteFile(filepath.Join(path, generic.CpusetCpus), []byte(list), 0o644); err != nil {
-		group.Destroy()
+		cgroup.Destroy()
 		return nil, fmt.Errorf("write cpuset.cpus: %w", err)
 	}
 	if numa >= 0 { // mems is optional
 		if err := os.WriteFile(filepath.Join(path, generic.CpusetMems), []byte(strconv.Itoa(numa)), 0o644); err != nil {
-			group.Destroy()
+			cgroup.Destroy()
 			return nil, fmt.Errorf("write cpuset.mems: %w", err)
 		}
 	}
@@ -83,27 +83,27 @@ func InitCgroup(name string, cpus generic.CPUSet, numa int) (*Cgroup, error) {
 	partitionPath := filepath.Join(path, generic.CpusetCpusPartition)
 	partitionType := "isolated" // avoid load balancing
 	if cpus.Count() > 1 {
-		// keep load balancing inside control group
+		// keep load balancing inside control cgroup
 		partitionType = "root"
 	}
 	if err := os.WriteFile(partitionPath, []byte(partitionType), 0o644); err != nil {
 		_ = os.WriteFile(partitionPath, []byte("root"), 0o644)
 	}
 	if partition, err := generic.ReadFileTrim(partitionPath); err == nil {
-		group.Partition = partition
+		cgroup.Partition = partition
 		if strings.Contains(partition, "invalid") {
-			group.Destroy()
+			cgroup.Destroy()
 			return nil, fmt.Errorf("cpuset.cpus.partition: kernel reports %q", partition)
 		}
 	}
 
 	file, err := os.Open(path)
 	if err != nil {
-		group.Destroy()
+		cgroup.Destroy()
 		return nil, fmt.Errorf("open cgroup dir: %w", err)
 	}
-	group.File = file // Keeping file descriptor open
-	return group, nil
+	cgroup.File = file // Keeping file descriptor open
+	return cgroup, nil
 }
 
 // Diagnosis path
@@ -133,33 +133,33 @@ func ListCgroups() ([]CgroupInfo, error) {
 		mems, _ := generic.ReadFileTrim(filepath.Join(path, generic.CpusetMems))
 		partition, _ := generic.ReadFileTrim(filepath.Join(path, generic.CpusetCpusPartition))
 		procs, _ := generic.ReadFileTrim(filepath.Join(path, generic.CgroupProcs))
-		group := &Cgroup{Path: path}
+		cgroup := &Cgroup{Path: path}
 		out = append(out, CgroupInfo{
 			Name:      entry.Name(),
 			Cpus:      cpus,
 			Mems:      mems,
 			Partition: partition,
 			Procs:     len(strings.Fields(procs)),
-			Stat:      group.CPUStat(),
+			Stat:      cgroup.CPUStat(),
 		})
 	}
 	return out, nil
 }
 
-func (group *Cgroup) FD() int {
-	if group == nil || group.File == nil {
+func (cgroup *Cgroup) FD() int {
+	if cgroup == nil || cgroup.File == nil {
 		return -1
 	}
-	return int(group.File.Fd())
+	return int(cgroup.File.Fd())
 }
 
 // https://docs.kernel.org/admin-guide/cgroup-v2.html
-func (group *Cgroup) CPUStat() map[string]uint64 {
+func (cgroup *Cgroup) CPUStat() map[string]uint64 {
 	out := map[string]uint64{}
-	if group == nil {
+	if cgroup == nil {
 		return out
 	}
-	data, err := os.ReadFile(filepath.Join(group.Path, "cpu.stat"))
+	data, err := os.ReadFile(filepath.Join(cgroup.Path, "cpu.stat"))
 	if err != nil {
 		return out
 	}
@@ -176,41 +176,41 @@ func (group *Cgroup) CPUStat() map[string]uint64 {
 }
 
 // https://docs.kernel.org/admin-guide/cgroup-v2.html
-func (group *Cgroup) Destroy() error {
-	if group == nil || group.destroyed {
+func (cgroup *Cgroup) Destroy() error {
+	if cgroup == nil || cgroup.destroyed {
 		return nil
 	}
-	if group.File != nil {
-		group.File.Close()
-		group.File = nil
+	if cgroup.File != nil {
+		cgroup.File.Close()
+		cgroup.File = nil
 	}
-	if group.Partition != "" && group.Partition != "member" { // Restore to member before removal
-		if err := os.WriteFile(filepath.Join(group.Path, generic.CpusetCpusPartition), []byte("member"), 0o644); err != nil {
-			return fmt.Errorf("restore %s to member: %w", group.Path, err)
+	if cgroup.Partition != "" && cgroup.Partition != "member" { // Restore to member before removal
+		if err := os.WriteFile(filepath.Join(cgroup.Path, generic.CpusetCpusPartition), []byte("member"), 0o644); err != nil {
+			return fmt.Errorf("restore %s to member: %w", cgroup.Path, err)
 		}
 	}
-	if err := os.Remove(group.Path); err != nil {
+	if err := os.Remove(cgroup.Path); err != nil {
 		return err
 	}
-	group.destroyed = true
-	return group.restoreSubtreeControl()
+	cgroup.destroyed = true
+	return cgroup.restoreSubtreeControl()
 }
 
 // https://docs.kernel.org/admin-guide/cgroup-v2.html
-func (group *Cgroup) verifyLeftover() error {
-	if !strings.HasPrefix(filepath.Base(group.Name), generic.CgroupIdentifier) {
-		return fmt.Errorf("%s exists and is not a %s cgroup", group.Path, generic.CgroupIdentifier)
+func (cgroup *Cgroup) verifyLeftover() error {
+	if !strings.HasPrefix(filepath.Base(cgroup.Name), generic.CgroupIdentifier) {
+		return fmt.Errorf("%s exists and is not a %s cgroup", cgroup.Path, generic.CgroupIdentifier)
 	}
-	procs, err := generic.ReadFileTrim(filepath.Join(group.Path, generic.CgroupProcs))
+	procs, err := generic.ReadFileTrim(filepath.Join(cgroup.Path, generic.CgroupProcs))
 	if err != nil {
-		return fmt.Errorf("read %s in %s: %w", generic.CgroupProcs, group.Path, err)
+		return fmt.Errorf("read %s in %s: %w", generic.CgroupProcs, cgroup.Path, err)
 	}
 	if tasks := strings.Fields(procs); len(tasks) > 0 {
 		return fmt.Errorf(
 			"%s holds %d task(s) and is not a leftover.\n"+
 				"  pids: %s\n"+
 				"  check them, then remove the cgroup with -rm-cgroup",
-			group.Path, len(tasks), taskPids(tasks))
+			cgroup.Path, len(tasks), taskPids(tasks))
 	}
 	return nil
 }
@@ -225,11 +225,11 @@ func taskPids(tasks []string) string {
 }
 
 // https://docs.kernel.org/admin-guide/cgroup-v2.html
-func (group *Cgroup) restoreSubtreeControl() error {
-	if group == nil || !group.cpusetEnabled {
+func (cgroup *Cgroup) restoreSubtreeControl() error {
+	if cgroup == nil || !cgroup.cpusetEnabled {
 		return nil
 	}
-	group.cpusetEnabled = false
+	cgroup.cpusetEnabled = false
 	sub := filepath.Join(generic.SysCgroup, generic.CgroupSubtreeControl)
 	if err := os.WriteFile(sub, []byte("-cpuset"), 0o644); err != nil {
 		return fmt.Errorf("disable cpuset in root subtree_control: %w", err)
@@ -241,6 +241,6 @@ func (group *Cgroup) restoreSubtreeControl() error {
 func RemoveCgroup(name string) error {
 	path := filepath.Join(generic.SysCgroup, filepath.Base(name))
 	partition, _ := generic.ReadFileTrim(filepath.Join(path, generic.CpusetCpusPartition))
-	group := &Cgroup{Path: path, Name: name, Partition: partition}
-	return group.Destroy()
+	cgroup := &Cgroup{Path: path, Name: name, Partition: partition}
+	return cgroup.Destroy()
 }

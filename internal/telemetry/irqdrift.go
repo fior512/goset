@@ -15,42 +15,42 @@ type IRQDriftSource struct {
 	Drifted  map[string]bool   // sticky: once drifted, stays counted
 }
 
-func (src *IRQDriftSource) Baseline(generic.CPUSet) error {
-	src.sample()
+func (source *IRQDriftSource) Baseline(generic.CPUSet) error {
+	source.sample()
 	return nil
 }
 
-func (src *IRQDriftSource) Poll() error {
-	src.sample()
+func (source *IRQDriftSource) Poll() error {
+	source.sample()
 	return nil
 }
 
-func (src *IRQDriftSource) Stop() error {
-	src.sample()
+func (source *IRQDriftSource) Stop() error {
+	source.sample()
 	return nil
 }
 
-func (src *IRQDriftSource) sample() {
-	for label, want := range src.Expected {
-		path := filepath.Join(src.Root, label, generic.SmpAffinityList)
+func (source *IRQDriftSource) sample() {
+	for label, want := range source.Expected {
+		path := filepath.Join(source.Root, label, generic.SmpAffinityList)
 		data, err := os.ReadFile(path)
 		if err != nil {
-			src.Drifted[label] = true // IRQ vanished or unreadable: state not held
+			source.Drifted[label] = true // IRQ vanished or unreadable: state not held
 			continue
 		}
 		got := strings.TrimSpace(string(data))
 		if !generic.CPUListEqual(want, got) {
-			src.Drifted[label] = true
+			source.Drifted[label] = true
 		}
 	}
 }
 
-func (src *IRQDriftSource) Summary() []Counter {
+func (source *IRQDriftSource) Summary() []Counter {
 	return []Counter{{
 		Source: generic.SourceIRQSteer,
 		CPU:    -1, // run-global, not per-cpu
 		Name:   generic.SteerDrift,
-		Value:  float64(len(src.Drifted)),
+		Value:  float64(len(source.Drifted)),
 	}}
 }
 

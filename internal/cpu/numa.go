@@ -9,7 +9,7 @@ import (
 	"goset/internal/generic"
 )
 
-func constrainNuma(topo *Topology, candidates, include generic.CPUSet, numa int) (generic.CPUSet, int, error) {
+func constrainNuma(topology *Topology, candidates, include generic.CPUSet, numa int) (generic.CPUSet, int, error) {
 	if numa == -2 {
 		return candidates, -1, nil
 	}
@@ -17,7 +17,7 @@ func constrainNuma(topo *Topology, candidates, include generic.CPUSet, numa int)
 	onNode := func(node int) generic.CPUSet {
 		var set generic.CPUSet
 		for cpu := range candidates.All() {
-			if topo.Numa[cpu] == node {
+			if topology.Numa[cpu] == node {
 				set.SetBit(cpu)
 			}
 		}
@@ -26,8 +26,8 @@ func constrainNuma(topo *Topology, candidates, include generic.CPUSet, numa int)
 
 	/* host */
 	host := []int{}
-	for cpu := range topo.Online.All() {
-		if numa := topo.Numa[cpu]; numa >= 0 && !slices.Contains(host, numa) {
+	for cpu := range topology.Online.All() {
+		if numa := topology.Numa[cpu]; numa >= 0 && !slices.Contains(host, numa) {
 			host = append(host, numa)
 		}
 	}

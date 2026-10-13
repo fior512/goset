@@ -76,18 +76,18 @@ func TestTelemetryTablesRendersEveryColumnOnAnEmptyRun(t *testing.T) {
 
 func TestErrorsTableOneRowPerFailure(t *testing.T) {
 	rep := report.Report{Errors: []error{errors.New("telemetry stop *telemetry.IRQSource: open /proc/interrupts")}}
-	tab := report.ErrorsTable(rep)
-	if tab.Title != "Errors" {
-		t.Errorf("title = %q, want %q", tab.Title, "Errors")
+	table := report.ErrorsTable(rep)
+	if table.Title != "Errors" {
+		t.Errorf("title = %q, want %q", table.Title, "Errors")
 	}
 	want := [][]string{{"telemetry stop *telemetry.IRQSource: open /proc/interrupts"}}
-	if !reflect.DeepEqual(tab.Rows, want) {
-		t.Errorf("rows = %q, want %q", tab.Rows, want)
+	if !reflect.DeepEqual(table.Rows, want) {
+		t.Errorf("rows = %q, want %q", table.Rows, want)
 	}
 }
 
 func TestErrorsTableEmptyOnACleanRun(t *testing.T) {
-	if tab := report.ErrorsTable(report.Report{}); len(tab.Rows) != 0 {
-		t.Errorf("rows = %q, want none: Render skips the table", tab.Rows)
+	if table := report.ErrorsTable(report.Report{}); len(table.Rows) != 0 {
+		t.Errorf("rows = %q, want none: Render skips the table", table.Rows)
 	}
 }

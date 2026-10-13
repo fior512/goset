@@ -20,9 +20,9 @@ type Benchmark struct {
 
 func (b *Benchmark) Name() string { return "jitter" }
 
-func (b *Benchmark) RegisterFlags(fs *flag.FlagSet) {
-	fs.IntVar(&b.ops, "jitter-ops", 3_000_000, "jitter: chain steps per timed iteration")
-	fs.IntVar(&b.ntimes, "jitter-ntimes", 300, "jitter: timed iterations, per-iteration samples kept for tail analysis")
+func (b *Benchmark) RegisterFlags(flags *flag.FlagSet) {
+	flags.IntVar(&b.ops, "jitter-ops", 3_000_000, "jitter: chain steps per timed iteration")
+	flags.IntVar(&b.ntimes, "jitter-ntimes", 300, "jitter: timed iterations, per-iteration samples kept for tail analysis")
 }
 
 func (b *Benchmark) Build() (string, error) { return plugin.BuildC("jitter", source) }

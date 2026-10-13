@@ -17,14 +17,14 @@ type recordingSource struct {
 	stopErr   error
 }
 
-func (src *recordingSource) Baseline(cpus generic.CPUSet) error {
-	src.baselined = cpus
+func (source *recordingSource) Baseline(cpus generic.CPUSet) error {
+	source.baselined = cpus
 	return nil
 }
 
-func (src *recordingSource) Poll() error { return src.pollErr }
-func (src *recordingSource) Stop() error  { return src.stopErr }
-func (src *recordingSource) Summary() []telemetry.Counter {
+func (source *recordingSource) Poll() error { return source.pollErr }
+func (source *recordingSource) Stop() error  { return source.stopErr }
+func (source *recordingSource) Summary() []telemetry.Counter {
 	return nil
 }
 
@@ -32,34 +32,34 @@ func TestSamplerBaselinesSourcesWithItsCPUSet(t *testing.T) {
 	var cpus generic.CPUSet
 	cpus.SetBit(3)
 	cpus.SetBit(5)
-	src := &recordingSource{}
-	sam := &telemetry.Sampler{Cpus: cpus, Interval: time.Millisecond, Sources: []telemetry.Source{src}}
+	source := &recordingSource{}
+	sampler := &telemetry.Sampler{Cpus: cpus, Interval: time.Millisecond, Sources: []telemetry.Source{source}}
 
-	if err := sam.Start(func() error { return nil }); err != nil {
+	if err := sampler.Start(func() error { return nil }); err != nil {
 		t.Fatalf("Sampler.Start: %v", err)
 	}
-	sam.Stop()
+	sampler.Stop()
 
-	if src.baselined.String() != cpus.String() {
-		t.Errorf("source baselined with cpus %q, want %q", src.baselined.String(), cpus.String())
+	if source.baselined.String() != cpus.String() {
+		t.Errorf("source baselined with cpus %q, want %q", source.baselined.String(), cpus.String())
 	}
 }
 
 func TestSamplerHandsBackEverySourceFailureOnce(t *testing.T) {
-	src := &recordingSource{pollErr: errors.New("poll failed"), stopErr: errors.New("stop failed")}
-	sam := &telemetry.Sampler{Interval: time.Millisecond, Sources: []telemetry.Source{src}}
-	if err := sam.Start(func() error { return nil }); err != nil {
+	source := &recordingSource{pollErr: errors.New("poll failed"), stopErr: errors.New("stop failed")}
+	sampler := &telemetry.Sampler{Interval: time.Millisecond, Sources: []telemetry.Source{source}}
+	if err := sampler.Start(func() error { return nil }); err != nil {
 		t.Fatalf("Sampler.Start: %v", err)
 	}
 	time.Sleep(20 * time.Millisecond)
-	_, polls, errs := sam.Stop()
+	_, polls, errs := sampler.Stop()
 
 	if polls < 2 {
 		t.Fatalf("polls = %d, want 2 or more ticks so the poll failure repeats", polls)
 	}
 	want := []error{
-		fmt.Errorf("telemetry poll %T: %w", src, src.pollErr),
-		fmt.Errorf("telemetry stop %T: %w", src, src.stopErr),
+		fmt.Errorf("telemetry poll %T: %w", source, source.pollErr),
+		fmt.Errorf("telemetry stop %T: %w", source, source.stopErr),
 	}
 	if len(errs) != len(want) || !reflect.DeepEqual(errMessages(errs), errMessages(want)) {
 		t.Errorf("errs = %q, want %q: one entry per distinct failure, the %d poll ticks share one",
@@ -77,12 +77,12 @@ func errMessages(errs []error) []string {
 }
 
 func TestSamplerSilentOnACleanRun(t *testing.T) {
-	sam := &telemetry.Sampler{Interval: time.Millisecond, Sources: []telemetry.Source{&recordingSource{}}}
-	if err := sam.Start(func() error { return nil }); err != nil {
+	sampler := &telemetry.Sampler{Interval: time.Millisecond, Sources: []telemetry.Source{&recordingSource{}}}
+	if err := sampler.Start(func() error { return nil }); err != nil {
 		t.Fatalf("Sampler.Start: %v", err)
 	}
 	time.Sleep(20 * time.Millisecond)
-	if _, _, errs := sam.Stop(); len(errs) != 0 {
+	if _, _, errs := sampler.Stop(); len(errs) != 0 {
 		t.Errorf("errs = %q, want none", errs)
 	}
 }

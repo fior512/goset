@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"os"
 
-	"goset/internal/cli"
 	"goset/internal/cpu"
 	"goset/internal/isolation"
 	"goset/internal/report"
 )
 
 // used in bare goset
-func Diagnose(cfg *cli.Config) error {
+func Diagnose() error {
 	topo, err := cpu.GetTopology()
 	if err != nil {
 		return fmt.Errorf("read topology: %w", err)

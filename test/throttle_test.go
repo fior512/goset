@@ -45,18 +45,18 @@ func TestThrottleReportsEveryBookedCPU(t *testing.T) {
 	for _, cpu := range []int{absent, counted, unreadable, malformed, lostAtStop} {
 		cpus.SetBit(cpu)
 	}
-	src := &telemetry.ThrottleSource{Root: root}
-	if err := src.Baseline(cpus); err != nil {
+	source := &telemetry.ThrottleSource{Root: root}
+	if err := source.Baseline(cpus); err != nil {
 		t.Fatal(err)
 	}
 	writeThrottle(t, root, counted, []byte("9\n"))
 	writeThrottle(t, root, lostAtStop, nil)
-	if err := src.Stop(); err != nil {
+	if err := source.Stop(); err != nil {
 		t.Fatal(err)
 	}
 
 	got := map[int]float64{}
-	for _, counter := range src.Summary() {
+	for _, counter := range source.Summary() {
 		got[counter.CPU] = counter.Value
 	}
 	want := map[int]float64{absent: 0, counted: 2, unreadable: 0, malformed: 0, lostAtStop: 0}

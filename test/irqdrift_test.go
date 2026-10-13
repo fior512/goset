@@ -20,10 +20,10 @@ func writeIRQ(t *testing.T, root, label, affinity string) {
 	}
 }
 
-func driftCount(t *testing.T, src *telemetry.IRQDriftSource) int {
+func driftCount(t *testing.T, source *telemetry.IRQDriftSource) int {
 	t.Helper()
 	var total float64
-	for _, counter := range src.Summary() {
+	for _, counter := range source.Summary() {
 		total += counter.Value
 	}
 	return int(total)
@@ -32,34 +32,34 @@ func driftCount(t *testing.T, src *telemetry.IRQDriftSource) int {
 func TestIRQDriftCountsChangedAffinity(t *testing.T) {
 	root := t.TempDir()
 	writeIRQ(t, root, "74", "0-3")
-	src := &telemetry.IRQDriftSource{
+	source := &telemetry.IRQDriftSource{
 		Root:     root,
 		Expected: map[string]string{"74": "0-3"},
 		Drifted:  map[string]bool{},
 	}
-	if err := src.Baseline(generic.CPUSet{}); err != nil {
+	if err := source.Baseline(generic.CPUSet{}); err != nil {
 		t.Fatal(err)
 	}
-	if err := src.Poll(); err != nil {
+	if err := source.Poll(); err != nil {
 		t.Fatal(err)
 	}
-	if got := driftCount(t, src); got != 0 {
+	if got := driftCount(t, source); got != 0 {
 		t.Errorf("drift before change = %d, want 0", got)
 	}
 
 	writeIRQ(t, root, "74", "4-7")
-	if err := src.Poll(); err != nil {
+	if err := source.Poll(); err != nil {
 		t.Fatal(err)
 	}
-	if got := driftCount(t, src); got != 1 {
+	if got := driftCount(t, source); got != 1 {
 		t.Errorf("drift after change = %d, want 1", got)
 	}
 
 	writeIRQ(t, root, "74", "0-3") // restored: drift stays sticky
-	if err := src.Stop(); err != nil {
+	if err := source.Stop(); err != nil {
 		t.Fatal(err)
 	}
-	if got := driftCount(t, src); got != 1 {
+	if got := driftCount(t, source); got != 1 {
 		t.Errorf("drift after restore = %d, want sticky 1", got)
 	}
 }
@@ -67,43 +67,43 @@ func TestIRQDriftCountsChangedAffinity(t *testing.T) {
 func TestIRQDriftCanonicalForm(t *testing.T) {
 	root := t.TempDir()
 	writeIRQ(t, root, "74", "0,1,2,3") // kernel may re-render "0-3"
-	src := &telemetry.IRQDriftSource{
+	source := &telemetry.IRQDriftSource{
 		Root:     root,
 		Expected: map[string]string{"74": "0-3"},
 		Drifted:  map[string]bool{},
 	}
-	if err := src.Poll(); err != nil {
+	if err := source.Poll(); err != nil {
 		t.Fatal(err)
 	}
-	if got := driftCount(t, src); got != 0 {
+	if got := driftCount(t, source); got != 0 {
 		t.Errorf("drift for same set, different form = %d, want 0", got)
 	}
 }
 
 func TestIRQDriftMissingFile(t *testing.T) {
-	src := &telemetry.IRQDriftSource{
+	source := &telemetry.IRQDriftSource{
 		Root:     t.TempDir(),
 		Expected: map[string]string{"74": "0-3"},
 		Drifted:  map[string]bool{},
 	}
-	if err := src.Poll(); err != nil {
+	if err := source.Poll(); err != nil {
 		t.Fatal(err)
 	}
-	if got := driftCount(t, src); got != 1 {
+	if got := driftCount(t, source); got != 1 {
 		t.Errorf("drift for missing file = %d, want 1", got)
 	}
 }
 
 func TestIRQDriftEmptyExpectedReportsZero(t *testing.T) {
-	src := &telemetry.IRQDriftSource{
+	source := &telemetry.IRQDriftSource{
 		Root:     t.TempDir(),
 		Expected: nil,
 		Drifted:  map[string]bool{},
 	}
-	if err := src.Poll(); err != nil {
+	if err := source.Poll(); err != nil {
 		t.Fatal(err)
 	}
-	if got := driftCount(t, src); got != 0 {
+	if got := driftCount(t, source); got != 0 {
 		t.Errorf("drift with no IRQ steered = %d, want 0", got)
 	}
 }

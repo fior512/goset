@@ -42,9 +42,9 @@ func writeChildren(t *testing.T, root string, childPIDs ...int) {
 	}
 }
 
-func migrationValue(t *testing.T, src *telemetry.MigrationsSource) int {
+func migrationValue(t *testing.T, source *telemetry.MigrationsSource) int {
 	t.Helper()
-	return telemetry.CountMigrations(src.Summary())
+	return telemetry.CountMigrations(source.Summary())
 }
 
 func TestMigrationsSumsTaskThreads(t *testing.T) {
@@ -54,14 +54,14 @@ func TestMigrationsSumsTaskThreads(t *testing.T) {
 	writeSched(t, root, child, child, 3)
 	writeSched(t, root, child, child+1, 5)
 
-	src := &telemetry.MigrationsSource{Root: root}
-	if err := src.Baseline(generic.CPUSet{}); err != nil {
+	source := &telemetry.MigrationsSource{Root: root}
+	if err := source.Baseline(generic.CPUSet{}); err != nil {
 		t.Fatal(err)
 	}
-	if err := src.Poll(); err != nil {
+	if err := source.Poll(); err != nil {
 		t.Fatal(err)
 	}
-	got := migrationValue(t, src)
+	got := migrationValue(t, source)
 	if got != 8 {
 		t.Errorf("migrations = %d, want 8 (3+5 over task threads)", got)
 	}
@@ -73,14 +73,14 @@ func TestMigrationsStickyAfterChildVanishes(t *testing.T) {
 	writeChildren(t, root, child)
 	writeSched(t, root, child, child, 7)
 
-	src := &telemetry.MigrationsSource{Root: root}
-	if err := src.Baseline(generic.CPUSet{}); err != nil {
+	source := &telemetry.MigrationsSource{Root: root}
+	if err := source.Baseline(generic.CPUSet{}); err != nil {
 		t.Fatal(err)
 	}
-	if err := src.Poll(); err != nil {
+	if err := source.Poll(); err != nil {
 		t.Fatal(err)
 	}
-	if got := migrationValue(t, src); got != 7 {
+	if got := migrationValue(t, source); got != 7 {
 		t.Fatalf("migrations = %d, want 7", got)
 	}
 
@@ -91,27 +91,27 @@ func TestMigrationsStickyAfterChildVanishes(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, strconv.Itoa(os.Getpid()), "task", strconv.Itoa(os.Getpid()), "children"), nil, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := src.Stop(); err != nil {
+	if err := source.Stop(); err != nil {
 		t.Fatal(err)
 	}
-	got := migrationValue(t, src)
+	got := migrationValue(t, source)
 	if got != 7 {
 		t.Errorf("migrations = %d after reap, want sticky 7", got)
 	}
 }
 
 func TestMigrationsNoChildReportsZero(t *testing.T) {
-	src := &telemetry.MigrationsSource{Root: t.TempDir()}
-	if err := src.Baseline(generic.CPUSet{}); err != nil {
+	source := &telemetry.MigrationsSource{Root: t.TempDir()}
+	if err := source.Baseline(generic.CPUSet{}); err != nil {
 		t.Fatal(err)
 	}
-	if err := src.Poll(); err != nil {
+	if err := source.Poll(); err != nil {
 		t.Fatal(err)
 	}
-	if err := src.Stop(); err != nil {
+	if err := source.Stop(); err != nil {
 		t.Fatal(err)
 	}
-	if got := migrationValue(t, src); got != 0 {
+	if got := migrationValue(t, source); got != 0 {
 		t.Errorf("migrations = %d with no child ever sampled, want 0", got)
 	}
 }
@@ -121,14 +121,14 @@ func TestMigrationsMissingSchedFile(t *testing.T) {
 	const child = 4242
 	writeChildren(t, root, child) // child listed but sched unreadable (mid-exit race)
 
-	src := &telemetry.MigrationsSource{Root: root}
-	if err := src.Baseline(generic.CPUSet{}); err != nil {
+	source := &telemetry.MigrationsSource{Root: root}
+	if err := source.Baseline(generic.CPUSet{}); err != nil {
 		t.Fatal(err)
 	}
-	if err := src.Poll(); err != nil {
+	if err := source.Poll(); err != nil {
 		t.Fatal(err)
 	}
-	if got := migrationValue(t, src); got != 0 {
+	if got := migrationValue(t, source); got != 0 {
 		t.Errorf("migrations = %d when sched was unreadable, want 0", got)
 	}
 }

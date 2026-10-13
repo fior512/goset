@@ -21,63 +21,63 @@ type FreqSource struct {
 	n     []int
 }
 
-func (src *FreqSource) Baseline(cpus generic.CPUSet) error {
-	src.cpus = cpus
-	size := src.cpus.Max() + 1
+func (source *FreqSource) Baseline(cpus generic.CPUSet) error {
+	source.cpus = cpus
+	size := source.cpus.Max() + 1
 
-	src.files = make([]*os.File, size)
-	src.buf = make([]byte, 32)
-	src.min = make([]float64, size)
-	src.max = make([]float64, size)
-	src.sum = make([]float64, size)
-	src.n = make([]int, size)
+	source.files = make([]*os.File, size)
+	source.buf = make([]byte, 32)
+	source.min = make([]float64, size)
+	source.max = make([]float64, size)
+	source.sum = make([]float64, size)
+	source.n = make([]int, size)
 
-	for cpu := range src.cpus.All() {
-		path := filepath.Join(src.Root, fmt.Sprintf("cpu%d", cpu), generic.CpufreqDir, generic.ScalingCurFreq)
+	for cpu := range source.cpus.All() {
+		path := filepath.Join(source.Root, fmt.Sprintf("cpu%d", cpu), generic.CpufreqDir, generic.ScalingCurFreq)
 		file, err := os.Open(path)
 		if err != nil {
 			continue // absent on some cpus/VM
 		}
-		src.files[cpu] = file
-		src.min[cpu] = -1
+		source.files[cpu] = file
+		source.min[cpu] = -1
 	}
 	return nil // task not started: a sample here reads the pre-task clock
 }
 
-func (src *FreqSource) Poll() error { return src.sample() }
+func (source *FreqSource) Poll() error { return source.sample() }
 
-func (src *FreqSource) sample() error {
-	for cpu := range src.cpus.All() {
-		file := src.files[cpu]
+func (source *FreqSource) sample() error {
+	for cpu := range source.cpus.All() {
+		file := source.files[cpu]
 		if file == nil {
 			continue
 		}
 		if _, err := file.Seek(0, 0); err != nil {
 			continue
 		}
-		n, err := file.Read(src.buf)
+		read, err := file.Read(source.buf)
 		if err != nil {
 			continue
 		}
-		khz, err := strconv.ParseFloat(strings.TrimSpace(string(src.buf[:n])), 64)
+		khz, err := strconv.ParseFloat(strings.TrimSpace(string(source.buf[:read])), 64)
 		if err != nil {
 			continue
 		}
 		hz := khz * 1000
-		if src.min[cpu] < 0 || hz < src.min[cpu] {
-			src.min[cpu] = hz
+		if source.min[cpu] < 0 || hz < source.min[cpu] {
+			source.min[cpu] = hz
 		}
-		if hz > src.max[cpu] {
-			src.max[cpu] = hz
+		if hz > source.max[cpu] {
+			source.max[cpu] = hz
 		}
-		src.sum[cpu] += hz
-		src.n[cpu]++
+		source.sum[cpu] += hz
+		source.n[cpu]++
 	}
 	return nil
 }
 
-func (src *FreqSource) Stop() error {
-	for _, file := range src.files {
+func (source *FreqSource) Stop() error {
+	for _, file := range source.files {
 		if file != nil {
 			if err := file.Close(); err != nil {
 				return err
@@ -87,13 +87,13 @@ func (src *FreqSource) Stop() error {
 	return nil
 }
 
-func (src *FreqSource) Summary() []Counter {
-	out := make([]Counter, 0, src.cpus.Count()*3)
-	for cpu := range src.cpus.All() {
+func (source *FreqSource) Summary() []Counter {
+	out := make([]Counter, 0, source.cpus.Count()*3)
+	for cpu := range source.cpus.All() {
 		var low, high, mean float64
-		if cpu < len(src.n) && src.n[cpu] > 0 {
-			low, high = src.min[cpu], src.max[cpu]
-			mean = src.sum[cpu] / float64(src.n[cpu])
+		if cpu < len(source.n) && source.n[cpu] > 0 {
+			low, high = source.min[cpu], source.max[cpu]
+			mean = source.sum[cpu] / float64(source.n[cpu])
 		}
 		out = append(out,
 			Counter{Source: generic.SourceFreq, CPU: cpu, Name: generic.FreqMin, Value: low},

@@ -22,9 +22,9 @@ func writeCurFreq(t *testing.T, root string, cpu, khz int) {
 	}
 }
 
-func freqValue(t *testing.T, src *telemetry.FreqSource, cpu int, name string) float64 {
+func freqValue(t *testing.T, source *telemetry.FreqSource, cpu int, name string) float64 {
 	t.Helper()
-	for _, counter := range src.Summary() {
+	for _, counter := range source.Summary() {
 		if counter.CPU == cpu && counter.Name == name {
 			return counter.Value
 		}
@@ -39,17 +39,17 @@ func TestFreqReadsSamplesInHz(t *testing.T) {
 	cpus.SetBit(3)
 	writeCurFreq(t, root, 3, 2400000)
 
-	src := &telemetry.FreqSource{Root: root}
-	if err := src.Baseline(cpus); err != nil {
+	source := &telemetry.FreqSource{Root: root}
+	if err := source.Baseline(cpus); err != nil {
 		t.Fatal(err)
 	}
 	for _, khz := range []int{2400000, 3600000} {
 		writeCurFreq(t, root, 3, khz)
-		if err := src.Poll(); err != nil {
+		if err := source.Poll(); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := src.Stop(); err != nil {
+	if err := source.Stop(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -58,7 +58,7 @@ func TestFreqReadsSamplesInHz(t *testing.T) {
 		generic.FreqMax: 3.6e9,
 		generic.FreqAvg: 3e9,
 	} {
-		if got := freqValue(t, src, 3, name); got != want {
+		if got := freqValue(t, source, 3, name); got != want {
 			t.Errorf("%s = %v, want %v", name, got, want)
 		}
 	}
@@ -70,16 +70,16 @@ func TestFreqReportsZeroWithoutASample(t *testing.T) {
 	cpus.SetBit(3)
 	writeCurFreq(t, root, 3, 2400000)
 
-	src := &telemetry.FreqSource{Root: root}
-	if err := src.Baseline(cpus); err != nil {
+	source := &telemetry.FreqSource{Root: root}
+	if err := source.Baseline(cpus); err != nil {
 		t.Fatal(err)
 	}
-	if err := src.Stop(); err != nil {
+	if err := source.Stop(); err != nil {
 		t.Fatal(err)
 	}
 
 	for _, name := range []string{generic.FreqMin, generic.FreqAvg, generic.FreqMax} {
-		if got := freqValue(t, src, 3, name); got != 0 {
+		if got := freqValue(t, source, 3, name); got != 0 {
 			t.Errorf("%s = %v after no poll, want 0: a run that never sampled reads 0", name, got)
 		}
 	}
@@ -92,22 +92,22 @@ func TestFreqReportsZeroOnACPUWithoutCpufreq(t *testing.T) {
 	cpus.SetBit(7)
 	writeCurFreq(t, root, 1, 2400000) // cpu 7 has no cpufreq dir
 
-	src := &telemetry.FreqSource{Root: root}
-	if err := src.Baseline(cpus); err != nil {
+	source := &telemetry.FreqSource{Root: root}
+	if err := source.Baseline(cpus); err != nil {
 		t.Fatal(err)
 	}
 	writeCurFreq(t, root, 1, 2400000)
-	if err := src.Poll(); err != nil {
+	if err := source.Poll(); err != nil {
 		t.Fatal(err)
 	}
-	if err := src.Stop(); err != nil {
+	if err := source.Stop(); err != nil {
 		t.Fatal(err)
 	}
 
-	if got := freqValue(t, src, 1, generic.FreqAvg); got != 2.4e9 {
+	if got := freqValue(t, source, 1, generic.FreqAvg); got != 2.4e9 {
 		t.Errorf("cpu 1 avg = %v, want 2.4e9", got)
 	}
-	if got := freqValue(t, src, 7, generic.FreqAvg); got != 0 {
+	if got := freqValue(t, source, 7, generic.FreqAvg); got != 0 {
 		t.Errorf("cpu 7 avg = %v, want 0: a cpu the kernel does not expose reads 0", got)
 	}
 }

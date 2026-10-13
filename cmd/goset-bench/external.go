@@ -37,7 +37,7 @@ type externalCmd struct {
 
 func (e *externalCmd) Name() string { return "external" }
 
-func (e *externalCmd) RegisterFlags(fs *flag.FlagSet) {}
+func (e *externalCmd) RegisterFlags(flags *flag.FlagSet) {}
 
 func (e *externalCmd) Build() (string, error) { return e.argv[0], nil }
 

@@ -69,13 +69,13 @@ func diffSnapshots(before, after []string) (leaked, missing []string) {
 }
 
 
-func assertUniformAllowed(t *testing.T, rep probeReport, wantCPUs int) {
+func assertUniformAllowed(t *testing.T, report probeReport, wantCPUs int) {
 	t.Helper()
-	if len(rep.Threads) == 0 {
+	if len(report.Threads) == 0 {
 		t.Fatal("threadprobe reported zero threads")
 	}
-	first := rep.Threads[0].Allowed
-	for _, th := range rep.Threads {
+	first := report.Threads[0].Allowed
+	for _, th := range report.Threads {
 		if th.Err != "" {
 			t.Errorf("thread %d probe error: %s", th.TID, th.Err)
 			continue
@@ -110,8 +110,8 @@ func TestSingleThreadNoCgroup(t *testing.T) {
 		t.Errorf("cgroup set changed for -n 1 (no cgroup expected): leaked=%v missing=%v", leaked, missing)
 	}
 
-	rep := parseProbe(t, res.stdout)
-	assertUniformAllowed(t, rep, 1)
+	report := parseProbe(t, res.stdout)
+	assertUniformAllowed(t, report, 1)
 }
 
 
@@ -137,10 +137,10 @@ func TestMultiThreadSharesInheritedMask(t *testing.T) {
 		t.Errorf("cgroup dir set changed for -n 2 without -cgroup: leaked=%v missing=%v", leaked, missing)
 	}
 
-	rep := parseProbe(t, res.stdout)
-	assertUniformAllowed(t, rep, 2)
-	if !strings.HasSuffix(rep.Cgroup, "0::/") {
-		t.Errorf("expected the task to stay in the root cgroup without -cgroup, got %q", rep.Cgroup)
+	report := parseProbe(t, res.stdout)
+	assertUniformAllowed(t, report, 2)
+	if !strings.HasSuffix(report.Cgroup, "0::/") {
+		t.Errorf("expected the task to stay in the root cgroup without -cgroup, got %q", report.Cgroup)
 	}
 }
 
@@ -162,8 +162,8 @@ func TestMultiThreadCgroupFlagIsDead(t *testing.T) {
 	if len(leaked) != 0 || len(missing) != 0 {
 		t.Errorf("cgroup dir set not restored: leaked=%v missing=%v", leaked, missing)
 	}
-	rep := parseProbe(t, res.stdout)
-	assertUniformAllowed(t, rep, 2)
+	report := parseProbe(t, res.stdout)
+	assertUniformAllowed(t, report, 2)
 }
 
 
@@ -221,11 +221,11 @@ func TestRmCgroupRemovesLeaked(t *testing.T) {
 	name := "goset-rmcgroup-test"
 	var cpus generic.CPUSet
 	cpus.SetBit(0)
-	group, err := isolation.InitCgroup(name, cpus, -1)
+	cgroup, err := isolation.InitCgroup(name, cpus, -1)
 	if err != nil {
 		t.Fatalf("InitCgroup setup: %v", err)
 	}
-	group.File.Close() // avoid leaking the fd if the test fails before removal
+	cgroup.File.Close() // avoid leaking the fd if the test fails before removal
 
 	res := runGoset(t, gosetBin, "-rm-cgroup", name)
 	if res.exitCode != 0 {

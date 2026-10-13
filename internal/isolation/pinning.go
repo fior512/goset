@@ -18,7 +18,7 @@ import (
 
 const taskKillDelay = 3 * time.Second
 
-func SpawnTask(ctx context.Context, argv []string, cpus generic.CPUSet, group *Cgroup) (*syscall.Rusage, time.Duration, error) {
+func SpawnTask(ctx context.Context, argv []string, cpus generic.CPUSet, cgroup *Cgroup) (*syscall.Rusage, time.Duration, error) {
 	// Task In/Out
 	task := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	task.Stdin = os.Stdin
@@ -26,7 +26,7 @@ func SpawnTask(ctx context.Context, argv []string, cpus generic.CPUSet, group *C
 	task.Stderr = os.Stderr
 	task.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	task.Cancel = func() error {
-		err := syscall.Kill(-task.Process.Pid, syscall.SIGINT) // group
+		err := syscall.Kill(-task.Process.Pid, syscall.SIGINT) // cgroup
 		if err != nil && !errors.Is(err, syscall.ESRCH) {
 			return err
 		}
@@ -34,9 +34,9 @@ func SpawnTask(ctx context.Context, argv []string, cpus generic.CPUSet, group *C
 	}
 	task.WaitDelay = taskKillDelay
 
-	if group != nil {
+	if cgroup != nil {
 		task.SysProcAttr.UseCgroupFD = true
-		task.SysProcAttr.CgroupFD = group.FD()
+		task.SysProcAttr.CgroupFD = cgroup.FD()
 	}
 
 	// Run Protocol
@@ -48,7 +48,7 @@ func SpawnTask(ctx context.Context, argv []string, cpus generic.CPUSet, group *C
 
 		var prevCPUs generic.CPUSet
 		var gerr error
-		if group == nil {
+		if cgroup == nil {
 			prevCPUs, gerr = cpu.GetAffinity(0) // goset affinity
 			if err := cpu.SetAffinity(0, cpus); err != nil {
 				done <- fmt.Errorf("set thread affinity: %w", err)
@@ -61,10 +61,10 @@ func SpawnTask(ctx context.Context, argv []string, cpus generic.CPUSet, group *C
 			done <- err
 			return
 		}
-		if group == nil && gerr == nil {
+		if cgroup == nil && gerr == nil {
 			_ = cpu.SetAffinity(0, prevCPUs)
 		}
-		if group != nil {
+		if cgroup != nil {
 			if err := pinTask(task.Process.Pid, cpus); err != nil {
 				_ = task.Process.Kill()
 				_ = task.Wait()

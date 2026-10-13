@@ -30,9 +30,9 @@ func main() {
 	workers := flag.Int("workers", 1, "number of OS threads to pin and report")
 	flag.Parse()
 
-	rep := Report{PID: os.Getpid(), Workers: *workers}
+	report := Report{PID: os.Getpid(), Workers: *workers}
 	if data, err := os.ReadFile("/proc/self/cgroup"); err == nil {
-		rep.Cgroup = strings.TrimSpace(string(data))
+		report.Cgroup = strings.TrimSpace(string(data))
 	}
 
 	var wg sync.WaitGroup
@@ -47,11 +47,11 @@ func main() {
 	wg.Wait()
 	close(results)
 	for info := range results {
-		rep.Threads = append(rep.Threads, info)
+		report.Threads = append(report.Threads, info)
 	}
 
 	enc := json.NewEncoder(os.Stdout)
-	if err := enc.Encode(rep); err != nil {
+	if err := enc.Encode(report); err != nil {
 		fmt.Fprintln(os.Stderr, "threadprobe: encode:", err)
 		os.Exit(1)
 	}
