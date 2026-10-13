@@ -5,18 +5,15 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"syscall"
+	"strconv"
 
 	"goset/internal/cpu"
 	"goset/internal/generic"
 )
 
 
-func isSteerableLabel(label string) bool {
-	_, err := strconv.Atoi(label) // soft: digit, hard:letters
-	return err == nil
-}
+
 
 func (steering *Steering) ExpectedAffinities() map[string]string {
 	if steering == nil {
@@ -47,11 +44,12 @@ func (steering *Steering) steerIRQs(topo *cpu.Topology, bench generic.CPUSet, ho
 	steering.Saved = map[string]string{}
 	steering.AppliedList = list
 	for _, e := range entries {
-		if !e.IsDir() || !isSteerableLabel(e.Name()) {
+		_, err := strconv.Atoi(e.Name());
+		if !e.IsDir() || (err != nil) {
 			continue
 		}
 		path := filepath.Join(generic.ProcIRQ, e.Name(), generic.SmpAffinityList)
-		prev, err := readFileTrim(path)
+		prev, err := generic.ReadFileTrim(path)
 		if err != nil {
 			continue
 		}
@@ -67,14 +65,14 @@ func (steering *Steering) steerIRQs(topo *cpu.Topology, bench generic.CPUSet, ho
 
 	// check if writable
 	for label := range steering.Saved {
-		s, err := readFileTrim(filepath.Join(generic.ProcIRQ, label, generic.EffectiveAffinityList)) //read-only
+		current, err := generic.ReadFileTrim(filepath.Join(generic.ProcIRQ, label, generic.EffectiveAffinityList)) //read-only
 		if err != nil {
-			s, err = readFileTrim(filepath.Join(generic.ProcIRQ, label, generic.SmpAffinityList)) // read/write
+			current, err = generic.ReadFileTrim(filepath.Join(generic.ProcIRQ, label, generic.SmpAffinityList)) // read/write
 			if err != nil {
 				continue
 			}
 		}
-		cpus, err := generic.ParseCPUList(s)
+		cpus, err := generic.ParseCPUList(current)
 		if err != nil {
 			continue
 		}

@@ -25,15 +25,6 @@ type Topology struct {
 	MaxFreq  []int    // index: cpu id, cpufreq/scaling_max_freq, kHz
 }
 
-// readFileTrim reads a file and trims surrounding whitespace.
-func readFileTrim(path string) (string, error) {
-	text, err := os.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(text)), nil
-}
-
 func GetTopology() (*Topology, error) {
 	// https://docs.kernel.org/core-api/cpu_hotplug.html
 	online, err := readCPUList(generic.SysCPU + "/online")
@@ -69,13 +60,13 @@ func GetTopology() (*Topology, error) {
 	for cpu := range online.All() {
 		// https://docs.kernel.org/admin-guide/pm/cpufreq.html
 		base := fmt.Sprintf(generic.SysCPU+"/cpu%d/cpufreq", cpu)
-		topo.Driver[cpu], _ = readFileTrim(filepath.Join(base, "scaling_driver"))
-		topo.Governor[cpu], _ = readFileTrim(filepath.Join(base, "scaling_governor"))
-		topo.EPP[cpu], _ = readFileTrim(filepath.Join(base, "energy_performance_preference"))
-		if text, err := readFileTrim(filepath.Join(base, "scaling_min_freq")); err == nil {
+		topo.Driver[cpu], _ = generic.ReadFileTrim(filepath.Join(base, "scaling_driver"))
+		topo.Governor[cpu], _ = generic.ReadFileTrim(filepath.Join(base, "scaling_governor"))
+		topo.EPP[cpu], _ = generic.ReadFileTrim(filepath.Join(base, "energy_performance_preference"))
+		if text, err := generic.ReadFileTrim(filepath.Join(base, "scaling_min_freq")); err == nil {
 			topo.MinFreq[cpu], _ = strconv.Atoi(text)
 		}
-		if text, err := readFileTrim(filepath.Join(base, "scaling_max_freq")); err == nil {
+		if text, err := generic.ReadFileTrim(filepath.Join(base, "scaling_max_freq")); err == nil {
 			topo.MaxFreq[cpu], _ = strconv.Atoi(text)
 		}
 	}

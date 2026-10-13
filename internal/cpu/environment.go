@@ -31,7 +31,7 @@ func GetEnvironment() (*Environment, error) {
 }
 
 func readOptionalValue(path string) *string {
-	text, err := readFileTrim(path)
+	text, err := generic.ReadFileTrim(path)
 	if err != nil || text == "" {
 		return nil
 	}
@@ -40,13 +40,13 @@ func readOptionalValue(path string) *string {
 
 // https://docs.kernel.org/admin-guide/pm/cpufreq.html
 func ReadBoost(sysCPU string) string {
-	if text, err := readFileTrim(sysCPU + "/cpufreq/boost"); err == nil && text != "" {
+	if text, err := generic.ReadFileTrim(sysCPU + "/cpufreq/boost"); err == nil && text != "" {
 		if text == "1" {
 			return "on"
 		}
 		return "off"
 	}
-	if text, err := readFileTrim(sysCPU + "/intel_pstate/no_turbo"); err == nil && text != "" {
+	if text, err := generic.ReadFileTrim(sysCPU + "/intel_pstate/no_turbo"); err == nil && text != "" {
 		if text == "0" {
 			return "on"
 		}
@@ -63,7 +63,7 @@ func CountMitigations(dir string) *int {
 	}
 	count := 0
 	for _, entry := range entries {
-		text, err := readFileTrim(filepath.Join(dir, entry.Name()))
+		text, err := generic.ReadFileTrim(filepath.Join(dir, entry.Name()))
 		if err != nil {
 			return nil
 		}
