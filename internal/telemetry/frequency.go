@@ -55,11 +55,11 @@ func (source *FreqSource) sample() error {
 		if _, err := file.Seek(0, 0); err != nil {
 			continue
 		}
-		n, err := file.Read(source.buf)
+		read, err := file.Read(source.buf)
 		if err != nil {
 			continue
 		}
-		khz, err := strconv.ParseFloat(strings.TrimSpace(string(source.buf[:n])), 64)
+		khz, err := strconv.ParseFloat(strings.TrimSpace(string(source.buf[:read])), 64)
 		if err != nil {
 			continue
 		}
