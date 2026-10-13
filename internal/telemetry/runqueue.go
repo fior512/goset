@@ -15,40 +15,40 @@ type RunqueueSource struct {
 	value float64
 }
 
-func (src *RunqueueSource) Baseline(generic.CPUSet) error {
+func (source *RunqueueSource) Baseline(generic.CPUSet) error {
 	return nil //file doesnt exist yet
 }
 
-func (src *RunqueueSource) Poll() error {
-	src.sample()
+func (source *RunqueueSource) Poll() error {
+	source.sample()
 	return nil
 }
 
-func (src *RunqueueSource) sample() {
-	total, ok := src.sumRunDelay()
+func (source *RunqueueSource) sample() {
+	total, ok := source.sumRunDelay()
 	if !ok {
 		return // mid-exit race: keep sticky value
 	}
-	src.value = total
+	source.value = total
 }
 
-func (src *RunqueueSource) Stop() error {
-	src.sample() // task usually reaped already: keeps last Poll value
+func (source *RunqueueSource) Stop() error {
+	source.sample() // task usually reaped already: keeps last Poll value
 	return nil
 }
 
-func (src *RunqueueSource) Summary() []Counter {
+func (source *RunqueueSource) Summary() []Counter {
 	return []Counter{{
 		Source: generic.SourceSched,
 		CPU:    -1, // run-global, not per-cpu
 		Name:   generic.SchedRunDelay,
-		Value:  src.value,
+		Value:  source.value,
 	}}
 }
 
-func (src *RunqueueSource) sumRunDelay() (float64, bool) {
+func (source *RunqueueSource) sumRunDelay() (float64, bool) {
 	// /proc/[self]/task/
-	selfDir := filepath.Join(src.Root, strconv.Itoa(os.Getpid()), "task")
+	selfDir := filepath.Join(source.Root, strconv.Itoa(os.Getpid()), "task")
 	entries, err := os.ReadDir(selfDir)
 	if err != nil {
 		return 0, false
@@ -61,7 +61,7 @@ func (src *RunqueueSource) sumRunDelay() (float64, bool) {
 			continue
 		}
 		for _, field := range strings.Fields(string(children)) {
-			pid := filepath.Join(src.Root, field, "task")
+			pid := filepath.Join(source.Root, field, "task")
 			threads, err := os.ReadDir(pid)
 			if err != nil {
 				continue

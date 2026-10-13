@@ -15,42 +15,42 @@ type MigrationsSource struct {
 	value float64
 }
 
-func (src *MigrationsSource) Baseline(generic.CPUSet) error {
+func (source *MigrationsSource) Baseline(generic.CPUSet) error {
 	return nil //file doesnt exist yet
 }
 
-func (src *MigrationsSource) Poll() error {
-	src.sample()
+func (source *MigrationsSource) Poll() error {
+	source.sample()
 	return nil
 }
 
-func (src *MigrationsSource) Stop() error {
-	src.sample() // task usually reaped already: keeps last Poll value
+func (source *MigrationsSource) Stop() error {
+	source.sample() // task usually reaped already: keeps last Poll value
 	return nil
 }
 
-func (src *MigrationsSource) Summary() []Counter {
+func (source *MigrationsSource) Summary() []Counter {
 	return []Counter{{
 		Source: generic.SourceSched,
 		CPU:    -1, // run-global, not per-cpu
 		Name:   generic.SchedMigrations,
-		Value:  src.value,
+		Value:  source.value,
 	}}
 }
 
-func (src *MigrationsSource) sample() {
-	total, ok := src.readChildrenMigrations()
+func (source *MigrationsSource) sample() {
+	total, ok := source.readChildrenMigrations()
 	if !ok {
 		return
 	}
-	src.value = total
+	source.value = total
 }
 
-func (src *MigrationsSource) readChildrenMigrations() (float64, bool) {
+func (source *MigrationsSource) readChildrenMigrations() (float64, bool) {
 	var total float64
 	found := false
-	for _, pid := range src.childPIDs() {
-		if value, ok := src.sumThreads(pid); ok {
+	for _, pid := range source.childPIDs() {
+		if value, ok := source.sumThreads(pid); ok {
 			total += value
 			found = true
 		}
@@ -58,9 +58,9 @@ func (src *MigrationsSource) readChildrenMigrations() (float64, bool) {
 	return total, found
 }
 
-func (src *MigrationsSource) childPIDs() []int {
+func (source *MigrationsSource) childPIDs() []int {
 	// /proc/[self]/task/
-	taskDir := filepath.Join(src.Root, strconv.Itoa(os.Getpid()), "task")
+	taskDir := filepath.Join(source.Root, strconv.Itoa(os.Getpid()), "task")
 	entries, err := os.ReadDir(taskDir)
 	if err != nil {
 		return nil
@@ -82,8 +82,8 @@ func (src *MigrationsSource) childPIDs() []int {
 	return pids
 }
 
-func (src *MigrationsSource) sumThreads(pid int) (float64, bool) {
-	taskDir := filepath.Join(src.Root, strconv.Itoa(pid), "task")
+func (source *MigrationsSource) sumThreads(pid int) (float64, bool) {
+	taskDir := filepath.Join(source.Root, strconv.Itoa(pid), "task")
 	entries, err := os.ReadDir(taskDir)
 	if err != nil {
 		return 0, false

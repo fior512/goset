@@ -22,12 +22,12 @@ type Steering struct {
 }
 
 // https://www.kernel.org/doc/html/latest/core-api/irq/irq-affinity.html
-func Steer(topo *cpu.Topology, bench generic.CPUSet, housekeeper int) (*Steering, error) {
+func Steer(topology *cpu.Topology, bench generic.CPUSet, housekeeper int) (*Steering, error) {
 	steering := &Steering{}
 	if err := steering.holdIRQBalance(); err != nil {
 		return nil, err
 	}
-	if err := steering.steerIRQs(topo, bench, housekeeper); err != nil {
+	if err := steering.steerIRQs(topology, bench, housekeeper); err != nil {
 		steering.Release()
 		return nil, err
 	}

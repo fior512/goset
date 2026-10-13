@@ -15,7 +15,7 @@ import (
 	"goset/internal/telemetry"
 )
 
-func Telemetry(selection *generic.Selection, cfg *cli.Config, steering *isolation.Steering) (func(time.Duration, error, *isolation.Steering, *syscall.Rusage), error) {
+func Telemetry(selection *generic.Selection, config *cli.Config, steering *isolation.Steering) (func(time.Duration, error, *isolation.Steering, *syscall.Rusage), error) {
 	pinHousekeeper := func() error {
 		var mask generic.CPUSet
 		mask.SetBit(selection.HouseKeeper)
@@ -42,7 +42,7 @@ func Telemetry(selection *generic.Selection, cfg *cli.Config, steering *isolatio
 	}
 	sampler := &telemetry.Sampler{
 		Cpus:     selection.Task,
-		Interval: time.Duration(cfg.SamplingMS) * time.Millisecond,
+		Interval: time.Duration(config.SamplingMS) * time.Millisecond,
 		Sources:  sources,
 	}
 

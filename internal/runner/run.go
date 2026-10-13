@@ -13,7 +13,7 @@ import (
 	"goset/internal/isolation"
 )
 
-func Run(cfg *cli.Config) (err error) {
+func Run(config *cli.Config) (err error) {
 	ctx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stopSignals()
 
@@ -21,20 +21,20 @@ func Run(cfg *cli.Config) (err error) {
 	if err != nil {
 		return err
 	}
-	selection, err := cpu.Selection(topo, cfg)
+	selection, err := cpu.Selection(topo, config)
 	if err != nil {
 		return err
 	}
-	group, steering, release, err := Isolation(cfg, topo, selection)
+	cgroup, steering, release, err := Isolation(config, topo, selection)
 	if err != nil {
 		return err
 	}
 	defer release(&err)
-	lazyReport, err := Telemetry(selection, cfg, steering)
+	lazyReport, err := Telemetry(selection, config, steering)
 	if err != nil {
 		return err
 	}
-	rusage, wall, runErr := isolation.SpawnTask(ctx, cfg.Task, selection.Task, group)
+	rusage, wall, runErr := isolation.SpawnTask(ctx, config.Task, selection.Task, cgroup)
 	lazyReport(wall, runErr, steering, rusage)
 	return runErr
 }

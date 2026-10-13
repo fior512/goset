@@ -34,11 +34,11 @@ func preflight(t *testing.T, minCPUs int) {
 	check("running as root", os.Geteuid() == 0,
 		"re-run with sudo: goset writes to "+generic.SysCgroup+" and steers irq affinity")
 
-	topo, err := cpu.GetTopology()
+	topology, err := cpu.GetTopology()
 	check("cpu topology readable", err == nil, fmt.Sprintf("read %s: %v", generic.SysCPU, err))
 	if err == nil {
 		check(fmt.Sprintf("at least %d online cpu(s) (n + housekeeper)", minCPUs),
-			topo.Online.Count() >= minCPUs,
-			fmt.Sprintf("only %d online cpu(s) available, need %d", topo.Online.Count(), minCPUs))
+			topology.Online.Count() >= minCPUs,
+			fmt.Sprintf("only %d online cpu(s) available, need %d", topology.Online.Count(), minCPUs))
 	}
 }

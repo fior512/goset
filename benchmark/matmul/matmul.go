@@ -18,9 +18,9 @@ type Benchmark struct {
 
 func (b *Benchmark) Name() string { return "matmul" }
 
-func (b *Benchmark) RegisterFlags(fs *flag.FlagSet) {
-	fs.IntVar(&b.reps, "matmul-reps", 2000, "matmul: 32x32 multiplications per timed iteration")
-	fs.IntVar(&b.ntimes, "matmul-ntimes", 300, "matmul: timed iterations, per-iteration samples kept for tail analysis")
+func (b *Benchmark) RegisterFlags(flags *flag.FlagSet) {
+	flags.IntVar(&b.reps, "matmul-reps", 2000, "matmul: 32x32 multiplications per timed iteration")
+	flags.IntVar(&b.ntimes, "matmul-ntimes", 300, "matmul: timed iterations, per-iteration samples kept for tail analysis")
 }
 
 func (b *Benchmark) Build() (string, error) { return plugin.BuildC("matmul", source) }

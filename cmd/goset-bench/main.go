@@ -67,25 +67,25 @@ func (s sample) samples(name string) []float64 {
 var splitCols = regexp.MustCompile(`\s{2,}`)
 
 func main() {
-	fs := flag.NewFlagSet("goset-bench", flag.ExitOnError)
-	name := fs.String("bench", "", "alias for a built-in after --: "+benchNames())
-	runs := fs.Int("runs", 10, "interleaved runs per mode")
-	threads := fs.Int("n", 1, "threads to book for the isolated run (goset -n)")
-	settle := fs.Duration("settle", 5*time.Second, "idle delay before each run, both modes start from the same post-idle state")
-	cpu := fs.Int("cpu", -1, "pin isolated and taskset runs to this CPU across runs (default: isolated takes the fresh quietest, taskset rotates through every allowed CPU)")
-	fence := fs.Bool("fence", true, "pass -fence to the isolated run: book the SMT siblings of the selected cpus")
-	withTaskset := fs.Bool("taskset", false, "add a third mode: raw taskset -c on a rotating CPU, no cgroup, no steering")
-	gosetBin := fs.String("goset-bin", defaultGosetBin, "path to the goset binary (default: PATH, then next to goset-bench)")
-	match := fs.String("match", "", "regex selecting reported metric keys (overrides auto top-K)")
-	topk := fs.Int("topk", 8, "max extracted metric keys reported per mode")
-	dump := fs.Bool("dump", false, "print extracted keys and per-run sample counts before reports")
+	flags := flag.NewFlagSet("goset-bench", flag.ExitOnError)
+	name := flags.String("bench", "", "alias for a built-in after --: "+benchNames())
+	runs := flags.Int("runs", 10, "interleaved runs per mode")
+	threads := flags.Int("n", 1, "threads to book for the isolated run (goset -n)")
+	settle := flags.Duration("settle", 5*time.Second, "idle delay before each run, both modes start from the same post-idle state")
+	cpu := flags.Int("cpu", -1, "pin isolated and taskset runs to this CPU across runs (default: isolated takes the fresh quietest, taskset rotates through every allowed CPU)")
+	fence := flags.Bool("fence", true, "pass -fence to the isolated run: book the SMT siblings of the selected cpus")
+	withTaskset := flags.Bool("taskset", false, "add a third mode: raw taskset -c on a rotating CPU, no cgroup, no steering")
+	gosetBin := flags.String("goset-bin", defaultGosetBin, "path to the goset binary (default: PATH, then next to goset-bench)")
+	match := flags.String("match", "", "regex selecting reported metric keys (overrides auto top-K)")
+	topk := flags.Int("topk", 8, "max extracted metric keys reported per mode")
+	dump := flags.Bool("dump", false, "print extracted keys and per-run sample counts before reports")
 	for _, b := range benchmark.Registry {
-		b.RegisterFlags(fs)
+		b.RegisterFlags(flags)
 	}
-	fs.Parse(os.Args[1:])
+	flags.Parse(os.Args[1:])
 
 	var bench plugin.Benchmark
-	if args := fs.Args(); len(args) > 0 {
+	if args := flags.Args(); len(args) > 0 {
 		if b, ok := benchmark.Registry[args[0]]; ok && !strings.Contains(args[0], "/") {
 			if len(args) > 1 {
 				fmt.Fprintf(os.Stderr, "goset-bench: built-in %q takes no extra args\n", args[0])

@@ -22,29 +22,29 @@ type IRQSource struct {
 	end   []IRQCount
 }
 
-func (src *IRQSource) Baseline(cpus generic.CPUSet) error {
-	src.cpus = cpus
+func (source *IRQSource) Baseline(cpus generic.CPUSet) error {
+	source.cpus = cpus
 	var err error
-	src.start, err = ReadIRQCounts(src.Root)
+	source.start, err = ReadIRQCounts(source.Root)
 	return err
 }
 
-func (src *IRQSource) Poll() error { return nil }
+func (source *IRQSource) Poll() error { return nil }
 
-func (src *IRQSource) Stop() error {
-	end, err := ReadIRQCounts(src.Root)
-	src.end = end
+func (source *IRQSource) Stop() error {
+	end, err := ReadIRQCounts(source.Root)
+	source.end = end
 	return err
 }
 
 // A cpu the file holds no column for, and a failed end read, both read 0
-func (src *IRQSource) Summary() []Counter {
-	out := make([]Counter, 0, src.cpus.Count()*2)
-	for cpu := range src.cpus.All() {
+func (source *IRQSource) Summary() []Counter {
+	out := make([]Counter, 0, source.cpus.Count()*2)
+	for cpu := range source.cpus.All() {
 		count := IRQCount{}
-		if cpu < len(src.start) && cpu < len(src.end) {
-			count.Steerable = src.end[cpu].Steerable - src.start[cpu].Steerable
-			count.NonSteerable = src.end[cpu].NonSteerable - src.start[cpu].NonSteerable
+		if cpu < len(source.start) && cpu < len(source.end) {
+			count.Steerable = source.end[cpu].Steerable - source.start[cpu].Steerable
+			count.NonSteerable = source.end[cpu].NonSteerable - source.start[cpu].NonSteerable
 		}
 		out = append(out,
 			Counter{

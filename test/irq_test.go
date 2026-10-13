@@ -19,9 +19,9 @@ func writeInterrupts(t *testing.T, root, content string) {
 const interruptsTwoCpus = "           CPU0    CPU1\n  0:         10      20\n NMI:         1       2\n"
 const interruptsTwoCpusLater = "           CPU0    CPU1\n  0:        110     220\n NMI:         3       4\n"
 
-func irqValue(t *testing.T, src *telemetry.IRQSource, cpu int, name string) float64 {
+func irqValue(t *testing.T, source *telemetry.IRQSource, cpu int, name string) float64 {
 	t.Helper()
-	for _, counter := range src.Summary() {
+	for _, counter := range source.Summary() {
 		if counter.CPU == cpu && counter.Name == name {
 			return counter.Value
 		}
@@ -37,22 +37,22 @@ func TestIRQReportsTheDeltaPerCPU(t *testing.T) {
 	var cpus generic.CPUSet
 	cpus.SetBit(0)
 	cpus.SetBit(1)
-	src := &telemetry.IRQSource{Root: root}
-	if err := src.Baseline(cpus); err != nil {
+	source := &telemetry.IRQSource{Root: root}
+	if err := source.Baseline(cpus); err != nil {
 		t.Fatal(err)
 	}
 	writeInterrupts(t, root, interruptsTwoCpusLater)
-	if err := src.Stop(); err != nil {
+	if err := source.Stop(); err != nil {
 		t.Fatal(err)
 	}
 
 	for cpu, want := range map[int]float64{0: 100, 1: 200} {
-		if got := irqValue(t, src, cpu, generic.IRQSteerable); got != want {
+		if got := irqValue(t, source, cpu, generic.IRQSteerable); got != want {
 			t.Errorf("cpu %d steerable = %v, want %v", cpu, got, want)
 		}
 	}
 	for cpu, want := range map[int]float64{0: 2, 1: 2} {
-		if got := irqValue(t, src, cpu, generic.IRQNonSteerable); got != want {
+		if got := irqValue(t, source, cpu, generic.IRQNonSteerable); got != want {
 			t.Errorf("cpu %d non-steerable = %v, want %v", cpu, got, want)
 		}
 	}
@@ -65,19 +65,19 @@ func TestIRQReportsZeroForACPUWithoutAColumn(t *testing.T) {
 	var cpus generic.CPUSet
 	cpus.SetBit(0)
 	cpus.SetBit(7) // /proc/interrupts holds no CPU7 column
-	src := &telemetry.IRQSource{Root: root}
-	if err := src.Baseline(cpus); err != nil {
+	source := &telemetry.IRQSource{Root: root}
+	if err := source.Baseline(cpus); err != nil {
 		t.Fatal(err)
 	}
 	writeInterrupts(t, root, interruptsTwoCpusLater)
-	if err := src.Stop(); err != nil {
+	if err := source.Stop(); err != nil {
 		t.Fatal(err)
 	}
 
-	if got := irqValue(t, src, 0, generic.IRQSteerable); got != 100 {
+	if got := irqValue(t, source, 0, generic.IRQSteerable); got != 100 {
 		t.Errorf("cpu 0 steerable = %v, want 100", got)
 	}
-	if got := irqValue(t, src, 7, generic.IRQSteerable); got != 0 {
+	if got := irqValue(t, source, 7, generic.IRQSteerable); got != 0 {
 		t.Errorf("cpu 7 steerable = %v, want 0: a cpu the file holds no column for reads 0", got)
 	}
 }
@@ -88,17 +88,17 @@ func TestIRQReportsZeroWhenTheEndReadFails(t *testing.T) {
 
 	var cpus generic.CPUSet
 	cpus.SetBit(0)
-	src := &telemetry.IRQSource{Root: root}
-	if err := src.Baseline(cpus); err != nil {
+	source := &telemetry.IRQSource{Root: root}
+	if err := source.Baseline(cpus); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Remove(filepath.Join(root, generic.ProcInterruptsName)); err != nil {
 		t.Fatal(err)
 	}
-	if err := src.Stop(); err == nil {
+	if err := source.Stop(); err == nil {
 		t.Fatal("Stop on an unreadable interrupts file, want an error")
 	}
-	if got := irqValue(t, src, 0, generic.IRQSteerable); got != 0 {
+	if got := irqValue(t, source, 0, generic.IRQSteerable); got != 0 {
 		t.Errorf("steerable = %v after a failed end read, want 0", got)
 	}
 }

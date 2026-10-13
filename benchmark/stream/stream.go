@@ -22,10 +22,10 @@ type Benchmark struct {
 
 func (b *Benchmark) Name() string { return "stream" }
 
-func (b *Benchmark) RegisterFlags(fs *flag.FlagSet) {
-	fs.IntVar(&b.size, "stream-size", 20_000_000, "STREAM: array elements per array")
-	fs.IntVar(&b.ntimes, "stream-ntimes", 300, "STREAM: timed iterations, per-iteration samples kept for tail analysis")
-	fs.StringVar(&b.metrics, "stream-metrics", "Triad",
+func (b *Benchmark) RegisterFlags(flags *flag.FlagSet) {
+	flags.IntVar(&b.size, "stream-size", 20_000_000, "STREAM: array elements per array")
+	flags.IntVar(&b.ntimes, "stream-ntimes", 300, "STREAM: timed iterations, per-iteration samples kept for tail analysis")
+	flags.StringVar(&b.metrics, "stream-metrics", "Triad",
 		"STREAM: comma-separated kernels to report, in order (Copy,Scale,Add,Triad)")
 }
 

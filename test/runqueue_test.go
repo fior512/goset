@@ -23,9 +23,9 @@ func writeSchedstat(t *testing.T, root string, pid, tid int, runDelay float64) {
 	}
 }
 
-func runDelayValue(t *testing.T, src *telemetry.RunqueueSource) float64 {
+func runDelayValue(t *testing.T, source *telemetry.RunqueueSource) float64 {
 	t.Helper()
-	return telemetry.CountRunqueue(src.Summary())
+	return telemetry.CountRunqueue(source.Summary())
 }
 
 func TestRunqueueSumsTaskThreads(t *testing.T) {
@@ -35,14 +35,14 @@ func TestRunqueueSumsTaskThreads(t *testing.T) {
 	writeSchedstat(t, root, child, child, 1000)
 	writeSchedstat(t, root, child, child+1, 2500)
 
-	src := &telemetry.RunqueueSource{Root: root}
-	if err := src.Baseline(generic.CPUSet{}); err != nil {
+	source := &telemetry.RunqueueSource{Root: root}
+	if err := source.Baseline(generic.CPUSet{}); err != nil {
 		t.Fatal(err)
 	}
-	if err := src.Poll(); err != nil {
+	if err := source.Poll(); err != nil {
 		t.Fatal(err)
 	}
-	got := runDelayValue(t, src)
+	got := runDelayValue(t, source)
 	if got != 3500 {
 		t.Errorf("run_delay = %v, want 3500 (1000+2500 over task threads)", got)
 	}
@@ -54,14 +54,14 @@ func TestRunqueueStickyAfterChildVanishes(t *testing.T) {
 	writeChildren(t, root, child)
 	writeSchedstat(t, root, child, child, 700)
 
-	src := &telemetry.RunqueueSource{Root: root}
-	if err := src.Baseline(generic.CPUSet{}); err != nil {
+	source := &telemetry.RunqueueSource{Root: root}
+	if err := source.Baseline(generic.CPUSet{}); err != nil {
 		t.Fatal(err)
 	}
-	if err := src.Poll(); err != nil {
+	if err := source.Poll(); err != nil {
 		t.Fatal(err)
 	}
-	if got := runDelayValue(t, src); got != 700 {
+	if got := runDelayValue(t, source); got != 700 {
 		t.Fatalf("run_delay = %v, want 700", got)
 	}
 
@@ -72,27 +72,27 @@ func TestRunqueueStickyAfterChildVanishes(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, strconv.Itoa(os.Getpid()), "task", strconv.Itoa(os.Getpid()), "children"), nil, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := src.Stop(); err != nil {
+	if err := source.Stop(); err != nil {
 		t.Fatal(err)
 	}
-	got := runDelayValue(t, src)
+	got := runDelayValue(t, source)
 	if got != 700 {
 		t.Errorf("run_delay = %v after reap, want sticky 700", got)
 	}
 }
 
 func TestRunqueueNoChildReportsZero(t *testing.T) {
-	src := &telemetry.RunqueueSource{Root: t.TempDir()}
-	if err := src.Baseline(generic.CPUSet{}); err != nil {
+	source := &telemetry.RunqueueSource{Root: t.TempDir()}
+	if err := source.Baseline(generic.CPUSet{}); err != nil {
 		t.Fatal(err)
 	}
-	if err := src.Poll(); err != nil {
+	if err := source.Poll(); err != nil {
 		t.Fatal(err)
 	}
-	if err := src.Stop(); err != nil {
+	if err := source.Stop(); err != nil {
 		t.Fatal(err)
 	}
-	if got := runDelayValue(t, src); got != 0 {
+	if got := runDelayValue(t, source); got != 0 {
 		t.Errorf("run_delay = %v with no child ever sampled, want 0", got)
 	}
 }
@@ -102,14 +102,14 @@ func TestRunqueueMissingSchedstatFile(t *testing.T) {
 	const child = 4242
 	writeChildren(t, root, child) // child listed but schedstat unreadable (mid-exit race)
 
-	src := &telemetry.RunqueueSource{Root: root}
-	if err := src.Baseline(generic.CPUSet{}); err != nil {
+	source := &telemetry.RunqueueSource{Root: root}
+	if err := source.Baseline(generic.CPUSet{}); err != nil {
 		t.Fatal(err)
 	}
-	if err := src.Poll(); err != nil {
+	if err := source.Poll(); err != nil {
 		t.Fatal(err)
 	}
-	if got := runDelayValue(t, src); got != 0 {
+	if got := runDelayValue(t, source); got != 0 {
 		t.Errorf("run_delay = %v when schedstat was unreadable, want 0", got)
 	}
 }

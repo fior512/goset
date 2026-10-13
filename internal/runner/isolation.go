@@ -12,13 +12,13 @@ import (
 	"goset/internal/isolation"
 )
 
-func Isolation(cfg *cli.Config, topo *cpu.Topology, selection *generic.Selection) (*isolation.Cgroup, *isolation.Steering, func(*error), error) {
+func Isolation(config *cli.Config, topology *cpu.Topology, selection *generic.Selection) (*isolation.Cgroup, *isolation.Steering, func(*error), error) {
 	var locks []*isolation.Lock
-	var group *isolation.Cgroup
+	var cgroup *isolation.Cgroup
 	var steering *isolation.Steering
 	teardown := func() error {
 		var failures []error
-		if err := group.Destroy(); err != nil {
+		if err := cgroup.Destroy(); err != nil {
 			failures = append(failures, err)
 		}
 		restored, failed := steering.RestoreIRQs()
@@ -30,25 +30,25 @@ func Isolation(cfg *cli.Config, topo *cpu.Topology, selection *generic.Selection
 		releaseLocks(locks)
 		return errors.Join(failures...)
 	}
-	if cfg.Cgroup {
-		cgroupName := generic.CgroupIdentifier + filepath.Base(cfg.Task[0])
+	if config.Cgroup {
+		cgroupName := generic.CgroupIdentifier + filepath.Base(config.Task[0])
 		lock, err := isolation.AcquireLock(filepath.Join(generic.RunLockDir, cgroupName+".lock"))
 		if err != nil {
 			return nil, nil, nil, err
 		}
 		locks = append(locks, lock)
-		if group, err = isolation.InitCgroup(cgroupName, selection.Booked(), selection.Numa); err != nil {
+		if cgroup, err = isolation.InitCgroup(cgroupName, selection.Booked(), selection.Numa); err != nil {
 			return nil, nil, nil, errors.Join(err, teardown())
 		}
 	}
 
-	if cfg.Steering {
+	if config.Steering {
 		lock, err := isolation.AcquireLock(filepath.Join(generic.RunLockDir, generic.SteerLockName))
 		if err != nil {
 			return nil, nil, nil, errors.Join(err, teardown())
 		}
 		locks = append(locks, lock)
-		if steering, err = isolation.Steer(topo, selection.Booked(), selection.HouseKeeper); err != nil {
+		if steering, err = isolation.Steer(topology, selection.Booked(), selection.HouseKeeper); err != nil {
 			return nil, nil, nil, errors.Join(err, teardown())
 		}
 	}
@@ -63,7 +63,7 @@ func Isolation(cfg *cli.Config, topo *cpu.Topology, selection *generic.Selection
 			*runErr = errors.New("isolation teardown incomplete")
 		}
 	}
-	return group, steering, release, nil
+	return cgroup, steering, release, nil
 }
 
 func releaseLocks(locks []*isolation.Lock) {

@@ -27,8 +27,8 @@ func (steering *Steering) ExpectedAffinities() map[string]string {
 }
 
 // https://www.kernel.org/doc/html/latest/core-api/irq/irq-affinity.html
-func (steering *Steering) steerIRQs(topo *cpu.Topology, bench generic.CPUSet, housekeeper int) error {
-	allowed := topo.Online
+func (steering *Steering) steerIRQs(topology *cpu.Topology, bench generic.CPUSet, housekeeper int) error {
+	allowed := topology.Online
 	allowed.AndNot(bench)
 	allowed.ClearBit(housekeeper)
 	if !allowed.Any() {

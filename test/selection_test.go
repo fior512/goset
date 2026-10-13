@@ -13,12 +13,12 @@ import (
 
 func onlineIDs(t *testing.T) []int {
 	t.Helper()
-	topo, err := cpu.GetTopology()
+	topology, err := cpu.GetTopology()
 	if err != nil {
 		t.Fatalf("cpu.GetTopology: %v", err)
 	}
 	var ids []int
-	for id := range topo.Online.All() {
+	for id := range topology.Online.All() {
 		ids = append(ids, id)
 	}
 	if len(ids) < 4 {
@@ -44,9 +44,9 @@ func containsInt(list []int, want int) bool {
 	return false
 }
 
-func assertAllowed(t *testing.T, rep probeReport, want int, note string) {
+func assertAllowed(t *testing.T, report probeReport, want int, note string) {
 	t.Helper()
-	if got := rep.Threads[0].Allowed; got != strconv.Itoa(want) {
+	if got := report.Threads[0].Allowed; got != strconv.Itoa(want) {
 		t.Errorf("allowed=%q, want exactly %q (%s)", got, strconv.Itoa(want), note)
 	}
 }
@@ -65,9 +65,9 @@ func TestSelectionNoIncludeNoExclude(t *testing.T) {
 	if res.exitCode != 0 {
 		t.Fatalf("exited %d, stderr: %s", res.exitCode, res.stderr)
 	}
-	rep := parseProbe(t, res.stdout)
-	if got := cpuListCount(rep.Threads[0].Allowed); got != 1 {
-		t.Errorf("allowed=%q has %d cpu(s), want 1", rep.Threads[0].Allowed, got)
+	report := parseProbe(t, res.stdout)
+	if got := cpuListCount(report.Threads[0].Allowed); got != 1 {
+		t.Errorf("allowed=%q has %d cpu(s), want 1", report.Threads[0].Allowed, got)
 	}
 }
 
@@ -80,8 +80,8 @@ func TestSelectionIncludeExactlyN(t *testing.T) {
 	if res.exitCode != 0 {
 		t.Fatalf("exited %d, stderr: %s", res.exitCode, res.stderr)
 	}
-	rep := parseProbe(t, res.stdout)
-	assertAllowed(t, rep, want, "include size == n")
+	report := parseProbe(t, res.stdout)
+	assertAllowed(t, report, want, "include size == n")
 }
 
 func TestSelectionIncludeGreaterThanN(t *testing.T) {
@@ -93,10 +93,10 @@ func TestSelectionIncludeGreaterThanN(t *testing.T) {
 	if res.exitCode != 0 {
 		t.Fatalf("exited %d, stderr: %s", res.exitCode, res.stderr)
 	}
-	rep := parseProbe(t, res.stdout)
-	got := parseCPUList(t, rep.Threads[0].Allowed)
+	report := parseProbe(t, res.stdout)
+	got := parseCPUList(t, report.Threads[0].Allowed)
 	if len(got) != 1 {
-		t.Fatalf("allowed=%q has %d cpu(s), want 1", rep.Threads[0].Allowed, len(got))
+		t.Fatalf("allowed=%q has %d cpu(s), want 1", report.Threads[0].Allowed, len(got))
 	}
 	if !containsInt(ids[:3], got[0]) {
 		t.Errorf("selected cpu %d is not one of the requested include cpus %v", got[0], ids[:3])
@@ -112,8 +112,8 @@ func TestSelectionExcludeShrinksPool(t *testing.T) {
 	if res.exitCode != 0 {
 		t.Fatalf("exited %d, stderr: %s", res.exitCode, res.stderr)
 	}
-	rep := parseProbe(t, res.stdout)
-	got := parseCPUList(t, rep.Threads[0].Allowed)
+	report := parseProbe(t, res.stdout)
+	got := parseCPUList(t, report.Threads[0].Allowed)
 	if containsInt(got, excluded) {
 		t.Errorf("allowed=%v includes excluded cpu %d", got, excluded)
 	}
@@ -129,8 +129,8 @@ func TestSelectionExcludeToBoundary(t *testing.T) {
 	if res.exitCode != 0 {
 		t.Fatalf("boundary exclude (exactly n+1 left) exited %d, stderr: %s", res.exitCode, res.stderr)
 	}
-	rep := parseProbe(t, res.stdout)
-	got := parseCPUList(t, rep.Threads[0].Allowed)
+	report := parseProbe(t, res.stdout)
+	got := parseCPUList(t, report.Threads[0].Allowed)
 	if len(got) != 1 || !containsInt(ids[:2], got[0]) {
 		t.Errorf("allowed=%v, want exactly one of %v", got, ids[:2])
 	}
@@ -175,19 +175,19 @@ func TestSelectionIncludeAndExcludeDisjoint(t *testing.T) {
 	if res.exitCode != 0 {
 		t.Fatalf("exited %d, stderr: %s", res.exitCode, res.stderr)
 	}
-	rep := parseProbe(t, res.stdout)
-	assertAllowed(t, rep, want, "include minus exclude")
+	report := parseProbe(t, res.stdout)
+	assertAllowed(t, report, want, "include minus exclude")
 }
 
-func hostNuma(t *testing.T) (topo *cpu.Topology, nodes []int) {
+func hostNuma(t *testing.T) (topology *cpu.Topology, nodes []int) {
 	t.Helper()
-	topo, err := cpu.GetTopology()
+	topology, err := cpu.GetTopology()
 	if err != nil {
 		t.Fatalf("cpu.GetTopology: %v", err)
 	}
 	seen := map[int]bool{}
-	for id := range topo.Online.All() {
-		if numa := topo.Numa[id]; numa >= 0 {
+	for id := range topology.Online.All() {
+		if numa := topology.Numa[id]; numa >= 0 {
 			seen[numa] = true
 		}
 	}
@@ -195,7 +195,7 @@ func hostNuma(t *testing.T) (topo *cpu.Topology, nodes []int) {
 		nodes = append(nodes, numa)
 	}
 	slices.Sort(nodes)
-	return topo, nodes
+	return topology, nodes
 }
 
 func TestNumaNotOnHost(t *testing.T) {
@@ -218,7 +218,7 @@ func TestNumaNotOnHost(t *testing.T) {
 
 func TestNumaAutoStaysOnOneNode(t *testing.T) {
 	preflight(t, 2)
-	topo, _ := hostNuma(t)
+	topology, _ := hostNuma(t)
 	gosetBin, probeBin := setup(t)
 
 	res := runGoset(t, gosetBin, "-n", "1", "-numa", "-1", "--", probeBin)
@@ -227,7 +227,7 @@ func TestNumaAutoStaysOnOneNode(t *testing.T) {
 	}
 	held := map[int]bool{}
 	for _, id := range parseCPUList(t, parseProbe(t, res.stdout).Threads[0].Allowed) {
-		held[topo.Numa[id]] = true
+		held[topology.Numa[id]] = true
 	}
 	if len(held) != 1 {
 		t.Errorf("-numa -1 selected cpus spread over nodes %v, want one", held)
@@ -236,7 +236,7 @@ func TestNumaAutoStaysOnOneNode(t *testing.T) {
 
 func TestNumaExplicitHoldsPool(t *testing.T) {
 	preflight(t, 2)
-	topo, nodes := hostNuma(t)
+	topology, nodes := hostNuma(t)
 	gosetBin, probeBin := setup(t)
 	want := nodes[0]
 
@@ -245,7 +245,7 @@ func TestNumaExplicitHoldsPool(t *testing.T) {
 		t.Fatalf("exited %d, stderr: %s", res.exitCode, res.stderr)
 	}
 	for _, id := range parseCPUList(t, parseProbe(t, res.stdout).Threads[0].Allowed) {
-		if got := topo.Numa[id]; got != want {
+		if got := topology.Numa[id]; got != want {
 			t.Errorf("cpu %d sits on node %d, want %d", id, got, want)
 		}
 	}
@@ -253,14 +253,14 @@ func TestNumaExplicitHoldsPool(t *testing.T) {
 
 func TestNumaExplicitIncludeOnOtherNode(t *testing.T) {
 	preflight(t, 4)
-	topo, nodes := hostNuma(t)
+	topology, nodes := hostNuma(t)
 	if len(nodes) < 2 {
 		t.Skipf("host has %d numa node(s), need 2", len(nodes))
 	}
 	gosetBin, probeBin := setup(t)
 	var foreign []int
-	for id := range topo.Online.All() {
-		if topo.Numa[id] != nodes[0] {
+	for id := range topology.Online.All() {
+		if topology.Numa[id] != nodes[0] {
 			foreign = append(foreign, id)
 		}
 	}
@@ -279,13 +279,13 @@ func TestNumaExplicitIncludeOnOtherNode(t *testing.T) {
 
 func TestNumaExplicitBelowMinimum(t *testing.T) {
 	preflight(t, 2)
-	topo, nodes := hostNuma(t)
+	topology, nodes := hostNuma(t)
 	gosetBin, probeBin := setup(t)
 	keep := -1
 	var drop []int
-	for id := range topo.Online.All() {
+	for id := range topology.Online.All() {
 		switch {
-		case topo.Numa[id] != nodes[0]:
+		case topology.Numa[id] != nodes[0]:
 			drop = append(drop, id)
 		case keep < 0:
 			keep = id
@@ -320,28 +320,28 @@ func TestNumaOffReportsAnyNode(t *testing.T) {
 	}
 }
 
-func assertFenceMatchesTaskCore(t *testing.T, topo *cpu.Topology, selection *generic.Selection) {
+func assertFenceMatchesTaskCore(t *testing.T, topology *cpu.Topology, selection *generic.Selection) {
 	t.Helper()
 	task := selection.Task.NextSet(0)
 	for sibling := range selection.Fence.All() {
-		if topo.Core[sibling] != topo.Core[task] {
-			t.Errorf("fenced cpu %d is on core %d, task cpu %d is on core %d", sibling, topo.Core[sibling], task, topo.Core[task])
+		if topology.Core[sibling] != topology.Core[task] {
+			t.Errorf("fenced cpu %d is on core %d, task cpu %d is on core %d", sibling, topology.Core[sibling], task, topology.Core[task])
 		}
 		if sibling == task || sibling == selection.HouseKeeper {
 			t.Errorf("fence holds cpu %d, the task or housekeeper cpu", sibling)
 		}
 	}
-	for cpuID := range topo.Online.All() {
-		onCore := topo.Core[cpuID] == topo.Core[task] && cpuID != task && cpuID != selection.HouseKeeper
+	for cpuID := range topology.Online.All() {
+		onCore := topology.Core[cpuID] == topology.Core[task] && cpuID != task && cpuID != selection.HouseKeeper
 		if onCore != selection.Fence.GetBit(cpuID) {
 			t.Errorf("cpu %d: on task core (not housekeeper) = %v, in fence = %v", cpuID, onCore, selection.Fence.GetBit(cpuID))
 		}
 	}
 }
 
-func assertFenceOff(t *testing.T, topo *cpu.Topology) {
+func assertFenceOff(t *testing.T, topology *cpu.Topology) {
 	t.Helper()
-	unfenced, err := cpu.Selection(topo, &cli.Config{NThreads: 1, Numa: -2})
+	unfenced, err := cpu.Selection(topology, &cli.Config{NThreads: 1, Numa: -2})
 	if err != nil {
 		t.Fatalf("Selection: %v", err)
 	}
@@ -351,16 +351,16 @@ func assertFenceOff(t *testing.T, topo *cpu.Topology) {
 }
 
 func TestSelectionFenceBooksTaskSiblings(t *testing.T) {
-	topo, err := cpu.GetTopology()
+	topology, err := cpu.GetTopology()
 	if err != nil {
 		t.Fatalf("cpu.GetTopology: %v", err)
 	}
-	selection, err := cpu.Selection(topo, &cli.Config{NThreads: 1, Numa: -2, Fence: true})
+	selection, err := cpu.Selection(topology, &cli.Config{NThreads: 1, Numa: -2, Fence: true})
 	if err != nil {
 		t.Fatalf("Selection: %v", err)
 	}
-	assertFenceMatchesTaskCore(t, topo, selection)
-	assertFenceOff(t, topo)
+	assertFenceMatchesTaskCore(t, topology, selection)
+	assertFenceOff(t, topology)
 }
 
 /*
@@ -368,17 +368,17 @@ a -fence run books whole cores: 2 task threads hold ceil(2/coreSize) cores,
 whatever the noise says
 */
 func TestSelectionFenceFillsCores(t *testing.T) {
-	topo, err := cpu.GetTopology()
+	topology, err := cpu.GetTopology()
 	if err != nil {
 		t.Fatalf("cpu.GetTopology: %v", err)
 	}
-	if topo.Online.Count() < 3 {
-		t.Skipf("need 2 task cpus and a housekeeper, have %d online", topo.Online.Count())
+	if topology.Online.Count() < 3 {
+		t.Skipf("need 2 task cpus and a housekeeper, have %d online", topology.Online.Count())
 	}
 	// a core that cannot fill leaves no whole core to book
 	filled := map[int]int{}
-	for cpuID := range topo.Online.All() {
-		filled[topo.Core[cpuID]]++
+	for cpuID := range topology.Online.All() {
+		filled[topology.Core[cpuID]]++
 	}
 	coreSize := 0
 	for _, size := range filled {
@@ -389,13 +389,13 @@ func TestSelectionFenceFillsCores(t *testing.T) {
 		}
 	}
 
-	selection, err := cpu.Selection(topo, &cli.Config{NThreads: 2, Numa: -2, Fence: true})
+	selection, err := cpu.Selection(topology, &cli.Config{NThreads: 2, Numa: -2, Fence: true})
 	if err != nil {
 		t.Fatalf("Selection: %v", err)
 	}
 	cores := map[int]bool{}
 	for cpuID := range selection.Task.All() {
-		cores[topo.Core[cpuID]] = true
+		cores[topology.Core[cpuID]] = true
 	}
 	want := (2 + coreSize - 1) / coreSize
 	if len(cores) != want {

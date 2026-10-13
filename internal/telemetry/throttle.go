@@ -36,30 +36,30 @@ type ThrottleSource struct {
 	end   []uint64
 }
 
-func (src *ThrottleSource) Baseline(cpus generic.CPUSet) error {
+func (source *ThrottleSource) Baseline(cpus generic.CPUSet) error {
 	var absent generic.CPUSet
-	src.start, absent = ReadThrottleCounts(src.Root, cpus)
-	src.all = cpus
-	src.cpus = cpus
-	src.cpus.AndNot(absent)
+	source.start, absent = ReadThrottleCounts(source.Root, cpus)
+	source.all = cpus
+	source.cpus = cpus
+	source.cpus.AndNot(absent)
 	return nil
 }
 
-func (src *ThrottleSource) Poll() error { return nil }
+func (source *ThrottleSource) Poll() error { return nil }
 
-func (src *ThrottleSource) Stop() error {
+func (source *ThrottleSource) Stop() error {
 	var absent generic.CPUSet
-	src.end, absent = ReadThrottleCounts(src.Root, src.cpus)
-	src.cpus.AndNot(absent)
+	source.end, absent = ReadThrottleCounts(source.Root, source.cpus)
+	source.cpus.AndNot(absent)
 	return nil
 }
 
-func (src *ThrottleSource) Summary() []Counter {
-	out := make([]Counter, 0, src.all.Count())
-	for cpu := range src.all.All() {
+func (source *ThrottleSource) Summary() []Counter {
+	out := make([]Counter, 0, source.all.Count())
+	for cpu := range source.all.All() {
 		var delta uint64
-		if src.cpus.GetBit(cpu) && src.end[cpu] >= src.start[cpu] { // end read 0: unknown at Stop
-			delta = src.end[cpu] - src.start[cpu]
+		if source.cpus.GetBit(cpu) && source.end[cpu] >= source.start[cpu] { // end read 0: unknown at Stop
+			delta = source.end[cpu] - source.start[cpu]
 		}
 		out = append(out, Counter{
 			Source: generic.SourceThrottle, CPU: cpu, Name: generic.ThrottleCount,

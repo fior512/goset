@@ -24,13 +24,13 @@ func sampleIRQDelta(interval time.Duration) ([]telemetry.IRQCount, error) {
 
 	delta := make([]telemetry.IRQCount, len(after))
 	for i := range after {
-		var b telemetry.IRQCount
+		var irqcount telemetry.IRQCount
 		if i < len(before) {
-			b = before[i]
+			irqcount = before[i]
 		}
 		delta[i] = telemetry.IRQCount{
-			Steerable:    after[i].Steerable - b.Steerable,
-			NonSteerable: after[i].NonSteerable - b.NonSteerable,
+			Steerable:    after[i].Steerable - irqcount.Steerable,
+			NonSteerable: after[i].NonSteerable - irqcount.NonSteerable,
 		}
 	}
 	return delta, nil
@@ -50,25 +50,25 @@ func cpuNoise(irq telemetry.IRQCount, steer bool) uint64 {
 	return irq.NonSteerable + irq.Steerable
 }
 
-func siblingLoads(topo *Topology, delta []telemetry.IRQCount, steer bool) map[int]uint64 {
-	coreTotal := make(map[int]uint64, len(topo.Core))
-	for cpu := range topo.Online.All() {
-		coreTotal[topo.Core[cpu]] += cpuNoise(deltaAt(delta, cpu), steer)
+func siblingLoads(topology *Topology, delta []telemetry.IRQCount, steer bool) map[int]uint64 {
+	coreTotal := make(map[int]uint64, len(topology.Core))
+	for cpu := range topology.Online.All() {
+		coreTotal[topology.Core[cpu]] += cpuNoise(deltaAt(delta, cpu), steer)
 	}
 
-	sibling := make(map[int]uint64, len(topo.Core))
-	for cpu := range topo.Online.All() {
-		sibling[cpu] = coreTotal[topo.Core[cpu]] - cpuNoise(deltaAt(delta, cpu), steer)
+	sibling := make(map[int]uint64, len(topology.Core))
+	for cpu := range topology.Online.All() {
+		sibling[cpu] = coreTotal[topology.Core[cpu]] - cpuNoise(deltaAt(delta, cpu), steer)
 	}
 	return sibling
 }
 
 // maps each thread to the other thread of its core, -1 when it has none
-func siblingCPUs(topo *Topology) map[int]int {
+func siblingCPUs(topology *Topology) map[int]int {
 	pending := map[int]int{}
-	out := make(map[int]int, len(topo.Core))
-	for cpu := range topo.Online.All() {
-		core := topo.Core[cpu]
+	out := make(map[int]int, len(topology.Core))
+	for cpu := range topology.Online.All() {
+		core := topology.Core[cpu]
 		other, seen := pending[core]
 		if !seen {
 			pending[core] = cpu
@@ -82,7 +82,7 @@ func siblingCPUs(topo *Topology) map[int]int {
 	return out
 }
 
-func rankCPUs(topo *Topology, candidates generic.CPUSet, cfg *cli.Config) ([]generic.CPUScore, error) {
+func rankCPUs(topology *Topology, candidates generic.CPUSet, config *cli.Config) ([]generic.CPUScore, error) {
 	/*
 		include{1,2,5} // threads id requested
 		candidates{1,2,3,4,5,6} // all available threads
@@ -111,8 +111,8 @@ func rankCPUs(topo *Topology, candidates generic.CPUSet, cfg *cli.Config) ([]gen
 	if err != nil {
 		return nil, err
 	}
-	sibling := siblingLoads(topo, delta, cfg.Steering)
-	threads := siblingCPUs(topo)
+	sibling := siblingLoads(topology, delta, config.Steering)
+	threads := siblingCPUs(topology)
 
 	// saving
 	out := make([]generic.CPUScore, 0, candidates.Count())
@@ -122,15 +122,15 @@ func rankCPUs(topo *Topology, candidates generic.CPUSet, cfg *cli.Config) ([]gen
 			CPU:          cpu,
 			Steerable:    irq.Steerable,
 			NonSteerable: irq.NonSteerable,
-			Noise:        cpuNoise(irq, cfg.Steering),
+			Noise:        cpuNoise(irq, config.Steering),
 			SiblingLoad:  sibling[cpu],
 			Sibling:      threads[cpu],
-			Numa:         topo.Numa[cpu],
-			KernelIsol:   topo.KernelIsol.GetBit(cpu),
-			NohzFull:     topo.NohzFull.GetBit(cpu),
-			RcuNocb:      topo.RcuNocb.GetBit(cpu),
+			Numa:         topology.Numa[cpu],
+			KernelIsol:   topology.KernelIsol.GetBit(cpu),
+			NohzFull:     topology.NohzFull.GetBit(cpu),
+			RcuNocb:      topology.RcuNocb.GetBit(cpu),
 		}
-		if cfg.Include.GetBit(cpu) {
+		if config.Include.GetBit(cpu) {
 			score.Included = 1
 		}
 		out = append(out, score)
@@ -143,7 +143,7 @@ func rankCPUs(topo *Topology, candidates generic.CPUSet, cfg *cli.Config) ([]gen
 			cmp.Compare(left.Noise+left.SiblingLoad, right.Noise+right.SiblingLoad),
 			cmp.Compare(left.Noise, right.Noise),
 			cmp.Compare(left.Steerable, right.Steerable),
-			cmp.Compare(topo.Core[left.CPU], topo.Core[right.CPU]),
+			cmp.Compare(topology.Core[left.CPU], topology.Core[right.CPU]),
 			cmp.Compare(left.CPU, right.CPU),
 		)
 	})

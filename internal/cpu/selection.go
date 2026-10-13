@@ -9,24 +9,24 @@ import (
 	"goset/internal/generic"
 )
 
-func Selection(topo *Topology, cfg *cli.Config) (*generic.Selection, error) {
+func Selection(topology *Topology, config *cli.Config) (*generic.Selection, error) {
 	/* rank */
-	candidates, numa, err := selectCandidates(topo, cfg)
+	candidates, numa, err := selectCandidates(topology, config)
 	if err != nil {
 		return nil, err
 	}
-	scores, err := rankCPUs(topo, candidates, cfg)
+	scores, err := rankCPUs(topology, candidates, config)
 	if err != nil {
 		return nil, err
 	}
 
 	/* select */
 	var task generic.CPUSet
-	for _, score := range scores[:cfg.NThreads] { // select CPUs for task
+	for _, score := range scores[:config.NThreads] { // select CPUs for task
 		task.SetBit(score.CPU)
 	}
-	housekeeper := selectHousekeeper(topo, scores, task)
-	fence, unfenced := selectFence(topo, scores, task, housekeeper, cfg)
+	housekeeper := selectHousekeeper(topology, scores, task)
+	fence, unfenced := selectFence(topology, scores, task, housekeeper, config)
 	if unfenced.Any() {
 		fmt.Fprintf(os.Stderr, "%sfence: cpu %s left open, no room beside the housekeeper and irq steering, or excluded\n",
 			generic.LogPrefix, unfenced.String())
@@ -41,18 +41,18 @@ func Selection(topo *Topology, cfg *cli.Config) (*generic.Selection, error) {
 	}, nil
 }
 
-func selectCandidates(topo *Topology, cfg *cli.Config) (generic.CPUSet, int, error) {
-	candidates := topo.Online
+func selectCandidates(topology *Topology, config *cli.Config) (generic.CPUSet, int, error) {
+	candidates := topology.Online
 
 	// incl&excl overlap check by run()
-	candidates.AndNot(cfg.Exclude)
-	if !cfg.Include.IsSubset(candidates) {
+	candidates.AndNot(config.Exclude)
+	if !config.Include.IsSubset(candidates) {
 		return generic.CPUSet{}, 0, fmt.Errorf("include %s: offline or excluded cpu",
-			cfg.Include.String())
+			config.Include.String())
 	}
 
 	/* numa */
-	candidates, numa, err := constrainNuma(topo, candidates, cfg.Include, cfg.Numa)
+	candidates, numa, err := constrainNuma(topology, candidates, config.Include, config.Numa)
 	if err != nil {
 		return generic.CPUSet{}, 0, err
 	}
@@ -62,26 +62,26 @@ func selectCandidates(topo *Topology, cfg *cli.Config) (generic.CPUSet, int, err
 	if numa >= 0 {
 		scope = " on numa " + strconv.Itoa(numa)
 	}
-	if candidates.Count() < cfg.NThreads+1 { // +housekeeper
+	if candidates.Count() < config.NThreads+1 { // +housekeeper
 		return generic.CPUSet{}, 0, fmt.Errorf(
 			"need %d cpu(s) plus 1 housekeeper but only %d candidate(s) remain%s",
-			cfg.NThreads, candidates.Count(), scope)
+			config.NThreads, candidates.Count(), scope)
 	}
 
 	/* steer */
-	if cfg.Steering && topo.Online.Count() < cfg.NThreads+2 { // +housekeeper +steered placeholder
+	if config.Steering && topology.Online.Count() < config.NThreads+2 { // +housekeeper +steered placeholder
 		return generic.CPUSet{}, 0, fmt.Errorf(
 			"-steer needs a cpu outside the %d task cpu(s) and the housekeeper, only %d online",
-			cfg.NThreads, topo.Online.Count())
+			config.NThreads, topology.Online.Count())
 	}
 	return candidates, numa, nil
 }
 
-func selectHousekeeper(topo *Topology, scores []generic.CPUScore, task generic.CPUSet) int {
+func selectHousekeeper(topology *Topology, scores []generic.CPUScore, task generic.CPUSet) int {
 	/* cores */
 	var taskCores generic.CPUSet
 	for cpu := range task.All() {
-		taskCores.SetBit(topo.Core[cpu])
+		taskCores.SetBit(topology.Core[cpu])
 	}
 
 	/* search */
@@ -90,7 +90,7 @@ func selectHousekeeper(topo *Topology, scores []generic.CPUScore, task generic.C
 		if task.GetBit(score.CPU) {
 			continue
 		}
-		if !taskCores.GetBit(topo.Core[score.CPU]) {
+		if !taskCores.GetBit(topology.Core[score.CPU]) {
 			return score.CPU
 		}
 		if fallback < 0 {
@@ -100,24 +100,24 @@ func selectHousekeeper(topo *Topology, scores []generic.CPUScore, task generic.C
 	return fallback
 }
 
-func selectFence(topo *Topology, scores []generic.CPUScore, task generic.CPUSet, housekeeper int, cfg *cli.Config) (fence, unfenced generic.CPUSet) {
-	if !cfg.Fence {
+func selectFence(topology *Topology, scores []generic.CPUScore, task generic.CPUSet, housekeeper int, config *cli.Config) (fence, unfenced generic.CPUSet) {
+	if !config.Fence {
 		return fence, unfenced
 	}
 
 	/* room */
-	room := topo.Online.Count() - task.Count() - 1 // -housekeeper
-	if cfg.Steering {
+	room := topology.Online.Count() - task.Count() - 1 // -housekeeper
+	if config.Steering {
 		room-- // steered place
 	}
 
 	/* siblings */
 	var taskCores, siblings generic.CPUSet
 	for cpu := range task.All() {
-		taskCores.SetBit(topo.Core[cpu])
+		taskCores.SetBit(topology.Core[cpu])
 	}
-	for cpu := range topo.Online.All() {
-		if taskCores.GetBit(topo.Core[cpu]) && !task.GetBit(cpu) && cpu != housekeeper {
+	for cpu := range topology.Online.All() {
+		if taskCores.GetBit(topology.Core[cpu]) && !task.GetBit(cpu) && cpu != housekeeper {
 			siblings.SetBit(cpu)
 		}
 	}

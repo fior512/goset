@@ -79,32 +79,32 @@ var telemetryColumns = []telemetryColumn{
 	{generic.SourceIRQ, generic.IRQNonSteerable, FormatValue, generic.Sum},
 }
 
-func TelemetryTables(rep Report, width int) []Table {
-	values := perCPUValues(rep.Counters)
+func TelemetryTables(report Report, width int) []Table {
+	values := perCPUValues(report.Counters)
 
 	/* layout */
 	keys := 0
-	tab := Table{Title: "Telemetry", Align: AlignRight}
+	table := Table{Title: "Telemetry", Align: AlignRight}
 	var groups []string
-	if rep.Cpus.Count() > 1 {
+	if report.Cpus.Count() > 1 {
 		keys = 1
-		tab.Align = AlignLabel
-		tab.Header = append(tab.Header, generic.TelemetryCPU)
+		table.Align = AlignLabel
+		table.Header = append(table.Header, generic.TelemetryCPU)
 		groups = append(groups, "")
 	}
 	for _, column := range telemetryColumns {
-		tab.Header = append(tab.Header, column.label())
+		table.Header = append(table.Header, column.label())
 		groups = append(groups, column.source)
 	}
 
 	/* rows */
-	for cpu := range rep.Cpus.All() {
-		tab.Rows = append(tab.Rows, telemetryRow(cpu, telemetryColumns, values, keys > 0))
+	for cpu := range report.Cpus.All() {
+		table.Rows = append(table.Rows, telemetryRow(cpu, telemetryColumns, values, keys > 0))
 	}
 	if keys > 0 {
-		tab.Rows = append(tab.Rows, telemetryFooter(values, rep.Cpus))
+		table.Rows = append(table.Rows, telemetryFooter(values, report.Cpus))
 	}
-	return splitColumns(tab, groups, keys, width)
+	return splitColumns(table, groups, keys, width)
 }
 
 // one counter per column, "-" where the cpu reports none
@@ -166,8 +166,8 @@ func perCPUValues(counters []telemetry.Counter) map[string]map[int]float64 {
 	return values
 }
 
-func splitColumns(tab Table, groups []string, keys int, width int) []Table {
-	widths := columnWidths(tab)
+func splitColumns(table Table, groups []string, keys int, width int) []Table {
+	widths := columnWidths(table)
 	var blocks [][]int
 	block := indexRange(0, keys)
 	for start := keys; start < len(groups); {
@@ -187,8 +187,8 @@ func splitColumns(tab Table, groups []string, keys int, width int) []Table {
 
 	tables := make([]Table, 0, len(blocks))
 	for _, columns := range blocks {
-		part := Table{Title: tab.Title, Header: pick(tab.Header, columns), Align: tab.Align}
-		for _, row := range tab.Rows {
+		part := Table{Title: table.Title, Header: pick(table.Header, columns), Align: table.Align}
+		for _, row := range table.Rows {
 			part.Rows = append(part.Rows, pick(row, columns))
 		}
 		tables = append(tables, part)
@@ -223,11 +223,11 @@ type runScope struct {
 	pairs []runPair
 }
 
-func RunTable(rep Report) Table {
-	scopes := runScopes(rep)
-	tab := Table{Title: "Run", Align: AlignPairs}
+func RunTable(report Report) Table {
+	scopes := runScopes(report)
+	table := Table{Title: "Run", Align: AlignPairs}
 	for _, scope := range scopes {
-		tab.Header = append(tab.Header, scope.name, "")
+		table.Header = append(table.Header, scope.name, "")
 	}
 	lines := 0
 	for _, scope := range scopes {
@@ -242,18 +242,18 @@ func RunTable(rep Report) Table {
 			}
 			row = append(row, pair.key, pair.value)
 		}
-		tab.Rows = append(tab.Rows, row)
+		table.Rows = append(table.Rows, row)
 	}
-	return tab
+	return table
 }
 
 // a scope with no counter is dropped
-func runScopes(rep Report) []runScope {
+func runScopes(report Report) []runScope {
 	var scopes []runScope
 	for _, scope := range []runScope{
-		{generic.ScopeTask, taskPairs(rep)},
-		{generic.ScopeSched, schedPairs(rep)},
-		{generic.ScopeSteer, steerPairs(rep)},
+		{generic.ScopeTask, taskPairs(report)},
+		{generic.ScopeSched, schedPairs(report)},
+		{generic.ScopeSteer, steerPairs(report)},
 	} {
 		if len(scope.pairs) > 0 {
 			scopes = append(scopes, scope)
@@ -262,67 +262,67 @@ func runScopes(rep Report) []runScope {
 	return scopes
 }
 
-func taskPairs(rep Report) []runPair {
+func taskPairs(report Report) []runPair {
 	return []runPair{
-		{generic.RunPoll, fmt.Sprintf("%d@%s", rep.Polls, rep.Interval)},
-		{generic.RunWall, FormatTime(rep.Wall)},
-		{generic.RunExit, strconv.Itoa(rep.ExitCode)},
+		{generic.RunPoll, fmt.Sprintf("%d@%s", report.Polls, report.Interval)},
+		{generic.RunWall, FormatTime(report.Wall)},
+		{generic.RunExit, strconv.Itoa(report.ExitCode)},
 	}
 }
 
-func schedPairs(rep Report) []runPair {
+func schedPairs(report Report) []runPair {
 	var pairs []runPair
-	if rep.Rusage != nil {
+	if report.Rusage != nil {
 		pairs = append(pairs,
-			runPair{generic.RunCtxswVol, fmt.Sprintf("%d", rep.Rusage.Nvcsw)},
-			runPair{generic.RunCtxswInvol, fmt.Sprintf("%d", rep.Rusage.Nivcsw)},
+			runPair{generic.RunCtxswVol, fmt.Sprintf("%d", report.Rusage.Nvcsw)},
+			runPair{generic.RunCtxswInvol, fmt.Sprintf("%d", report.Rusage.Nivcsw)},
 		)
 	}
 	pairs = append(pairs,
-		runPair{generic.RunMigrations, strconv.Itoa(telemetry.CountMigrations(rep.Counters))},
-		runPair{generic.SchedRunDelay, FormatTime(time.Duration(telemetry.CountRunqueue(rep.Counters)))},
+		runPair{generic.RunMigrations, strconv.Itoa(telemetry.CountMigrations(report.Counters))},
+		runPair{generic.SchedRunDelay, FormatTime(time.Duration(telemetry.CountRunqueue(report.Counters)))},
 	)
 	return pairs
 }
 
-func steerPairs(rep Report) []runPair {
-	if rep.Steer == nil {
+func steerPairs(report Report) []runPair {
+	if report.Steer == nil {
 		return nil
 	}
 	return []runPair{
-		{generic.RunIRQSteerApplied, strconv.Itoa(rep.Steer.Applied)},
-		{generic.RunIRQSteerRejected, strconv.Itoa(rep.Steer.Rejected)},
-		{generic.RunIRQSteerRemaining, strconv.Itoa(len(rep.Steer.Remaining))},
-		{generic.RunIRQSteerDrift, strconv.Itoa(telemetry.CountDriftedIRQs(rep.Counters))},
-		{generic.RunIRQBalance, rep.Steer.Status()},
+		{generic.RunIRQSteerApplied, strconv.Itoa(report.Steer.Applied)},
+		{generic.RunIRQSteerRejected, strconv.Itoa(report.Steer.Rejected)},
+		{generic.RunIRQSteerRemaining, strconv.Itoa(len(report.Steer.Remaining))},
+		{generic.RunIRQSteerDrift, strconv.Itoa(telemetry.CountDriftedIRQs(report.Counters))},
+		{generic.RunIRQBalance, report.Steer.Status()},
 	}
 }
 
 // one row per distinct telemetry failure, naming the counters it left at 0
-func ErrorsTable(rep Report) Table {
-	rows := make([][]string, 0, len(rep.Errors))
-	for _, failure := range rep.Errors {
+func ErrorsTable(report Report) Table {
+	rows := make([][]string, 0, len(report.Errors))
+	for _, failure := range report.Errors {
 		rows = append(rows, []string{failure.Error()})
 	}
 	return Table{Title: "Errors", Align: AlignLeft, Rows: rows}
 }
 
-func TopologyTable(topo *cpu.Topology) Table {
+func TopologyTable(topology *cpu.Topology) Table {
 	header := []string{"cpu", "core", "numa", "isol", "nohz", "rcu", "driver", "gov", "epp", "minf", "maxf"}
 	var rows [][]string
-	for id := range topo.Online.All() {
+	for id := range topology.Online.All() {
 		rows = append(rows, []string{
 			fmt.Sprintf("%3d", id),
-			fmt.Sprintf("%4d", topo.Core[id]),
-			fmt.Sprintf("%4d", topo.Numa[id]),
-			yesMark(topo.KernelIsol.GetBit(id)),
-			yesMark(topo.NohzFull.GetBit(id)),
-			yesMark(topo.RcuNocb.GetBit(id)),
-			topo.Driver[id],
-			topo.Governor[id],
-			topo.EPP[id],
-			FormatFreq(float64(topo.MinFreq[id]) * 1000),
-			FormatFreq(float64(topo.MaxFreq[id]) * 1000),
+			fmt.Sprintf("%4d", topology.Core[id]),
+			fmt.Sprintf("%4d", topology.Numa[id]),
+			yesMark(topology.KernelIsol.GetBit(id)),
+			yesMark(topology.NohzFull.GetBit(id)),
+			yesMark(topology.RcuNocb.GetBit(id)),
+			topology.Driver[id],
+			topology.Governor[id],
+			topology.EPP[id],
+			FormatFreq(float64(topology.MinFreq[id]) * 1000),
+			FormatFreq(float64(topology.MaxFreq[id]) * 1000),
 		})
 	}
 	return Table{Title: "Topology", Header: header, Rows: rows}
