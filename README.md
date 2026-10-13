@@ -6,13 +6,12 @@ GOSET : Noise-aware CPU pinning
 
 <img src="images/logo/goset.png" width="40%" style="float: right">
 
-Goset is a systematic CPU-pinning CLI tool.
-It takes a task, single|multi threaded, ranks cores by interrupt rate and scheduler noise, isolates the task, steers future interrupts and reports kernel and hardware counters for the run.
+Goset is a systematic CPU-pinning CLI tool. It pins a single or multi threaded task to the quietest cores, and reports the kernel counters of the run.
 
 * **Noise-aware:** Ranks CPUs by IRQ rate and scheduler load before pinning.
 * **Isolated:** cgroup v2 + IRQ steering, for exclusive CPU access.
-* **Telemetry built in:** IRQ, throttle, ctxsw counts, ...; reported with the run.
-* **No IPI:** Housekeeper thread reads every CPU's counters remotely, from kernel-maintained state.
+* **Telemetry:** IRQ, throttle, ctxsw counts, CPU frequency, migration.
+* **No IPI:** The housekeeper thread reads every CPU's counters remotely via kernel managed counters.
 * **Diagnostics:** Reports topology, environment, existing cgroups.
 
 Table of Contents
@@ -43,8 +42,7 @@ Goset needs sudo only for `-cgroup` and `-steer`.
 | `-exclude` |string| | List of threads to avoid, handles ranges (e.g.: `1,3-5` -> 1,3,4,5) | |
 | `-numa` |int| -2 | Constrain the task cpus and memory to one node: 0..N that node only, -1:Auto (widest node), -2:Off (multi node). A node that cannot fill `-n` is an error. | |
 
-> Multi-thread tasks: `-n >1` works without `-cgroup`, the mask is inherited by every thread. `-cgroup` adds exclusivity and holds tasks that reset their own affinity.
-
+> Telemetry: `0` reads the same for no activity, no kernel support and nothing sampled. A failed read ends the report in an `Errors` table, one line per failure.
 
 Goset has a second form called `Diagnostic`, callable with bare `goset`.
 
@@ -54,8 +52,6 @@ Goset has a second form called `Diagnostic`, callable with bare `goset`.
 | `-rm-cgroup` | Let you **brut-force delete** an existing group. In case of non-identified goset bug | **sudo** |
 
 > Identifying Goset's cgroup: name is "goset-" + the task binary's basename (e.g. task: `./mybench arg1, arg2` -> cgroup name: `goset-mybench`).
-
-> Concurrent runs: each cgroup name and IRQ steering are guarded by a lock under `/run/lock`. A second run that would reuse the same cgroup or steer at the same time fails immediately and reports the holder pid.
 
 **Real usage**:
 ```bash
@@ -71,14 +67,11 @@ goset -n 5 -numa 0 -include 2,4-6 -exclude 0,1 -- ./task
 # Change the telemetry sampling window
 goset -interval 500 -- ./task
 
-
 # Remove a cgroup goset left behind (in case of bug)
 sudo goset -rm-cgroup goset-mybench
 ```
 
-**Output**:
-
-Goset output format (with `-cgroup`, `-steer` and `-fence`):
+**Output** (with `-cgroup`, `-steer` and `-fence`):
 ```
 ----------------- GOSET -----------------
 Selection
@@ -114,8 +107,6 @@ Run
                                          irqbalance  absent
 ```
 
-
-
 Selection columns:
 * `sel`: `*` task cpu, `&` housekeeper, `!` fenced sibling (`-fence`).
 * `steer`, `non-steer`: interrupts counted on the cpu during the 500ms ranking sample. Steerable ones can be moved away, non-steerable (NMI, LOC, RES) cannot.
@@ -128,9 +119,9 @@ Technical insights
 -------------
 
 **Selection** (`internal/cpu/bench.go`)
-- Cores rank by the noise of both threads, quietest first, a core's threads together.
+- Sort threads by noise, pick best thread from best core, then select remaining threads from core.
 - The task takes the top cpus, the housekeeper the next one outside the task's core.
-- With `-fence`, the siblings of the task cpus are booked idle while a cpu stays free for the housekeeper and, with `-steer`, for the IRQs. Siblings left open are reported.
+- With `-fence`, the siblings of the task cpus are booked idle while a cpu stays free for the housekeeper and, with `-steer`, for the IRQs.
 
 **Isolation**
 | mode | mechanism | scope |
@@ -138,38 +129,32 @@ Technical insights
 | default | `sched_setaffinity` | N threads, shared mask |
 | `-cgroup` | cgroupv2 cpuset, placed at clone (`CLONE_INTO_CGROUP`) | N threads |
 
-Without `-cgroup`, the CPU mask is inherited by every thread the task starts. A task that resets its own affinity (OpenMP, MPI) escapes it. Use `-cgroup` to hold it.
+Without `-cgroup`, the CPU mask is inherited by every thread the task starts. A task that resets its own affinity (OpenMP, MPI) escapes it.
 
-With `-cgroup`, the cpuset holds the task CPUs plus their SMT siblings (`-fence`), and the task is pinned to the task CPUs by `sched_setaffinity`. A busy sibling halves the throughput of an FP-bound task.
+With `-cgroup`, the cpuset holds the task CPUs plus their SMT siblings (`-fence`), and the task is pinned to the task CPUs by `sched_setaffinity`.
 
 **IRQ steering** (`-steer`)
-- Holds `irqbalance` for the run: stops the systemd unit, restarts it on exit.
-- Unmanaged daemon (no systemd): warns and steers anyway.
-- Writes `/proc/irq/*/smp_affinity_list` for IRQs on selected CPUs.
-- Restores prior affinity on exit.
+- The kernel routes every IRQ to a cpu, so the IRQs belong on a cpu the task does not run on.
+- Writes `/proc/irq/*/smp_affinity_list`, restores the prior affinity on exit.
+- `irqbalance` rebalances against that on its own schedule, so it is held for the run: unit stopped, restarted on exit.
 
 **Telemetry**
-- Reader: Only the housekeeper reads.
-- No IPI: every counter comes from procfs/sysfs. The pinned housekeeper thread does the mid-run poll; the before/after baseline runs on the calling thread.
-- Source: kernel software counters only: `/proc/interrupts`, sysfs throttle, `wait4()` rusage...
-- Every counter is reported, so `0` is ambiguous: no activity, no kernel support (a driver or `CONFIG_` option is missing), or nothing was sampled. `-interval 0` samples nothing, so the `freq` columns read 0. A read that failed ends the report in an `Errors` table, one line per failure.
-- `-interval`: mid-run poll tick of telemetry, ms.
+- Reader: Remote thread, external to task.
+- No IPI: a counter read that interrupts the task measures the reader.
+- Source: `/proc/interrupts`, sysfs throttle, `wait4()` rusage.
+- Errors: a failed read does not abort the report, it is collected.
 
 
 Performance results
 --------------------
 
-Setup: Ryzen 5 7600X (6 cores, SMT on), 10 interleaved runs per mode, 5s idle before each run.
-
-- baseline: bare binary, scheduler places it.
-- taskset: `taskset -c` on one CPU, rotating over CPUs.
-- goset: `-n 1 -cgroup -steer -fence`.
+Setup: Ryzen 5 7600X (6 cores, SMT on), 10 interleaved runs per mode, 5s idle before each run. `baseline` is the bare binary, `taskset` is `taskset -c` on one rotating CPU, `goset` is `-n 1 -cgroup -steer -fence`.
 
 Benchmarks:
-- jitter: one dependent xorshift-multiply chain. Exposes CPU time lost to interrupts and preemption.
-- chase: dependent loads over a 192 KiB ring that fits L2. Exposes core migration and cache pollution.
-- matmul: 32x32 double matrix multiply, L1-resident. Exposes CPU frequency and sibling-thread interference.
-- stream: STREAM Triad over 20M-element arrays. Exposes memory-bandwidth variation.
+- jitter: xorshift-multiply chain, exposes CPU time lost to interrupts and preemption.
+- chase: loads over a 192 KiB ring that fits L2, exposes core migration and cache pollution.
+- matmul: 32x32 double matrix multiply, exposes CPU frequency and sibling-thread interference.
+- stream: STREAM Triad over 20M-element arrays, exposes memory-bandwidth variation.
 
 **jitter** (ms per iteration, lower is better)
 
@@ -205,9 +190,7 @@ Benchmarks:
 
 > `spread` is (max - min) / median
 
-Limits:
-- taskset changes core every run, so its spread includes core-to-core differences.
-- jitter, chase and stream medians differ by under 4% between modes.
+Limits: taskset changes core every run, so its spread includes core-to-core differences.
 
 Reproduce: `sudo goset-bench -bench jitter -runs 10 -n 1 -settle 5s -fence=true -taskset=true`.
 
@@ -224,7 +207,7 @@ sudo goset-bench -runs 10 -n 1 -settle 5s -taskset=true -- ./mytask arg1 arg2
 - A task that exits non-zero has its run discarded.
 - The task must print the same line structure every run. A changed structure raises an `output drift` warning.
 
-> goset-bench extracts metrics from any output format, so unusual structures can yield wrong metrics. Feel free to open an issue with the task's output when that happens!!
+> An unusual output format can yield wrong metrics. Open an issue with a sample of it.
 
 
 License
