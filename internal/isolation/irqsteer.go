@@ -18,19 +18,19 @@ func isSteerableLabel(label string) bool {
 	return err == nil
 }
 
-func (steer *Steering) ExpectedAffinities() map[string]string {
-	if steer == nil {
+func (steering *Steering) ExpectedAffinities() map[string]string {
+	if steering == nil {
 		return nil
 	}
-	expected := make(map[string]string, len(steer.Saved))
-	for label := range steer.Saved {
-		expected[label] = steer.AppliedList
+	expected := make(map[string]string, len(steering.Saved))
+	for label := range steering.Saved {
+		expected[label] = steering.AppliedList
 	}
 	return expected
 }
 
 // https://www.kernel.org/doc/html/latest/core-api/irq/irq-affinity.html
-func (steer *Steering) steerIRQs(topo *cpu.Topology, bench generic.CPUSet, housekeeper int) error {
+func (steering *Steering) steerIRQs(topo *cpu.Topology, bench generic.CPUSet, housekeeper int) error {
 	allowed := topo.Online
 	allowed.AndNot(bench)
 	allowed.ClearBit(housekeeper)
@@ -43,9 +43,9 @@ func (steer *Steering) steerIRQs(topo *cpu.Topology, bench generic.CPUSet, house
 	if err != nil {
 		return err
 	}
-	steer.Errors = map[string]int{}
-	steer.Saved = map[string]string{}
-	steer.AppliedList = list
+	steering.Errors = map[string]int{}
+	steering.Saved = map[string]string{}
+	steering.AppliedList = list
 	for _, e := range entries {
 		if !e.IsDir() || !isSteerableLabel(e.Name()) {
 			continue
@@ -55,18 +55,18 @@ func (steer *Steering) steerIRQs(topo *cpu.Topology, bench generic.CPUSet, house
 		if err != nil {
 			continue
 		}
-		steer.Attempted++
+		steering.Attempted++
 		if err := os.WriteFile(path, []byte(list), 0o644); err != nil {
-			steer.Rejected++
-			steer.Errors[errnoLabel(err)]++
+			steering.Rejected++
+			steering.Errors[errnoLabel(err)]++
 			continue
 		}
-		steer.Saved[e.Name()] = prev
-		steer.Applied++
+		steering.Saved[e.Name()] = prev
+		steering.Applied++
 	}
 
 	// check if writable
-	for label := range steer.Saved {
+	for label := range steering.Saved {
 		s, err := readFileTrim(filepath.Join(generic.ProcIRQ, label, generic.EffectiveAffinityList)) //read-only
 		if err != nil {
 			s, err = readFileTrim(filepath.Join(generic.ProcIRQ, label, generic.SmpAffinityList)) // read/write
@@ -83,21 +83,21 @@ func (steer *Steering) steerIRQs(topo *cpu.Topology, bench generic.CPUSet, house
 			overlap = cpus
 			overlap.And(bench)
 			if overlap.Any() {
-				steer.Remaining = append(steer.Remaining, label)
+				steering.Remaining = append(steering.Remaining, label)
 			}
 		}
 	}
-	sort.Strings(steer.Remaining)
+	sort.Strings(steering.Remaining)
 	return nil
 }
 
 // RestoreIRQs restore smp_affinity_lists
 // https://www.kernel.org/doc/html/latest/core-api/irq/irq-affinity.html
-func (steer *Steering) RestoreIRQs() (restored, failed int) {
-	if steer == nil {
+func (steering *Steering) RestoreIRQs() (restored, failed int) {
+	if steering == nil {
 		return 0, 0
 	}
-	for label, val := range steer.Saved {
+	for label, val := range steering.Saved {
 		path := filepath.Join(generic.ProcIRQ, label, generic.SmpAffinityList)
 		if err := os.WriteFile(path, []byte(val), 0o644); err != nil {
 			failed++
