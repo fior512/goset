@@ -161,11 +161,11 @@ func FormatFreq(hz float64) string {
 func FormatTime(elapsed time.Duration) string {
 	switch {
 	case elapsed >= time.Second:
-		return fmt.Sprintf("%.2fs", elapsed.Seconds())
+		return fmt.Sprintf("%.3fs", elapsed.Seconds())
 	case elapsed >= time.Millisecond:
-		return fmt.Sprintf("%.2fms", float64(elapsed.Microseconds())/1000)
+		return fmt.Sprintf("%.3fms", float64(elapsed.Nanoseconds())/1e6)
 	case elapsed >= time.Microsecond:
-		return fmt.Sprintf("%.2fus", float64(elapsed.Nanoseconds())/1000)
+		return fmt.Sprintf("%.3fμs", float64(elapsed.Nanoseconds())/1000)
 	default:
 		return fmt.Sprintf("%dns", elapsed.Nanoseconds())
 	}
