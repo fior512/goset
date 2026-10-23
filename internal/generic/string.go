@@ -89,6 +89,7 @@ const (
 const (
 	RunPoll              = "poll"
 	RunWall              = "wall"
+	RunUtil              = "util"
 	RunExit              = "exit"
 	RunCtxswVol          = "ctxsw vol"
 	RunCtxswInvol        = "ctxsw invol"

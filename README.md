@@ -75,36 +75,38 @@ sudo goset -rm-cgroup goset-mybench
 ```
 ----------------- GOSET -----------------
 Selection
-  cpu  sel  steer  non-steer   core  sibl  isol  numa  nohz  rcu
-    4   *       2        212    632    10           0
-   10   *      30        420    632     4           0
-    5   *       0        436    919    11           0
-   11   *       0        483    919     5           0
-    1   *       0        365    958     7           0
-    7   !       2        593    958     1           0
-    8   &     223        473  1.01k     2           0
-    2          96        540  1.01k     8           0
-    9           0        454  1.06k     3           0
-    3           0        610  1.06k     9           0
-    6           2        625  1.26k     0           0
-    0           0        634  1.26k     6           0
+  cpu  sel  steer  non-steer  core  sibl  isol  numa  nohz  rcu
+    3   *       0         20   232     9           0
+    9   *       0        212   232     3           0
+    6   *       0          3   253     0           0
+    0   *       0        250   253     6           0
+    5   *       0        126   318    11           0
+   11   *       0        192   318     5           0
+    2   *       0         47   349     8           0
+    8   !       0        302   349     2           0
+   10   &       0        143   439     4           0
+    4           0        296   439    10           0
+    1          11        161   479     7           0
+    7         278        318   479     1           0
 
 Telemetry
   cpu  freq min  freq avg  freq max  throttle count  irq steerable  irq non-steerable
-  1     2.99GHz   3.28GHz   5.22GHz               0              0              8.42k
-  4     2.99GHz   3.37GHz   5.40GHz               0              0              2.25k
-  5     2.99GHz   3.47GHz   5.19GHz               0             43              3.07k
-  10    2.99GHz   4.89GHz   5.35GHz               0              0              11.0k
-  11    2.96GHz   3.31GHz   5.18GHz               0             78              2.08k
-  all   2.96GHz   3.66GHz   5.40GHz               0            121              26.8k
+  0     2.99GHz   4.69GHz   5.20GHz               0              0              1.33k
+  2     2.99GHz   4.86GHz   5.45GHz               0              0              1.24k
+  3     2.99GHz   4.39GHz   5.20GHz               0              0              1.02k
+  5     2.99GHz   4.78GHz   5.45GHz               0              0              1.27k
+  6     2.99GHz   4.83GHz   5.20GHz               0              0              1.24k
+  9     2.99GHz   4.75GHz   5.20GHz               0              0              1.27k
+  11    2.99GHz   4.98GHz   5.45GHz               0              0              1.48k
+  all   2.99GHz   4.75GHz   5.45GHz               0              0              8.84k
 
 Run
-  task            sched                  steer
-  poll  5699@5ms  ctxsw vol           1  applied         40
-  wall    28.50s  ctxsw invol        37  rejected        26
-  exit         0  migrations         10  remaining        0
-                  run_delay    237.91us  drift            0
-                                         irqbalance  absent
+  task            sched                   steer
+  poll  3736@1ms  ctxsw vol            8  applied         40
+  wall    3.754s  ctxsw invol         70  rejected        26
+  util      579%  migrations           5  remaining        1
+  exit         0  run_delay     28.690μs  drift            0
+                                          irqbalance  absent
 ```
 
 Selection columns:
@@ -113,7 +115,7 @@ Selection columns:
 * `core`: rank cost, this cpu's noise plus its sibling's. Steerable interrupts count only without `-steer`.
 * `sibl`: SMT sibling cpu, `-` when alone.
 
-The other tables: `Telemetry` holds per-cpu counters over the run, `Run` holds wall time, exit code, scheduler, steer and drift counters.
+The other tables: `Telemetry` holds per-cpu counters over the run, `Run` holds wall time, `util` (cpu time over wall, 100% is one busy thread), exit code, scheduler, steer and drift counters.
 
 Technical insights
 -------------

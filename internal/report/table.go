@@ -263,11 +263,15 @@ func runScopes(report Report) []runScope {
 }
 
 func taskPairs(report Report) []runPair {
-	return []runPair{
+	pairs := []runPair{
 		{generic.RunPoll, fmt.Sprintf("%d@%s", report.Polls, report.Interval)},
 		{generic.RunWall, FormatTime(report.Wall)},
-		{generic.RunExit, strconv.Itoa(report.ExitCode)},
 	}
+	if report.Rusage != nil {
+		cpuTime := report.Rusage.Utime.Nano() + report.Rusage.Stime.Nano()
+		pairs = append(pairs, runPair{generic.RunUtil, fmt.Sprintf("%.0f%%", 100*float64(cpuTime)/float64(report.Wall))})
+	}
+	return append(pairs, runPair{generic.RunExit, strconv.Itoa(report.ExitCode)})
 }
 
 func schedPairs(report Report) []runPair {
